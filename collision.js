@@ -185,3 +185,30 @@ export function nearestFreeFootprint(candidate, obstacles, maxRadius = 1.8) {
   }
   return null;
 }
+
+/** At release, separate overlapping floor rectangles, moving smaller ones more. */
+export function settleFootprintsBySize(source,maxIterations=48){
+ const items=source.map(x=>({...x})),groups=new Map();
+ for(const x of items){x.groupId=x.groupId??x.id;const g=groups.get(x.groupId)||{area:0,items:[]};g.area+=Math.max(.0001,4*x.hx*x.hz);g.items.push(x);groups.set(x.groupId,g);}
+ const translate=(id,dx,dz)=>{for(const x of groups.get(id).items){x.x+=dx;x.z+=dz;}};
+ for(let k=0;k<maxIterations;k++){
+  let most=0;
+  for(let i=0;i<items.length;i++)for(let j=i+1;j<items.length;j++){
+   const a=items[i],b=items[j];if(a.groupId===b.groupId)continue;
+   let depth=Infinity,nx=0,nz=0;
+   for(const [ax,az] of [...axes(a),...axes(b)]){
+    const separation=(b.x-a.x)*ax+(b.z-a.z)*az;
+    const d=projectionRadius(a,ax,az)+projectionRadius(b,ax,az)+CLEARANCE-Math.abs(separation);
+    if(d<=0){depth=-1;break;}
+    if(d<depth){depth=d;const dir=Math.abs(separation)>EPS?Math.sign(separation):String(a.id)<String(b.id)?1:-1;nx=ax*dir;nz=az*dir;}
+   }
+   if(depth<=0||!Number.isFinite(depth))continue;
+   most=Math.max(most,depth);
+   const areaA=groups.get(a.groupId).area,areaB=groups.get(b.groupId).area,step=depth+.0005;
+   translate(a.groupId,-nx*step*areaB/(areaA+areaB),-nz*step*areaB/(areaA+areaB));
+   translate(b.groupId,nx*step*areaA/(areaA+areaB),nz*step*areaA/(areaA+areaB));
+  }
+  if(most<.0001)break;
+ }
+ return items.map(({id,x,z})=>({id,x,z}));
+}

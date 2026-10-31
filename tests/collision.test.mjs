@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {footprint,footprintsOverlap,moveWithoutOverlap,rotateWithoutOverlap,moveGroupWithoutOverlap,rotateGroupWithoutOverlap,nearestFreeFootprint,isFloorSolid} from '../collision.js';
+import {footprint,footprintsOverlap,moveWithoutOverlap,rotateWithoutOverlap,moveGroupWithoutOverlap,rotateGroupWithoutOverlap,nearestFreeFootprint,isFloorSolid,settleFootprintsBySize} from '../collision.js';
 const box=(x,z,w=2,d=1,a=0)=>footprint([w,.85,d],x,z,a);
 
 test('rotated footprints detect real contact',()=>{
@@ -72,4 +72,18 @@ test('linked chair rotation stops before hitting nearby sofa',()=>{
  const x=chair.x*Math.cos(safe)+chair.z*Math.sin(safe);
  const z=-chair.x*Math.sin(safe)+chair.z*Math.cos(safe);
  assert.equal(footprintsOverlap({...chair,x,z,angle:safe},blocker),false);
+});
+
+test('floor overlap settles by size, moving the smaller item further',()=>{
+ const big={...box(0,0,2.4,.9),id:1},small={...box(.7,0,.4,.4),id:2};
+ const [a,b]=settleFootprintsBySize([big,small]);
+ assert.equal(footprintsOverlap({...big,...a},{...small,...b}),false);
+ assert.ok(Math.hypot(b.x-small.x,b.z-small.z)>8*Math.hypot(a.x-big.x,a.z-big.z));
+});
+test('dining table and chairs remain a rigid group during settlement',()=>{
+ const table={...box(0,0,1.5,.7),id:10,groupId:10},chair={...box(0,1,.48,.47),id:11,groupId:10},sofa={...box(0,.95,2,.8),id:12};
+ const [a,b,d]=settleFootprintsBySize([table,chair,sofa]);
+ assert.ok(Math.abs(b.x-a.x-(chair.x-table.x))<1e-6);
+ assert.ok(Math.abs(b.z-a.z-(chair.z-table.z))<1e-6);
+ assert.equal(footprintsOverlap({...chair,...b},{...sofa,...d}),false);
 });
