@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.js';
 import {createFurniture,furnitureHit} from './furniture.js?v=0.5.4';
 import {createDecor} from './decor.js?v=0.5.4';
-import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.5.7';
+import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.5.8';
 import {applyRugStyle} from './rug-textures.js?v=0.5.4';
 import {MeasureTool} from './measure-tool.js?v=0.5.4';
 import {requestARSession,xrError} from './xr.js?v=0.5.4';
@@ -418,7 +418,7 @@ void main(){
    setDragOcclusion(disabled){
     this.originalAo??=new WeakMap();
     for(const item of this.items)item.traverse(obj=>{
-     if(obj.name==='contact-shadow'||obj.name==='chido-contact-shadow'){obj.visible=!disabled;return;}
+     if(obj.name==='contact-shadow'||obj.name==='chido-contact-shadow'){this.dragShadowMemory??=new WeakMap();if(disabled){if(!this.dragShadowMemory.has(obj))this.dragShadowMemory.set(obj,obj.visible);obj.visible=false;}else if(this.dragShadowMemory.has(obj)){obj.visible=this.dragShadowMemory.get(obj);this.dragShadowMemory.delete(obj);}return;}
      if(!obj.isMesh||item.userData.index!==22)return;
      for(const mat of Array.isArray(obj.material)?obj.material:[obj.material]){
       if(!mat?.aoMap)continue;
