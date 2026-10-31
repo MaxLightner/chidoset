@@ -22,13 +22,14 @@ export const SOFA_FABRICS=Object.freeze([
  {id:'creme',label:'کرم',file:'creme-fabric.jpg'},
  {id:'gray',label:'خاکستری',file:'gray-fabric.jpg'}
 ]);
+const SOFA_AO=Object.freeze({22:'sofa-3-ao.jpg',23:'sofa-2-ao.jpg',24:'sofa-1-ao.jpg'});
 const textureLoader=new THREE.TextureLoader();
 const fabricCache=new Map();
 // GLB uv coordinates follow glTF image orientation (top-left origin).
 // TextureLoader flips external JPEGs by default, unlike GLTFLoader.
 // Explicitly align both the AO atlas and the independently tiled fabrics.
 export function configureSofaTexture(texture,file,repeat=4){
- const isAO=file==='sofa-ao.jpg';
+ const isAO=file.startsWith('sofa-')&&file.endsWith('-ao.jpg');
  texture.flipY=false;
  texture.colorSpace=isAO?THREE.NoColorSpace:THREE.SRGBColorSpace;
  texture.wrapS=texture.wrapT=isAO?THREE.ClampToEdgeWrapping:THREE.RepeatWrapping;
@@ -39,13 +40,13 @@ export function configureSofaTexture(texture,file,repeat=4){
 function loadFabric(file,repeat=4){
  const key=file+':'+repeat;
  if(!fabricCache.has(key)){
-  const texture=textureLoader.load(new URL('./assets/chido/'+file+(file==='sofa-ao.jpg'?'?v=0.5.9':''),import.meta.url).href);
+  const texture=textureLoader.load(new URL('./assets/chido/'+file+'?v=0.6.0',import.meta.url).href);
   configureSofaTexture(texture,file,repeat);
   fabricCache.set(key,texture);
  }
  return fabricCache.get(key);
 }
-export function applySofaFabric(model,id='dark'){
+export function applySofaFabric(model,id='dark',index=22){
  const fabric=SOFA_FABRICS.find(x=>x.id===id)||SOFA_FABRICS[0];
  model.userData.fabric=fabric.id;
  model.traverse(object=>{
@@ -57,7 +58,7 @@ export function applySofaFabric(model,id='dark'){
   for(const material of materials){
    if(!material?.isMeshStandardMaterial)continue;
    material.map=loadFabric(fabric.file,4);
-   material.aoMap=loadFabric('sofa-ao.jpg',1);
+   material.aoMap=loadFabric(SOFA_AO[index],1);
    material.aoMapIntensity=1.15;
    // Imported baked roughness/metallic/normal maps are not fabric maps.
    material.normalMap=null;material.bumpMap=null;
@@ -74,7 +75,7 @@ export const isImportedLight=index=>index===28||index===29;
 export const isImportedNoShadow=index=>[28,29,30,31].includes(index);
 const source=(file)=>{
  if(!cache.has(file)){
-  const url=new URL('./assets/chido/'+file+(file==='sofaA1.glb'?'?v=0.5.9':''),import.meta.url).href;
+  const url=new URL('./assets/chido/'+file+(['sofaA1.glb','SofaC1.glb','sofab1.glb'].includes(file)?'?v=0.6.0':''),import.meta.url).href;
   cache.set(file,loader.loadAsync(url).catch(error=>{cache.delete(file);throw error;}));
  }
  return cache.get(file);
@@ -150,14 +151,6 @@ export function createImportedModel(index,size){
   visual.rotation.y=spec.yaw;
   visual.updateMatrixWorld(true);
   let box=new THREE.Box3().setFromObject(visual);
-  if(index===22&&box.getSize(new THREE.Vector3()).x>0){
-   // New three-seat GLB is 0.98 m wide in Blender units; scale uniformly
-   // to the catalog 2.107 m instead of stretching its proportions.
-   const uniformScale=size[0]/box.getSize(new THREE.Vector3()).x;
-   visual.scale.setScalar(uniformScale);
-   visual.updateMatrixWorld(true);
-   box=new THREE.Box3().setFromObject(visual);
-  }
   if([28,29].includes(index)&&box.getSize(new THREE.Vector3()).y>0){
    const uniformScale=size[1]/box.getSize(new THREE.Vector3()).y;
    visual.scale.setScalar(uniformScale);
@@ -170,7 +163,7 @@ export function createImportedModel(index,size){
   visual.position.y-=box.min.y+size[1]/2;
   visual.name='imported-visual';
   proxy.add(visual);
-  if(index===22)applySofaFabric(visual,proxy.userData.fabric||'dark');
+  if(SOFA_AO[index])applySofaFabric(visual,proxy.userData.fabric||'dark',index);
   if(isImportedLight(index))addLampLight(proxy,index,size);
   proxy.userData.modelLoaded=true;
   proxy.userData.onModelReady?.();

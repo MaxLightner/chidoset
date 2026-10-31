@@ -1,4 +1,4 @@
-import {CATALOG} from './spatial.js';
+import {CATALOG} from './spatial.js?v=0.6.0';
 const categoryByIndex=index=>[0,1,3,22,23,24].includes(index)?'seating':[2,12,13,25,26,27].includes(index)?'low-tables':[10,11].includes(index)?'dining':index===9?'workspace':index===8?'bedroom':[7,31].includes(index)?'rugs':index>=16&&index<=21?'wall-art':'decor';
 export const RUG_SIZE_PRESETS=Object.freeze([
  {id:'170x240',label:'۱.۷ × ۲.۴ متر',size:[2.4,.015,1.7]},
