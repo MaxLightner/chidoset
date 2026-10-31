@@ -18,7 +18,8 @@ jobs:
         run: |
           python -m pip install --quiet gdown==5.2.0
           mkdir -p assets/chido
-          gdown --id 1dBKpaGP2d_W5zd8Dc7tK_JCNoGrumgFm -O assets/chido/sofaA1.glb
+          gdown --id 192eH3aT2pCgUmhA4YcYuk5pE9akLdg6v -O assets/chido/sofaA1.glb
+          gdown --id 144flw2QmICX53mp6QRpYKA6E7adENKtP -O assets/chido/sofa-ao.jpg
           gdown --id 1ScNpckbU6rxNl6NHpPBT9AOp5tJoNnmx -O assets/chido/sofab1.glb
           gdown --id 126Yx9A6zvpwonwYJIluJXMyGPhPfYx4V -O assets/chido/SofaC1.glb
           gdown --id 1a4hgC1ZMbHkjVMAnqZtQzc1F2gWS98xZ -O assets/chido/desks2.glb
@@ -39,11 +40,15 @@ jobs:
               assert len(data) > 100000 and data[:4] == b'glTF', f'Invalid GLB: {path}'
               print(f'Valid: {path} ({len(data)} bytes)')
           PY
+      - name: Render updated lightweight white-background thumbnails
+        run: |
+          python -m pip install --quiet numpy pillow
+          python generate-thumbnails.py
       - name: Commit imported models
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add assets/chido/*.glb
+          git add assets/chido/*.glb assets/chido/sofa-ao.jpg assets/chido/thumbs/*.jpg
           if ! git diff --cached --quiet; then
             git commit -m 'Import ten scaled furniture and decor GLB models from Drive'
             git push

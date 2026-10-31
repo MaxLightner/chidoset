@@ -49,7 +49,10 @@ export function applySofaFabric(model,id='dark'){
    if(!material?.isMeshStandardMaterial)continue;
    material.map=loadFabric(fabric.file,4);
    material.aoMap=loadFabric('sofa-ao.jpg',1);
-   material.aoMapIntensity=.9;
+   material.aoMapIntensity=1.15;
+   // Imported baked roughness/metallic/normal maps are not fabric maps.
+   material.normalMap=null;material.bumpMap=null;
+   material.metalnessMap=null;material.roughnessMap=null;
    material.color.set(0xffffff);
    material.roughness=.88;
    material.metalness=0;
@@ -138,6 +141,14 @@ export function createImportedModel(index,size){
   visual.rotation.y=spec.yaw;
   visual.updateMatrixWorld(true);
   let box=new THREE.Box3().setFromObject(visual);
+  if(index===22&&box.getSize(new THREE.Vector3()).x>0){
+   // New three-seat GLB is 0.98 m wide in Blender units; scale uniformly
+   // to the catalog 2.107 m instead of stretching its proportions.
+   const uniformScale=size[0]/box.getSize(new THREE.Vector3()).x;
+   visual.scale.setScalar(uniformScale);
+   visual.updateMatrixWorld(true);
+   box=new THREE.Box3().setFromObject(visual);
+  }
   if([28,29].includes(index)&&box.getSize(new THREE.Vector3()).y>0){
    const uniformScale=size[1]/box.getSize(new THREE.Vector3()).y;
    visual.scale.setScalar(uniformScale);
