@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.js';
 import {createFurniture,furnitureHit} from './furniture.js?v=0.5.4';
 import {createDecor} from './decor.js?v=0.5.4';
-import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.5.8';
+import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.5.9';
 import {applyRugStyle} from './rug-textures.js?v=0.5.4';
 import {MeasureTool} from './measure-tool.js?v=0.5.4';
 import {requestARSession,xrError} from './xr.js?v=0.5.4';
@@ -14,7 +14,7 @@ import {buildLayout} from './layout-templates.js?v=0.5.4';
 import {captureInternalAR,canCaptureCamera,InternalCaptureUnavailable} from './internal-camera-capture.js?v=0.5.4';
 import {assetMetadata,isLamp,isSofa,isTable,isWallArt} from './asset-metadata.js?v=0.5.4';
 import {installSofaCushions} from './sofa-cushions.js?v=0.5.4';
-import {isFloorSolid,footprint,footprintsOverlap,moveWithoutOverlap,rotateWithoutOverlap,moveGroupWithoutOverlap,rotateGroupWithoutOverlap,nearestFreeFootprint,settleFootprintsBySize} from './collision.js?v=0.5.8';
+import {isFloorSolid,footprint,footprintsOverlap,moveWithoutOverlap,rotateWithoutOverlap,moveGroupWithoutOverlap,rotateGroupWithoutOverlap,nearestFreeFootprint,settleFootprintsBySize} from './collision.js?v=0.5.9';
 export const palette=['#b6bca2','#d5c4ad','#b9c4c6','#ba9380'];
 const fa=n=>n.toLocaleString('fa-IR',{maximumFractionDigits:1});
 export class Studio{

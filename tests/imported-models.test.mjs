@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {CATALOG} from '../spatial.js';
-import {IMPORTED_MODELS,isImportedNoShadow,isImportedLight} from '../imported-models.js';
+import {IMPORTED_MODELS,isImportedNoShadow,isImportedLight,configureSofaTexture} from '../imported-models.js';
+import * as THREE from '../vendor/three.module.js';
 import {isFloorSolid} from '../collision.js';
 import {isLamp,isRug,assetMetadata,categoryForIndex} from '../asset-metadata.js';
 
@@ -38,4 +39,21 @@ test('imported lights and rug use existing app power and collision exemptions',(
  for(const index of [28,29,30,31])assert.equal(isImportedNoShadow(index),true);
  assert.equal(isImportedNoShadow(22),false);
  assert.equal(categoryForIndex(31),'rugs');
+});
+
+test('external AO follows the native GLB UV orientation, not a vertically flipped atlas',()=>{
+ const ao=configureSofaTexture(new THREE.Texture(),'sofa-ao.jpg',4);
+ const fabric=configureSofaTexture(new THREE.Texture(),'dark-fabric.jpg',4);
+ assert.equal(ao.flipY,false);
+ assert.equal(fabric.flipY,false);
+ assert.equal(ao.colorSpace,THREE.NoColorSpace);
+ assert.equal(fabric.colorSpace,THREE.SRGBColorSpace);
+ assert.equal(ao.wrapS,THREE.ClampToEdgeWrapping);
+ assert.equal(ao.wrapT,THREE.ClampToEdgeWrapping);
+ assert.equal(ao.repeat.x,1);
+ assert.equal(ao.repeat.y,1);
+ assert.equal(fabric.wrapS,THREE.RepeatWrapping);
+ assert.equal(fabric.wrapT,THREE.RepeatWrapping);
+ assert.equal(fabric.repeat.x,4);
+ assert.equal(fabric.repeat.y,4);
 });

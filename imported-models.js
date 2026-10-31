@@ -24,14 +24,23 @@ export const SOFA_FABRICS=Object.freeze([
 ]);
 const textureLoader=new THREE.TextureLoader();
 const fabricCache=new Map();
+// GLB uv coordinates follow glTF image orientation (top-left origin).
+// TextureLoader flips external JPEGs by default, unlike GLTFLoader.
+// Explicitly align both the AO atlas and the independently tiled fabrics.
+export function configureSofaTexture(texture,file,repeat=4){
+ const isAO=file==='sofa-ao.jpg';
+ texture.flipY=false;
+ texture.colorSpace=isAO?THREE.NoColorSpace:THREE.SRGBColorSpace;
+ texture.wrapS=texture.wrapT=isAO?THREE.ClampToEdgeWrapping:THREE.RepeatWrapping;
+ texture.repeat.set(isAO?1:repeat,isAO?1:repeat);
+ texture.anisotropy=8;
+ return texture;
+}
 function loadFabric(file,repeat=4){
  const key=file+':'+repeat;
  if(!fabricCache.has(key)){
-  const texture=textureLoader.load(new URL('./assets/chido/'+file+(file==='sofa-ao.jpg'?'?v=0.5.8':''),import.meta.url).href);
-  texture.colorSpace=file==='sofa-ao.jpg'?THREE.NoColorSpace:THREE.SRGBColorSpace;
-  texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
-  texture.repeat.set(repeat,repeat);
-  texture.anisotropy=8;
+  const texture=textureLoader.load(new URL('./assets/chido/'+file+(file==='sofa-ao.jpg'?'?v=0.5.9':''),import.meta.url).href);
+  configureSofaTexture(texture,file,repeat);
   fabricCache.set(key,texture);
  }
  return fabricCache.get(key);
@@ -65,7 +74,7 @@ export const isImportedLight=index=>index===28||index===29;
 export const isImportedNoShadow=index=>[28,29,30,31].includes(index);
 const source=(file)=>{
  if(!cache.has(file)){
-  const url=new URL('./assets/chido/'+file+(file==='sofaA1.glb'?'?v=0.5.8':''),import.meta.url).href;
+  const url=new URL('./assets/chido/'+file+(file==='sofaA1.glb'?'?v=0.5.9':''),import.meta.url).href;
   cache.set(file,loader.loadAsync(url).catch(error=>{cache.delete(file);throw error;}));
  }
  return cache.get(file);
