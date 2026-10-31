@@ -27,7 +27,7 @@ const fabricCache=new Map();
 function loadFabric(file,repeat=4){
  const key=file+':'+repeat;
  if(!fabricCache.has(key)){
-  const texture=textureLoader.load(new URL('./assets/chido/'+file,import.meta.url).href);
+  const texture=textureLoader.load(new URL('./assets/chido/'+file+(file==='sofa-ao.jpg'?'?v=0.5.8':''),import.meta.url).href);
   texture.colorSpace=file==='sofa-ao.jpg'?THREE.NoColorSpace:THREE.SRGBColorSpace;
   texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
   texture.repeat.set(repeat,repeat);
@@ -65,7 +65,7 @@ export const isImportedLight=index=>index===28||index===29;
 export const isImportedNoShadow=index=>[28,29,30,31].includes(index);
 const source=(file)=>{
  if(!cache.has(file)){
-  const url=new URL('./assets/chido/'+file,import.meta.url).href;
+  const url=new URL('./assets/chido/'+file+(file==='sofaA1.glb'?'?v=0.5.8':''),import.meta.url).href;
   cache.set(file,loader.loadAsync(url).catch(error=>{cache.delete(file);throw error;}));
  }
  return cache.get(file);
