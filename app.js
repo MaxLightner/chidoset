@@ -195,6 +195,9 @@ async function render(){const version=++routeVersion;const route=location.hash.s
   studio.onHint=toast;
   studio.onWideViewError=message=>{resetWideViewControls();toast(message);};
   studio.onWideViewReset=resetWideViewControls;
+  studio.onWideViewProjection=projection=>{
+   if($('#wideViewMode')?.value!=='ar')showWideProjection(projection);
+  };
    studio.onLiveChange=()=>minimap.render();
    studio.onABPosition=point=>{const el=$('#abInline');if(!point||!studio?.session||studio.photoMode){el.hidden=true;return;}el.hidden=false;el.style.left=Math.max(72,Math.min(innerWidth-72,point.x))+'px';el.style.top=Math.max(88,Math.min(innerHeight-125,point.y))+'px';$('#abLengthButton').textContent='A—B · '+Math.round(studio.measurement().correctedCm).toLocaleString('fa-IR')+' cm ✎';};
   studio.onSelectionScreen=()=>{
@@ -423,6 +426,7 @@ function handleARReport(report){
  $('#arDock').hidden=!report.placed;$('#arMiniMap').hidden=!report.placed;$('#arBottomActions').hidden=!report.placed;if(report.placed)minimap.render();else $('#abInline').hidden=true;
  $('#arDock').classList.toggle('ready',report.placed);
  const wideSelect=$('#wideViewMode');wideSelect.disabled=!report.placed||!studio?.hasOverlay;
+ $('#wideNatural').disabled=wideSelect.disabled;
  if(!report.placed)resetWideViewControls();
  $('#overlay').classList.toggle('floor-ready',report.placed);
  if(!report.placed){closeArSheet();$('#measureHint').hidden=true;}
@@ -431,15 +435,25 @@ function handleARReport(report){
 async function startAR(basic=false){if(!studio||studio.session||arStarting)return;arStarting=true;const button=$('#startAR');button.disabled=true;$('#arError').close();try{$('#overlay').hidden=false;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=false;$('#scanProgress').value=12;$('#scanStage').textContent='راه‌اندازی AR…';$('#scanPercent').textContent='۱۲٪';closeArSheet();$('#arSettings').hidden=true;$('#arStatus').textContent='در حال شناسایی کف…';resetWideViewControls();const result=await studio.startAR(message=>$('#arStatus').textContent=message,handleARReport,basic,{light:!basic&&$('#lightEnabled').checked,depth:!basic&&$('#depthEnabled').checked});if(!result.hasOverlay)$('#overlay').hidden=true;studio.setDebugVisible(debugEnabled);updateObjects();}catch(error){$('#overlay').hidden=true;$('#arDock').hidden=true;const failure=explainXR(error);lastXRErrorReport=JSON.stringify({version:'0.4.1',mode:basic?'basic':'full',stage:failure.stage,name:failure.name,message:failure.detail,secureContext:isSecureContext,webXR:!!navigator.xr,supportCheck:supported,userAgent:navigator.userAgent},null,2);$('#arErrorMessage').textContent=failure.message;$('#arErrorDetails').textContent=lastXRErrorReport;$('#arError').showModal();console.error(error);}finally{arStarting=false;button.disabled=false;}}
 function resetWideViewControls(){
  const select=$('#wideViewMode');if(select){select.value='ar';select.disabled=true;}
+ const natural=$('#wideNatural');if(natural)natural.disabled=true;
  const hint=$('#wideViewHint');if(hint)hint.textContent='نمای دوربین واقعی · بدون تغییر مقیاس';
 }
-$('#wideViewMode').onchange=()=>{
+function showWideProjection({horizontal,requestedHorizontal,limited}){
+ const actual=Math.round(horizontal);
+ $('#wideViewHint').textContent=limited
+  ?`طبیعی · دید افقی ${actual}° (از ${requestedHorizontal}°) · ارتفاع واقعی ثابت`
+  :`دید افقی ${actual}° · Pose زنده XR · مقیاس ۱:۱`;
+}
+function applyWideMode(){
  const select=$('#wideViewMode'),mode=select.value;
- const outcome=studio?.setWideView(mode)||{ok:false,reason:'جلسه AR فعال نیست.'};
+ const outcome=studio?.setWideView(mode,{natural:$('#wideNatural').checked})||
+  {ok:false,reason:'جلسه AR فعال نیست.'};
  if(!outcome.ok){select.value=studio?.wideMode||'ar';toast(outcome.reason);return;}
- $('#wideViewHint').textContent=mode==='ar'?'تصویر دوربین واقعی · ردیابی AR':
-  `دید ${outcome.hfov}° · Pose زنده XR · بدون تصویر دوربین`;
-};
+ if(mode==='ar')$('#wideViewHint').textContent='تصویر دوربین واقعی · ردیابی AR';
+ else showWideProjection({horizontal:outcome.hfov,requestedHorizontal:outcome.requestedHfov,limited:outcome.limited});
+}
+$('#wideViewMode').onchange=applyWideMode;
+$('#wideNatural').onchange=()=>{if(studio?.session&&studio.wideMode!=='ar')applyWideMode();};
 let debugEnabled=false;
 function refreshDebugPanel(){
  const panel=$('#arDebugPanel');if(!panel||panel.hidden||!studio)return;

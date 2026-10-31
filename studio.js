@@ -5,7 +5,7 @@ import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} 
 import {applyRugStyle} from './rug-textures.js?v=0.5.4';
 import {MeasureTool} from './measure-tool.js?v=0.5.4';
 import {requestARSession,xrError} from './xr.js?v=0.5.4';
-import {WideViewRenderer,WIDE_VIEW_FOV} from './wide-view.js?v=0.7.0';
+import {WideViewRenderer,WIDE_VIEW_FOV} from './wide-view.js?v=0.7.1';
 import {SpatialState,CATALOG,pairAngle,wrappedAngle} from './spatial.js?v=0.7.0';
 import {FloorScanner,floorCandidates} from './surfaces.js?v=0.5.4';
 import {EnvironmentEffects} from './effects.js?v=0.5.4';
@@ -90,7 +90,7 @@ void main(){
   this.attachInput(host,opts);const surface=document.querySelector('#arSurface');if(surface)this.attachInput(surface,opts);
   this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(host);this.syncSpatial();this.resize();this.renderer.setAnimationLoop((time,frame)=>this.frame(time,frame));
  }
- setWideView(mode='ar'){
+ setWideView(mode='ar',{natural=true}={}){
   if(mode==='ar'){
    this.wideMode='ar';this.wideView?.disable();this.cancelGesture();
    return {ok:true,mode};
@@ -105,8 +105,9 @@ void main(){
    if(!this.wideView){
     this.wideView=new WideViewRenderer(this.scene,document.querySelector('#overlay'));
     this.wideView.onFailure=reason=>{this.setWideView('ar');this.onWideViewError?.(reason);};
+    this.wideView.onProjectionChange=projection=>this.onWideViewProjection?.(projection);
    }
-   this.wideView.setMode(mode);
+   this.wideView.setMode(mode,{natural});
    const xrCamera=this.renderer.xr.getCamera();
    const tracked=xrCamera.cameras?.[0]||xrCamera;
    tracked.updateWorldMatrix(true,false);
@@ -114,7 +115,8 @@ void main(){
    tracked.getWorldQuaternion(this.wideView.camera.quaternion);
    this.wideView.camera.updateMatrixWorld(true);
    this.wideMode=mode;this.cancelGesture();
-   return {ok:true,mode,hfov:WIDE_VIEW_FOV[mode]};
+   return {ok:true,mode,hfov:this.wideView.horizontalFov,
+    vfov:this.wideView.verticalFov,requestedHfov:WIDE_VIEW_FOV[mode],limited:this.wideView.limited};
   }catch(error){
    this.wideView?.disable();this.wideMode='ar';
    return {ok:false,reason:'این دستگاه نتوانست نمای واید مستقل را اجرا کند: '+(error?.message||error)};

@@ -2,12 +2,28 @@ import * as THREE from './vendor/three.module.js';
 
 // Horizontal FOV values. They describe a virtual perspective, not a phone lens.
 export const WIDE_VIEW_FOV=Object.freeze({normal:60,wide:84,ultra:100});
+// The physical portrait viewport makes a 100-degree horizontal view almost 138 degrees tall.
+// Limit only the *virtual vertical framing* in Natural mode; never stretch the geometry.
+export const NATURAL_VERTICAL_CAP=Object.freeze({normal:98,wide:110,ultra:120});
 
 export function verticalFovFromHorizontal(horizontalDegrees,aspect){
  if(!Number.isFinite(horizontalDegrees)||horizontalDegrees<=0||horizontalDegrees>=180||
     !Number.isFinite(aspect)||aspect<=0)throw RangeError('Invalid field of view or aspect ratio');
  return THREE.MathUtils.radToDeg(2*Math.atan(
   Math.tan(THREE.MathUtils.degToRad(horizontalDegrees)/2)/aspect));
+}
+
+// Preserve exact horizontal FOV when Natural is off or in landscape.
+// On a portrait screen, Natural mode sacrifices some horizontal coverage to keep a
+// rectilinear, undistorted image and a less extreme vertical perspective.
+export function wideViewProjection(mode,aspect,natural=true){
+ if(!Object.hasOwn(WIDE_VIEW_FOV,mode))throw RangeError('Invalid Wide View mode');
+ const requestedHorizontal=WIDE_VIEW_FOV[mode];
+ const requestedVertical=verticalFovFromHorizontal(requestedHorizontal,aspect);
+ const vertical=natural&&aspect<1?Math.min(requestedVertical,NATURAL_VERTICAL_CAP[mode]):requestedVertical;
+ const horizontal=THREE.MathUtils.radToDeg(2*Math.atan(
+  Math.tan(THREE.MathUtils.degToRad(vertical)/2)*aspect));
+ return {horizontal,vertical,requestedHorizontal,limited:vertical<requestedVertical-1e-7};
 }
 
 // XRView.transform is already expressed in the active XRReferenceSpace.
@@ -36,15 +52,16 @@ export class WideViewRenderer{
   this.canvas.setAttribute('aria-hidden','true');
   this.canvas.hidden=true;
   overlay.insertBefore(this.canvas,overlay.querySelector('#arSurface'));
-  this.mode='ar';this.width=0;this.height=0;this.active=false;this.lost=false;
+  this.mode='ar';this.natural=true;this.width=0;this.height=0;this.active=false;this.lost=false;
+  this.horizontalFov=0;this.verticalFov=0;this.limited=false;
   this.canvas.addEventListener('webglcontextlost',event=>{
    event.preventDefault();this.lost=true;this.disable();
    this.onFailure?.('مرورگر بافت گرافیکی نمای واید را از دست داد. به AR معمولی برگشتیم.');
   });
  }
- setMode(mode){
+ setMode(mode,{natural=true}={}){
   if(!Object.hasOwn(WIDE_VIEW_FOV,mode)||this.lost)throw Error('Wide View is unavailable');
-  this.mode=mode;this.active=true;this.canvas.hidden=false;
+  this.mode=mode;this.natural=natural;this.active=true;this.canvas.hidden=false;
   this.resize(true);
  }
  resize(force=false){
@@ -57,9 +74,14 @@ export class WideViewRenderer{
    this.camera.aspect=width/height;
    this.renderer.setSize(width,height,false);
   }
-  // Keep horizontal FOV fixed, including when a phone changes orientation.
-  this.camera.fov=verticalFovFromHorizontal(WIDE_VIEW_FOV[this.mode],this.camera.aspect);
+  const projection=wideViewProjection(this.mode,this.camera.aspect,this.natural);
+  const changed=Math.abs(this.horizontalFov-projection.horizontal)>.05||
+   Math.abs(this.verticalFov-projection.vertical)>.05||this.limited!==projection.limited;
+  this.horizontalFov=projection.horizontal;this.verticalFov=projection.vertical;
+  this.limited=projection.limited;
+  this.camera.fov=projection.vertical;
   this.camera.updateProjectionMatrix();
+  if(changed)this.onProjectionChange?.(projection);
  }
  updatePose(pose){return this.active&&copyTrackedView(this.camera,pose);}
  draw(){
