@@ -512,7 +512,7 @@ safeObjectMotion(mesh,desired){
     const step=this.session ? .28 : .65,factor=dist>step?step/dist:1;
     const desired={x:mesh.position.x+dx*factor,z:mesh.position.z+dz*factor};
     const dxMove=desired.x-mesh.position.x,dzMove=desired.z-mesh.position.z;for(const chair of this.linkedChairs(mesh)){chair.position.x+=dxMove;chair.position.z+=dzMove;}
-    mesh.position.x=safe.x;mesh.position.z=safe.z;
+    mesh.position.x=desired.x;mesh.position.z=desired.z;
     if([4,14,28].includes(this.selected.userData.index)){this.snapToSupport(this.selected);}else{this.keepOnFloor(this.selected);if(this.selected.userData.attachment){const link=this.selected.userData.attachment,base=this.items.find(m=>m.userData.id===link.id);if(base){const offset=this.selected.position.clone().sub(base.position).applyAxisAngle(new THREE.Vector3(0,1,0),-base.rotation.y);link.offset[0]=offset.x;link.offset[2]=offset.z;}}this.refreshAttachments();}}
   else if(g.kind==='A'){this.model.moveA(this.floorLocal(p).add(g.offset));this.syncSpatial();}
   else if(g.kind==='B'){this.model.moveB(this.floorLocal(p).add(g.offset));this.syncSpatial();}
