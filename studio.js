@@ -8,7 +8,7 @@ import {requestARSession,xrError} from './xr.js?v=0.5.4';
 import {WideViewRenderer,WIDE_VIEW_FOV} from './wide-view.js?v=0.7.1';
 import {SpatialState,CATALOG,pairAngle,wrappedAngle} from './spatial.js?v=0.7.0';
 import {FloorScanner,floorCandidates} from './surfaces.js?v=0.5.4';
-import {EnvironmentEffects} from './effects.js?v=0.5.4';
+import {EnvironmentEffects} from './effects.js?v=0.7.2';
 import {AnchorStabilizer,transformPoint} from './anchor-rig.js?v=0.5.4';
 import {ARDebugView} from './ar-debug.js?v=0.5.4';
 import {buildLayout} from './layout-templates.js?v=0.5.4';
@@ -162,7 +162,7 @@ void main(){
   mesh.position.y=isWallArt(index)?(position?.y>1?position.y:1.55):h/2;
   if(isSofa(index))installSofaCushions(mesh,options.cushionPreset||'none');
   // Transparent radial contact shadow: darkens the camera floor, not a black disc.
-  if(index!==7&&index!==5&&!isWallArt(index)&&!isLamp(index)&&!isImportedNoShadow(index))this.addContactShadow(mesh,w,d,h,index===4?.31:.68);
+  if(index!==7&&index!==5&&!isWallArt(index)&&!isLamp(index)&&!isImportedNoShadow(index)){this.addContactShadow(mesh,w,d,h,index===4?.20:.42);this.enableShadowCasting(mesh);}
   this.root.add(mesh);this.items.push(mesh);
   if(!position&&index===4){
    const table=this.items.find(m=>m!==mesh&&isTable(m.userData.index));
@@ -179,11 +179,12 @@ void main(){
    this.snapToSupport(mesh);
   }
    if(isImportedModel(index)){
-    mesh.userData.onModelReady=()=>{if([22,23,24].includes(index))this.setSofaFabric(mesh.userData.fabric,mesh);if(isLamp(index))this.initializeLamp(mesh,mesh.userData.lampOn);this.changed();};
+    mesh.userData.onModelReady=()=>{this.enableShadowCasting(mesh);if([22,23,24].includes(index))this.setSofaFabric(mesh.userData.fabric,mesh);if(isLamp(index))this.initializeLamp(mesh,mesh.userData.lampOn);this.changed();};
     mesh.userData.onModelError=()=>this.onHint?.('بارگذاری '+product.name+' ناموفق بود؛ اتصال مدل‌های کتابخانه را بررسی کن.');
    }
   if(!options.silentSelect)this.select(mesh);this.setGuides();return mesh;
  }
+ enableShadowCasting(mesh){mesh.traverse(node=>{if(node.isMesh&&node.name!=='contact-shadow'&&node.name!=='contact-shadow-receiver')node.castShadow=true;});}
  addContactShadow(mesh,w,d,h,opacity){
   // Radial darkening decal, alpha blended against the real-world passthrough
   // (no dependency on a virtual rug existing below the object).
@@ -195,6 +196,9 @@ void main(){
   });
   const shadow=new THREE.Mesh(new THREE.PlaneGeometry(w*1.28,d*1.25),material);
   shadow.rotation.x=-Math.PI/2;shadow.position.y=-h/2+.018;shadow.renderOrder=-1;shadow.name='contact-shadow';mesh.add(shadow);
+  // Dynamic real shadow atop the cheap fallback decal, composited over camera pixels.
+  const receiver=new THREE.Mesh(new THREE.PlaneGeometry(w*1.55,d*1.55),new THREE.ShadowMaterial({opacity:.33,transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+  receiver.rotation.x=-Math.PI/2;receiver.position.y=-h/2+.012;receiver.receiveShadow=true;receiver.renderOrder=-2;receiver.name='contact-shadow-receiver';mesh.add(receiver);
  }
  refreshAttachments(){for(const item of this.items){const link=item.userData.attachment;if(!link)continue;const base=this.items.find(m=>m.userData.id===link.id);if(!base){item.userData.attachment=null;this.keepOnFloor(item);continue;}const offset=new THREE.Vector3(...link.offset).applyAxisAngle(new THREE.Vector3(0,1,0),base.rotation.y);item.position.copy(base.position).add(offset);}}
  seed(kind='conversation',room='پذیرایی',people=5){
@@ -684,7 +688,7 @@ safeObjectMotion(mesh,desired){
       if(t>=1)this.revealStart=null;
      }
      this.updateAnchor(frame,space,time);if(!this.photoMode)this.status('A: انتقال ست · B: جهت ست · یک انگشت: حرکت · دو انگشت: چرخش');}
-   this.debugView.tick(frame,space,this,time);this.effects.update(frame,time,this.fps);this.frames++;if(time-this.lastReport>=750){this.fps=Math.round(this.frames*1000/(time-this.lastReport));this.frames=0;this.lastReport=time;}
+   this.debugView.tick(frame,space,this,time);this.effects.update(frame,time,this.fps);this.effects.updateShadowAnchor(this.floorFrame.position);this.frames++;if(time-this.lastReport>=750){this.fps=Math.round(this.frames*1000/(time-this.lastReport));this.frames=0;this.lastReport=time;}
    const report={fps:this.fps,objects:this.items.length,visible:this.root.visible&&pose?this.items.length:0,placed:this.model.locked,hit:this.scanner.ready,scanHits:this.scanHits,validHits:this.scanner.validHits,inlierHits:this.scanner.inlierHits,scanDrop:this.scanDrop,scanDistance:this.scanDistance,tracking:!!pose,anchor:this.anchorState,light:this.effects.lightState,depth:this.effects.depthState,photo:this.photoMode,...this.measurement()};const state=JSON.stringify(report);if(state!==this.lastReportState){this.onReport?.(report);this.lastReportState=state;}
   }
   if(this.session&&this.model.locked){
