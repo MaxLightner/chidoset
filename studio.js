@@ -184,7 +184,7 @@ void main(){
    }
   if(!options.silentSelect)this.select(mesh);this.setGuides();return mesh;
  }
- enableShadowCasting(mesh){mesh.traverse(node=>{if(node.isMesh&&node.name!=='contact-shadow'&&node.name!=='contact-shadow-receiver')node.castShadow=true;});}
+ enableShadowCasting(mesh){mesh.traverse(node=>{if(node.isMesh&&node.visible&&node.material?.opacity!==0&&node.name!=='contact-shadow'&&node.name!=='contact-shadow-receiver')node.castShadow=true;});}
  addContactShadow(mesh,w,d,h,opacity){
   // Radial darkening decal, alpha blended against the real-world passthrough
   // (no dependency on a virtual rug existing below the object).
