@@ -1,0 +1,31 @@
+name: Install approved HDR environment asset
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/install-hdr.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch and validate user-supplied HDR
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname 'assets/lighting/1.hdr')"
+          curl -fLsS --retry 3 --max-time 80 'https://showroom.silktouchjoinery.com.au/models/1.hdr' -o 'assets/lighting/1.hdr'
+          echo '469abc5e6035b6c450bae8adbb448f8d1fa7c51d9e384e501516c28352c91b58  assets/lighting/1.hdr' | sha256sum --check
+      - name: Publish validated lighting asset
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add 'assets/lighting/1.hdr'
+          if ! git diff --cached --quiet; then
+            git commit -m 'Store verified HDR lighting map'
+            git push
+          fi
