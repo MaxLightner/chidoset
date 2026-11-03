@@ -688,7 +688,7 @@ safeObjectMotion(mesh,desired){
       if(t>=1)this.revealStart=null;
      }
      this.updateAnchor(frame,space,time);if(!this.photoMode)this.status('A: انتقال ست · B: جهت ست · یک انگشت: حرکت · دو انگشت: چرخش');}
-   this.debugView.tick(frame,space,this,time);this.effects.update(frame,time,this.fps);this.effects.updateShadowAnchor(this.floorFrame.position);this.frames++;if(time-this.lastReport>=750){this.fps=Math.round(this.frames*1000/(time-this.lastReport));this.frames=0;this.lastReport=time;}
+   this.debugView.tick(frame,space,this,time);this.effects.update(frame,time,this.fps);this.effects.updateShadowAnchor?.(this.floorFrame.position);this.frames++;if(time-this.lastReport>=750){this.fps=Math.round(this.frames*1000/(time-this.lastReport));this.frames=0;this.lastReport=time;}
    const report={fps:this.fps,objects:this.items.length,visible:this.root.visible&&pose?this.items.length:0,placed:this.model.locked,hit:this.scanner.ready,scanHits:this.scanHits,validHits:this.scanner.validHits,inlierHits:this.scanner.inlierHits,scanDrop:this.scanDrop,scanDistance:this.scanDistance,tracking:!!pose,anchor:this.anchorState,light:this.effects.lightState,depth:this.effects.depthState,photo:this.photoMode,...this.measurement()};const state=JSON.stringify(report);if(state!==this.lastReportState){this.onReport?.(report);this.lastReportState=state;}
   }
   if(this.session&&this.model.locked){
