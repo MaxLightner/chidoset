@@ -1,11 +1,11 @@
-import {explainXR} from './xr.js?v=0.5.4';
+import {explainXR,requestARSession} from './xr.js?v=0.5.4';
 import {photos,savePhoto,removePhoto} from './storage.js';
 import {CAMERA_RATIOS,CAMERA_PHOTO_KIND,isCameraPhoto,effectiveCameraRatio} from './camera-capture.js?v=0.5.4';
 import {RUG_STYLES,rugPreviewDataUrl} from './rug-textures.js?v=0.5.4';
 import {allowedCapacities,layoutOptions,buildLayout,layoutSummary,layoutPreviewSvg} from './layout-templates.js?v=0.5.4';
 import {readDraft,saveDraft,clearDraft,listCustomLayouts,saveCustomLayout,overwriteCustomLayout,removeCustomLayout} from './layout-storage.js?v=0.5.4';
 import {ASSET_CATEGORIES,RUG_SIZE_PRESETS,isLamp,isSofa,isTable,isWallArt,variantsFor,categoryForIndex} from './asset-metadata.js?v=0.7.0';
-import {savedPlanSvg} from './saved-plan.js?v=0.5.4';
+import {savedPlanSvg} from './saved-plan.js?v=0.8.0';
 import {LiveMiniMap} from './minimap.js?v=0.5.4';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
 import {SOFA_FABRICS} from './imported-models.js?v=0.7.0';
@@ -13,6 +13,7 @@ const $=s=>document.querySelector(s),app=$('#app'),fa=n=>n.toLocaleString('fa-IR
 let studio,Scene,palette,space='پذیرایی',layout='conversation',supported=false,routeVersion=0,photoURLs=[],savedItems=[],arReport=null,sceneMemory=null,arStarting=false,lastXRErrorReport='',activeSavedLayoutId=null;
 const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio);
 let chidoMenuOpen=false;
+let pendingARSession=null,calibrationPrompted=false;
 let homeExitRequested=false,homeExitBusy=false,homeExitFallback=null;
 const themes=[
  {name:'کرم و چوب',colors:['#cfbeaa','#c9bdae','#aa9882','#d7c8b4']},
@@ -83,7 +84,7 @@ function heading(step,title,sub,back){return `<div class="page-heading"><div><sp
 async function full(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(!document.documentElement.requestFullscreen){toast('مرورگر شما تمام‌صفحه را پشتیبانی نمی‌کند.');return;}try{await document.documentElement.requestFullscreen();}catch{toast('ورود به تمام‌صفحه ممکن نشد؛ می‌توانی ادامه بدهی.');}}
 $('#fullscreen').onclick=full;document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'خروج از تمام‌صفحه ↙':'تمام‌صفحه ⛶');
 async function support(){try{supported=!!(isSecureContext&&navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar'));}catch{supported=false;}return supported;}
-async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.7.2');Scene=m.Studio;palette=m.palette;}}
+async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.8.0');Scene=m.Studio;palette=m.palette;}}
 let draftTimer=null;
 function currentSceneRecord(){
  if(!studio)return null;
@@ -111,11 +112,22 @@ function updateObjects(){if(!studio)return;const buttons=studio.items.map(m=>`<b
  for(const id of ['rotate','delete','rotation']){const el=$('#'+id);if(el)el.disabled=!mesh;}for(const id of ['selectedARTools']){const el=$('#'+id);if(el)el.hidden=!mesh;}
  updateMeasurements();minimap.render();scheduleDraftSave();}
 function updateMeasurements(){if(!studio)return;const m=studio.measurement();for(const id of ['measurement','arMeasurement']){const el=$('#'+id);if(el)el.textContent=`A—B: ${fa(m.measuredCm)} سانتی‌متر اندازه‌گیری‌شده · ضریب ${fa(m.scale)} · طول اصلاح‌شده ${fa(m.correctedCm)} سانتی‌متر`;}}
-function calibrationControls(prefix=''){return `<div class="calibration-controls"><p class="measurement" id="${prefix?'arMeasurement':'measurement'}"></p><label for="${prefix}actual">طول واقعی A—B (۱۰۰ تا ۱۰۰۰ سانتی‌متر)</label><div class="input-row"><input id="${prefix}actual" type="number" inputmode="decimal" min="100" max="1000" step="0.1" placeholder="مثلاً ۱۰۰"><button id="${prefix}calibrate">کالیبره کن</button><button id="${prefix}resetScale">۱:۱</button></div><small>A و B فقط مرجع اندازه‌گیری و کالیبراسیون هستند؛ برای جابه‌جایی یا چرخش چیدمان از ابزارهای مستقل استفاده کن.</small></div>`;}
-function bindCalibration(prefix=''){const initial=studio.measurement();if(initial.actualCm!==null)$('#'+prefix+'actual').value=initial.actualCm;const fail=fn=>()=>{try{fn();}catch(error){toast(error.message);}};$('#'+prefix+'calibrate').onclick=fail(()=>{studio.calibrate($('#'+prefix+'actual').value);toast('اندازه و فاصلهٔ همهٔ قطعات با هم اصلاح شد.');});$('#'+prefix+'resetScale').onclick=()=>studio.resetCalibration();}
+function calibrationControls(prefix=''){return `<div class="calibration-controls"><p class="measurement" id="${prefix?'arMeasurement':'measurement'}"></p><label for="${prefix}actual">طول واقعی A—B (۱۰۰ تا ۱۰۰۰ سانتی‌متر)</label><div class="input-row"><input id="${prefix}actual" type="number" inputmode="decimal" min="100" max="1000" step="0.1" placeholder="مثلاً ۱۰۰"><button id="${prefix}calibrate">کالیبره کن</button><button id="${prefix}resetScale">۱:۱</button></div><small>A کل صحنه را جابه‌جا می‌کند و B جهت آن را تعیین می‌کند.</small></div>`;}
+function bindCalibration(prefix=''){const initial=studio.measurement();if(initial.actualCm!==null)$('#'+prefix+'actual').value=initial.actualCm;const fail=fn=>()=>{try{fn();}catch(error){toast(error.message);}};$('#'+prefix+'calibrate').onclick=fail(()=>{studio.calibrate($('#'+prefix+'actual').value);$('#abCalibrationSheet').hidden=true;toast('مقیاس و مرجع پروژه تنظیم شد.');});$('#'+prefix+'resetScale').onclick=()=>studio.resetCalibration();}
 function snapshotItems(){savedItems=studio?studio.items.map(m=>({id:m.userData.id,name:m.userData.product.name,price:m.userData.price,color:'#'+m.material.color.getHexString()})):savedItems;}
 function uploadControl(){return `<label class="upload">بارگذاری تصویر +<input id="upload" type="file" accept="image/png,image/jpeg,image/webp" multiple></label>`;}
 async function uploadFiles(e){const files=[...e.target.files];if(files.length>20){toast('هر بار حداکثر ۲۰ تصویر بارگذاری کن.');return;}let count=0;for(const f of files){if(!['image/png','image/jpeg','image/webp'].includes(f.type)||f.size>15*1024*1024){toast('فقط PNG، JPEG و WebP تا ۱۵ مگابایت پذیرفته می‌شود.');continue;}try{const img=await createImageBitmap(f);img.close();await savePhoto(f,'تصویر بارگذاری‌شده');count++;}catch{toast('تصویر خوانده یا ذخیره نشد؛ فضای مرورگر را بررسی کن.');}}if(count){toast(`${fa(count)} تصویر به گالری اضافه شد.`);await render();}e.target.value='';}
+function openLayoutForScanning(kind,record=null){
+ if(record)loadSceneRecord(record);
+ else{layout=kind;sceneMemory=null;activeSavedLayoutId=null;clearDraft();}
+ previewEnabled=false;
+ // Start immersive permission request inside the original click event.
+ // Awaiting route rendering before this call loses the browser's user activation.
+ $('#overlay').hidden=false;$('#scanReadiness').hidden=false;$('#scanStage').textContent='در حال بارگذاری موتور و درخواست دسترسی دوربین…';$('#scanProgress').value=0;
+ pendingARSession=requestARSession(navigator.xr,$('#overlay'),false,{light:true,depth:true});
+ pendingARSession.catch(()=>{}); // Render handles the actual rejection.
+ location.hash='studio';
+}
 async function render(){const version=++routeVersion;const route=location.hash.slice(1)||'welcome';document.body.dataset.route=route;
  if(studio?.session){if(location.hash!=='#studio')history.replaceState(null,'',location.pathname+location.search+'#studio');return;}
  closeChidoMenu();minimap.collapse();
@@ -127,49 +139,29 @@ async function render(){const version=++routeVersion;const route=location.hash.s
  }
  photoURLs.forEach(URL.revokeObjectURL);photoURLs=[];
  if(route==='welcome'){app.innerHTML=`<section class="welcome-screen"><div class="welcome-title"><h1>CHIDO</h1><p>خانه را جور دیگری ببینید</p></div><img class="welcome-photo" src="assets/welcome.png" alt="صندلی کرم و گلدان در فضایی آرام"><div class="welcome-bottom"><button class="primary" id="welcome">ورود به نمایشگاه <span>→</span></button><button class="quick-ar" id="quickAR">ورود سریع به AR ↗</button><button class="quick-ar quick-empty" id="startEmpty">＋ ایجاد صحنه خالی</button><span class="welcome-wordmark">CHIDO</span></div></section>`;$('#welcome').onclick=()=>{full();location.hash='spaces';};const draft=readDraft();if(draft)$('#quickAR').textContent='ادامه چیدمان قبلی ↗';$('#quickAR').onclick=()=>{if(draft)loadSceneRecord(draft);else {layout='conversation';sceneMemory=null;}location.hash='studio';};$('#startEmpty').onclick=()=>{layout='empty';sceneMemory=null;activeSavedLayoutId=null;previewEnabled=false;clearDraft();location.hash='studio';};return;}
- if(route==='spaces'){app.innerHTML=`<section class="page rooms-page">${heading('۰۱ / فضای شما','کدام فضا را می‌خواهی بچینی؟','فضا، سبک و رنگ دلخواهت را انتخاب کن.','welcome')}
- <div class="cards room-choice">${[['living','پذیرایی','برای کنار هم بودن'],['dining','ناهارخوری','دور یک میز، کنار هم'],['dining','آشپزخانه','میز غذاخوری و دورهمی'],['bedroom','اتاق خواب','گوشه‌ای برای آرامش'],['office','فضای کار','جایی برای ایده‌های تازه']].map(([key,title,sub])=>`<button class="card ${space===title?'selected':''}" data-space="${title}" aria-pressed="${space===title}">${svg(key)}<strong>${title}</strong><small>${sub}</small></button>`).join('')}</div>
- <section class="room-prefs"><div class="pref-heading">سبک چیدمان <small>اختیاری</small></div><div class="style-pills">${['مینیمال','مدرن','کلاسیک','همه'].map(n=>`<button data-style="${n}" class="${styleChoice===n?'selected':''}">${n}</button>`).join('')}</div>
- ${['پذیرایی','ناهارخوری','آشپزخانه'].includes(space)?`<div class="pref-heading">ظرفیت چیدمان <small>تعداد نفرات</small></div><div class="people-picks">${allowedCapacities(space).map(n=>`<button data-people="${n}" class="${peopleCount===n?'selected':''}" aria-pressed="${peopleCount===n}">${fa(n)} نفر</button>`).join('')}</div>`:''}
- <div class="pref-heading">پالت رنگ <small>بعداً قابل تغییر است</small></div><div class="theme-picks">${themes.map((t,i)=>`<button data-theme="${i}" class="${themeIndex===i?'selected':''}" aria-label="${t.name}"><span class="theme-blocks">${t.colors.map(c=>`<i style="background:${c}"></i>`).join('')}</span><small>${t.name}</small></button>`).join('')}</div></section>
- <button class="primary continue-room" id="goLayouts">دیدن چیدمان‌ها ←</button></section>`;
- document.querySelectorAll('[data-space]').forEach(btn=>btn.onclick=()=>{space=btn.dataset.space;peopleCount=allowedCapacities(space)[0];render();});
- document.querySelectorAll('[data-style]').forEach(btn=>btn.onclick=()=>{styleChoice=btn.dataset.style;document.querySelectorAll('[data-style]').forEach(el=>el.classList.toggle('selected',el===btn));});
- document.querySelectorAll('[data-people]').forEach(btn=>btn.onclick=()=>{peopleCount=Number(btn.dataset.people);document.querySelectorAll('[data-people]').forEach(el=>{el.classList.toggle('selected',el===btn);el.setAttribute('aria-pressed',String(el===btn));});});
- document.querySelectorAll('[data-theme]').forEach(btn=>btn.onclick=()=>{themeIndex=Number(btn.dataset.theme);document.querySelectorAll('[data-theme]').forEach(el=>el.classList.toggle('selected',el===btn));});
- $('#goLayouts').onclick=()=>location.hash='layouts';return;}
- if(route==='layouts'){
- const variants=layoutOptions(space);
- app.innerHTML=`<section class="page layouts-page">
- ${heading('۰۲ / چیدمان', ['پذیرایی','ناهارخوری','آشپزخانه'].includes(space)?`چیدمان مناسب ${fa(peopleCount)} نفر را انتخاب کن`:`چیدمان ${space} را انتخاب کن`,
- `تمام پلان‌ها به آبجکت‌های واقعیِ مرحله AR متصل‌اند · ${styleChoice} · ${themes[themeIndex].name}`,'spaces')}
- <div class="saved-section"><h3>چیدمان‌های من</h3><div class="saved-layout-grid">
- ${listCustomLayouts().map(saved=>`<div class="saved-plan-card">
-   <button data-saved-layout="${saved.id}" class="saved-plan-open">
-    <div class="saved-plan-image">${savedPlanSvg(saved.scene)}</div><strong>${saved.name.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')}</strong>
-    <small>${saved.room+' · '}چیدمان سفارشی</small></button>
-   <button class="saved-plan-delete" data-remove-layout="${saved.id}" aria-label="حذف چیدمان ذخیره‌شده">×</button>
-  </div>`).join('')||'<p class="saved-empty">هنوز چیدمانی ذخیره نکرده‌ای.</p>'}
- </div></div>
-<section class="preset-layouts"><h3 class="layout-section-title">چیدمان‌های آماده <span>برای ${space}</span></h3>
-<div class="layout-feed">${variants.map(({id,title,description},i)=>{
-  const scene=buildLayout({room:space,kind:id,capacity:peopleCount}),stats=layoutSummary(scene);
-  const details=space==='پذیرایی'?`${fa(stats.seats)} جای نشستن · ${fa(stats.tables)} میز`:
-   space==='آشپزخانه'||space==='ناهارخوری'?`${fa(stats.chairs)} صندلی · میز ${fa(peopleCount)} نفره`:
-   `${fa(stats.objects)} قطعه در چیدمان`;
-  return `<button class="layout-photo-card" data-layout="${id}">
-   <div class="layout-image floor-plan-card">${layoutPreviewSvg(scene)}<span class="layout-badge">${fa(i+1)}</span></div>
-   <div class="layout-caption"><strong>${title}</strong><small>${description} · ${details}</small><span>←</span></div>
-   </button>`;
- }).join('')}
- <button class="start-blank" data-layout="empty"><span>＋</span><strong>چیدمان دلخواه من</strong><small>شروع با فضای خالی</small></button>
- 
-</div></section>
-</section>`;
- document.querySelectorAll('[data-layout]').forEach(btn=>btn.onclick=()=>{layout=btn.dataset.layout;sceneMemory=null;activeSavedLayoutId=null;previewEnabled=false;clearDraft();location.hash='studio';});
- document.querySelectorAll('[data-saved-layout]').forEach(btn=>btn.onclick=()=>{const data=listCustomLayouts().find(x=>x.id===btn.dataset.savedLayout);if(!data)return;loadSceneRecord(data);location.hash='studio';});
- document.querySelectorAll('[data-remove-layout]').forEach(btn=>btn.onclick=()=>{removeCustomLayout(btn.dataset.removeLayout);render();});return;}
-   if(route==='detail'){app.innerHTML=`<section class="page detail-page"><a class="back" href="#layouts">بازگشت ←</a><img class="detail-photo" src="assets/living.png" alt="چیدمان مبلمان کرم در فضای نشیمن"><div class="dots"><i></i><i></i><i></i></div><h1>${layout==='social'?'چیدمان صمیمی':layout==='light'?'چیدمان سبک و روشن':'چیدمان کلاسیک ۱'}</h1><p>یک ایده برای ${space}؛ با ترکیبی از حجم‌های متنوع و رنگ‌های طبیعی.</p><p class="prototype-note">در محیط آزمایشی مبلمان کم‌پلیگان با ابعاد واقعی جایگزین مدل مبلمان می‌شوند.</p><button id="continueLayout" class="primary">ادامهٔ چیدمان و ویرایش <span>→</span></button></section>`;$('#continueLayout').onclick=()=>location.hash='studio';return;}
+ if(route==='spaces'){
+  const rooms=['پذیرایی','ناهارخوری','آشپزخانه','اتاق خواب','فضای کار'];
+  const variants=layoutOptions(space),saved=listCustomLayouts().filter(record=>record.room===space);
+  app.innerHTML=`<section class="page rooms-page rooms-integrated">
+  ${heading('چیدو / چیدمان','برای کدام فضا چیدمان می‌خواهی؟','یکی از طرح‌ها را انتخاب کن یا از یک فضای خالی شروع کن.','welcome')}
+  <nav class="room-tabs" aria-label="دسته‌بندی چیدمان">
+  ${rooms.map(name=>`<button type="button" data-space="${name}" class="${name===space?'selected':''}" aria-pressed="${name===space}">${name}</button>`).join('')}
+  </nav>
+  ${saved.length?`<section class="saved-section"><h3>چیدمان‌های ذخیره‌شده</h3><div class="saved-layout-grid">
+  ${saved.map(record=>`<div class="saved-plan-card"><button data-saved-layout="${record.id}" class="saved-plan-open"><div class="saved-plan-image">${savedPlanSvg(record.scene)}</div><strong>${record.name.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')}</strong></button><button class="saved-plan-delete" data-remove-layout="${record.id}" aria-label="حذف چیدمان ذخیره‌شده">×</button></div>`).join('')}
+  </div></section>`:''}
+  <section class="preset-layouts"><h3 class="layout-section-title">چیدمان‌های ${space}</h3><div class="layout-feed">
+  ${variants.map(({id,title,description})=>`<button class="layout-photo-card" data-layout="${id}"><div class="layout-image floor-plan-card">${layoutPreviewSvg(buildLayout({room:space,kind:id,capacity:peopleCount}))}</div><div class="layout-caption"><strong>${title}</strong><small>${description}</small><span>←</span></div></button>`).join('')}
+  <button class="start-blank" data-layout="empty"><span>＋</span><strong>چیدمان جدید</strong><small>شروع با فضای خالی در ${space}</small></button>
+  </div></section></section>`;
+  document.querySelectorAll('[data-space]').forEach(btn=>btn.onclick=()=>{space=btn.dataset.space;peopleCount=allowedCapacities(space)[0];render();});
+  document.querySelectorAll('[data-layout]').forEach(btn=>btn.onclick=()=>openLayoutForScanning(btn.dataset.layout));
+  document.querySelectorAll('[data-saved-layout]').forEach(btn=>btn.onclick=()=>{const record=listCustomLayouts().find(x=>x.id===btn.dataset.savedLayout);if(record)openLayoutForScanning(record.layout||'empty',record);});
+  document.querySelectorAll('[data-remove-layout]').forEach(btn=>btn.onclick=()=>{removeCustomLayout(btn.dataset.removeLayout);render();});
+  return;
+ }
+ if(route==='layouts'){history.replaceState(null,'',location.pathname+location.search+'#spaces');return render();}
+ if(route==='detail'){app.innerHTML=`<section class="page detail-page"><a class="back" href="#layouts">بازگشت ←</a><img class="detail-photo" src="assets/living.png" alt="چیدمان مبلمان کرم در فضای نشیمن"><div class="dots"><i></i><i></i><i></i></div><h1>${layout==='social'?'چیدمان صمیمی':layout==='light'?'چیدمان سبک و روشن':'چیدمان کلاسیک ۱'}</h1><p>یک ایده برای ${space}؛ با ترکیبی از حجم‌های متنوع و رنگ‌های طبیعی.</p><p class="prototype-note">در محیط آزمایشی مبلمان کم‌پلیگان با ابعاد واقعی جایگزین مدل مبلمان می‌شوند.</p><button id="continueLayout" class="primary">ادامهٔ چیدمان و ویرایش <span>→</span></button></section>`;$('#continueLayout').onclick=()=>location.hash='studio';return;}
  if(route==='entry'){app.innerHTML=`<section class="page">${heading('۰۳ / ورود به تجربه','حالا در خانه‌ات ببین.','چند قدم تا امتحان کردن چیدمان فاصله داری.','layouts')}<div class="entry"><div><h2>فضای واقعی، انتخاب تازه</h2><p>در محیطی روشن، گوشی را آرام به سمت کف بگیر. پس از نمایش کف پیشنهادی، «تثبیت این کف» را بزن و خط A–B را روی یک طول معلوم بگذار.</p><div id="support" class="notice">در حال بررسی سازگاری مرورگر…</div><div class="entry-actions"><button id="enterAR" class="primary" disabled>ورود به AR ↗</button><button id="preview">محیط آزمایشی</button></div><p>نیازمند Android Chrome، گوشی سازگار با ARCore، اتصال امن و اجازهٔ دسترسی به دوربین. ورود به AR فقط با لمس دکمه انجام می‌شود.</p></div><div class="entry-illustration">${svg('phone')}</div></div><div class="notice">در مرورگرهای سازگار، کپچر داخلی چیدو تصویر دوربین واقعی و مدل‌های سه‌بعدی را مستقیماً در گالری ثبت می‌کند.</div></section>${footer()}`;$('#preview').onclick=()=>location.hash='studio';await support();if(version!==routeVersion)return;$('#support').textContent=supported?'AR در این مرورگر در دسترس است. مجوزها و ردیابی هنگام شروع بررسی می‌شوند.':'AR در این دستگاه یا مرورگر در دسترس نیست. محیط آزمایشی را باز کن، یا با Chrome روی Android سازگار امتحان کن.';$('#enterAR').disabled=!supported;$('#enterAR').onclick=()=>{location.hash='studio';toast('محیط آماده می‌شود؛ سپس «شروع AR» را بزن.');};return;}
  if(route==='studio'){app.innerHTML=`<section class="ar-launch">
  <div id="viewport" class="viewport ar-launch-stage"><div class="launch-placeholder onboarding"><div class="launch-mark">CHIDO · AR</div><div class="launch-plan">${layout==='empty'?'<span class="blank-layout-placeholder">＋ صحنه خالی</span>':planSketch(layout)}</div><h2>${layout==='empty'?'صحنه خالی برای چیدمان جدید':'سه حرکت تا دیدن چیدمان'}</h2>
@@ -178,16 +170,19 @@ async function render(){const version=++routeVersion;const route=location.hash.s
   <div><span>۲</span><p><strong>حرکت آرام چپ و راست</strong><small>تا دایره سبز روی کف ظاهر شود.</small></p></div>
   <div><span>۳</span><p><strong>تثبیت و تنظیم جهت</strong><small>کف را تأیید کن و خط A—B را هم‌راستا با اتاق بگذار.</small></p></div>
  </div></div></div>
- <div class="launch-actions"><button id="startAR" class="primary" disabled>در حال بررسی واقعیت افزوده…</button><div class="launch-alternatives"><a href="#layouts">تغییر چیدمان</a><button id="preview3D">پیش‌نمایش سه‌بعدی</button></div></div>
+ <section id="launchLoading" class="launch-loading" role="status"><strong id="launchStage">در حال بارگذاری ابزارهای چیدو…</strong><progress id="launchProgress" value="0" max="3"></progress><small>۱. موتور سه‌بعدی · ۲. ابزارها و صحنه · ۳. نشست واقعیت افزوده</small></section>
+  <div class="launch-actions"><button id="startAR" class="primary" disabled>در حال بررسی واقعیت افزوده…</button><div class="launch-alternatives"><a href="#layouts">تغییر چیدمان</a><button id="preview3D">پیش‌نمایش سه‌بعدی</button></div></div>
  </section>`;
  try{
   await loadScene();if(version!==routeVersion)return;
+  $('#launchProgress').value=1;$('#launchStage').textContent='موتور سه‌بعدی آماده شد؛ در حال ساخت ابزارها…';
   studio=new Scene($('#viewport'),updateObjects);
+  $('#launchProgress').value=2;$('#launchStage').textContent='ابزارها و صحنه آماده‌اند؛ در انتظار دوربین و نشست AR…';
   if(sceneMemory)studio.restoreState(sceneMemory);else{studio.seed(layout,space,peopleCount);const colors=themes[themeIndex].colors;studio.items.forEach((m,i)=>{if(m.userData.index!==7)m.material.color.set(colors[i%colors.length]);});}
   studio.onEnd=()=>{
     resetWideViewControls();closeChidoMenu();minimap.collapse();setPhotoMode(false);closeArSheet();
     $('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=true;
-    $('#measureHint').hidden=true;$('#arMiniMap').hidden=true;$('#abInline').hidden=true;$('#arBottomActions').hidden=true;
+    $('#measureHint').hidden=true;$('#arMiniMap').hidden=true;$('#abInline').hidden=true;$('#arBottomActions').hidden=true;$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;
     // Let Studio.endSession finish its own callbacks before disposing the 3D renderer.
     if(homeExitRequested)queueMicrotask(finishChidoHomeExit);
    };
@@ -215,9 +210,12 @@ async function render(){const version=++routeVersion;const route=location.hash.s
  }catch(error){$('#viewport').textContent='محیط سه‌بعدی آماده نشد.';console.error(error);return;}
  bindCalibration('ar');
  $('#preview3D').onclick=()=>{previewEnabled=!previewEnabled;$('#viewport').classList.toggle('show-preview',previewEnabled);$('#preview3D').textContent=previewEnabled?'بستن پیش‌نمایش':'پیش‌نمایش سه‌بعدی';};
- await support();if(version!==routeVersion)return;
+ const autoSession=pendingARSession;
+ if(!autoSession)await support();if(version!==routeVersion)return;
  $('#startAR').textContent=supported?'شروع اسکن کف و ورود به AR ↗':'بررسی دسترسی به AR';
- $('#startAR').disabled=false;$('#startAR').onclick=()=>startAR(false);return;}
+ $('#startAR').disabled=false;$('#startAR').onclick=()=>startAR(false);
+ if(autoSession){pendingARSession=null;$('#startAR').hidden=true;void startAR(false,autoSession);}else{$('#launchLoading').hidden=true;}
+ return;}
  if(route==='gallery'){app.innerHTML=`<section class="page">${heading('گالری شخصی','قاب‌هایی از خانهٔ تو','ایده‌هایی که دوست داری، اینجا نگه دار.','welcome')}<div class="no-print">${uploadControl()}<button class="gallery-realistic-preview" type="button" data-realistic-demo>رئالیستیک کردن عکس <small>به‌زودی</small></button></div><div class="notice">تصاویر فقط در همین مرورگر و همین نشانی، روی دستگاه تو ذخیره می‌شوند. با پاک کردن داده‌های سایت حذف می‌شوند؛ تصویرهای مهم را دانلود کن.</div><div id="images" class="images"></div></section>${footer()}`;$('#upload').onchange=uploadFiles;try{const list=(await photos()).sort((a,b)=>b.date-a.date);if(version!==routeVersion)return;if(!list.length){$('#images').className='empty-gallery';$('#images').innerHTML=`${svg('gallery')}<h2>اولین قاب، منتظر توست.</h2><p>از محیط AR کپچر داخلی بگیر یا تصویر دلخواهت را بارگذاری کن.</p><a href="#spaces" class="back">شروع یک چیدمان ←</a>`;}else for(const p of list){const url=URL.createObjectURL(p.blob);photoURLs.push(url);const el=document.createElement('article');el.className='image-card';el.innerHTML=`<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="تصویر ذخیره‌شدهٔ چیدمان"></a><p>${p.kind}<br>${new Date(p.date).toLocaleString('fa-IR')}</p><a href="${url}" download="chido-${p.id}.png">دانلود ↓</a><button type="button" class="gallery-realistic-preview" data-realistic-demo>رئالیستیک کردن <small>آزمایشی</small></button><button data-photo-delete>حذف</button>`;el.querySelector('[data-photo-delete]').onclick=async()=>{try{await removePhoto(p.id);render();}catch{toast('حذف تصویر انجام نشد.');}};$('#images').append(el);}document.querySelectorAll('[data-realistic-demo]').forEach(b=>b.onclick=()=>toast('رئالیستیک کردن تصویر فعلاً نمایشی است؛ پردازشی انجام نمی‌شود.'));}catch{$('#images').textContent='دسترسی به گالری ممکن نیست؛ ذخیره‌سازی مرورگر را فعال کن.';}updateCount();return;}
  if(route==='invoice'){const total=savedItems.reduce((s,m)=>s+m.price,0);app.innerHTML=`<section class="page">${heading('برآورد اولیه','پیش‌فاکتور آزمایشی','فقط برای بررسی تجربهٔ انتخاب؛ فاقد اعتبار خرید.','studio')}<div class="invoice"><div class="page-heading"><a class="brand" href="#welcome">CHIDO</a><span class="step">${new Date().toLocaleDateString('fa-IR')}<br>واحد: تومان</span></div><table><thead><tr><th>حجم نمونه</th><th>رنگ</th><th>تعداد</th><th>مبلغ فرضی</th></tr></thead><tbody>${savedItems.map(m=>`<tr><td>${m.name||'قطعه'} ${fa(m.id)}</td><td><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:${m.color}"></span></td><td>۱</td><td>${fa(m.price)}</td></tr>`).join('')||'<tr><td colspan="4">هنوز باکسی انتخاب نشده است.</td></tr>'}</tbody><tfoot><tr><td colspan="3">جمع آزمایشی</td><td>${fa(total)} تومان</td></tr></tfoot></table><p>قیمت‌ها کاملاً فرضی‌اند. مالیات، ارسال و خدمات محاسبه نشده است. این صفحه سفارش یا پرداخت ایجاد نمی‌کند.</p></div><button id="print" class="primary no-print" style="margin-top:20px">چاپ / دریافت PDF</button></section>${footer()}`;$('#print').onclick=()=>window.print();return;}
  location.hash='welcome';
@@ -228,12 +226,13 @@ function closeArSheet(){
  const settings=$('#arSettings');if(settings.parentElement===$('#arSheetContent'))$('#arSettingsBin').append(settings);
  settings.open=false;settings.hidden=true;
  $('#arToolSheet').hidden=true;arSheetMode=null;
+ if(studio?.architecture?.mode&&!studio?.photoMode)$('#arArchitectureActions').hidden=false;
  studio?.setPlacementEnabled(false);
 }
 function showArSheet(mode){
  if(!studio||!studio.placed)return;
  if(arSheetMode===mode){closeArSheet();return;}
- closeArSheet();arSheetMode=mode;
+ closeArSheet();$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;arSheetMode=mode;
  const body=$('#arSheetContent'),title=$('#arSheetTitle');body.innerHTML='';
  const selected=studio.selected;
  if(mode==='add'||mode==='replace'){
@@ -338,23 +337,38 @@ function showArSheet(mode){
      if(activeSavedLayoutId===btn.dataset.removeArLayout)activeSavedLayoutId=null;
      removeCustomLayout(btn.dataset.removeArLayout);closeArSheet();showArSheet(mode);
    });
-  }else if(mode==='settings'){
-  title.textContent='تنظیمات AR و جهت چیدمان';
+  }else if(mode==='architecture'){
+  title.textContent='ابزارهای فضا';
+  const a=studio.architecture,chosen=a.selected();
+  body.innerHTML=`<div class="feature-options architecture-tool-list">
+   ${[['floor','کف چندضلعی'],['wall','دیوار پیوسته'],['window','پنجره ثابت · فقط فریم']].map(([key,label])=>`<button data-architecture-mode="${key}" class="${a.mode===key?'selected':''}">${label}</button>`).join('')}
+  </div><small class="sheet-tip">کف: رأس‌ها را به ترتیب لمس کن و اتمام را بزن. دیوار: نقطه شروع و انتهای هر قطعه را لمس کن. پنجره فقط روی دیوار نصب می‌شود.</small>
+  ${chosen?`<div class="window-editor"><strong>ابعاد پنجره انتخاب‌شده (متر)</strong>
+    ${[['width','عرض'],['height','ارتفاع'],['sill','ارتفاع از کف'],['along','موقعیت روی دیوار']].map(([key,label])=>`<label>${label}<input data-window-edit="${key}" type="number" min="0" step=".01" value="${chosen[key].toFixed(2)}"></label>`).join('')}
+    <button id="architectureDeleteWindow">حذف پنجره</button></div>`:''}`;
+  body.querySelectorAll('[data-architecture-mode]').forEach(button=>button.onclick=()=>{
+   const mode=a.setMode(button.dataset.architectureMode);closeArSheet();$('#arArchitectureActions').hidden=!mode;
+   $('#arArchitectureHint').textContent=mode==='floor'?'کف · رأس‌ها را ثبت کن':mode==='wall'?'دیوار · ابتدا A سپس B':mode==='window'?'پنجره · دیوار را لمس کن':'';
+   if(mode)toast('ابزار «'+button.textContent+'» فعال شد.');
+  });
+  body.querySelectorAll('[data-window-edit]').forEach(input=>input.onchange=()=>{
+   try{if(!a.editSelected({[input.dataset.windowEdit]:Number(input.value)}))throw Error('ابعاد یا موقعیت با دیوار سازگار نیست.');closeArSheet();showArSheet('architecture');}
+   catch(error){toast(error.message);}
+  });
+  if(chosen)body.querySelector('#architectureDeleteWindow').onclick=()=>{a.removeSelected();closeArSheet();};
+ }else if(mode==='settings'){
+  title.textContent='تنظیمات نور و ردیابی AR';
   const details=$('#arSettings');details.hidden=false;details.open=true;body.append(details);
   const status=document.createElement('p');status.className='xr-status';status.textContent='عمق: '+(arReport?.depth||'نامشخص')+' · نور: '+(arReport?.light||'نامشخص');body.append(status);
-  const directions=document.createElement('div');directions.className='feature-options';
-  directions.innerHTML='<button id="layoutTurnLeft">↺ چرخش کل ست ۴۵°</button><button id="layoutTurnRight">چرخش کل ست ۴۵° ↻</button>';
-  body.append(directions);
-  $('#layoutTurnLeft').onclick=()=>studio.rotateLayout(-45);
-  $('#layoutTurnRight').onclick=()=>studio.rotateLayout(45);
-  const note=document.createElement('small');note.className='sheet-tip';
-  note.textContent='A—B فقط مرجع سنجش و کالیبراسیون است. برای جابه‌جایی کل ست دکمه مستقل «جابه‌جایی» را فعال کن؛ جهت کل ست را با دکمه‌های بالا تنظیم کن.';
-  body.append(note);
  }
  $('#arToolSheet').hidden=false;
 }
-$('#abLengthButton').onclick=()=>{const form=$('#abLengthForm');form.hidden=!form.hidden;if(!form.hidden){$('#abLengthInput').value=studio?.measurement().actualCm||Math.round(studio?.measurement().correctedCm||400);$('#abLengthInput').focus();}};
-$('#abLengthForm').onsubmit=event=>{event.preventDefault();try{studio?.calibrate($('#abLengthInput').value);$('#abLengthForm').hidden=true;toast('مقیاس A—B اصلاح شد.');}catch(error){toast(error.message);}};
+$('#abLengthButton').onclick=()=>{$('#abCalibrationSheet').hidden=false;$('#aractual').value=studio?.measurement().actualCm||Math.round(studio?.measurement().correctedCm||100);};
+$('#abCalibrationClose').onclick=()=>{$('#abCalibrationSheet').hidden=true;};
+$('#arCalibrationTool').onclick=()=>{closeArSheet();$('#arArchitectureActions').hidden=true;$('#abCalibrationSheet').hidden=!$('#abCalibrationSheet').hidden;};
+$('#arArchitectureTool').onclick=()=>showArSheet('architecture');
+$('#arArchitectureFinish').onclick=()=>{if(!studio?.architecture.finish()){toast('برای ساخت کف، سه رأس معتبر و بدون تقاطع لازم است.');return;}$('#arArchitectureActions').hidden=true;toast('ابزار معماری بسته شد.');};
+$('#arArchitectureUndo').onclick=()=>{if(!studio?.architecture.undo())toast('نقطه‌ای برای بازگشت نیست.');};
 $('#arSheetClose').onclick=closeArSheet;
 $('#arAddTool').onclick=()=>showArSheet('add');
 $('#arMaterialTool').onclick=()=>showArSheet('colors');
@@ -380,20 +394,11 @@ $('#quickDelete').onclick=()=>{studio?.remove();};
 $('#arListTool').onclick=()=>showArSheet('objects');
 $('#arBottomSave').onclick=()=>showArSheet('save');
 $('#arBottomOpen').onclick=()=>showArSheet('saved');
-$('#arMoveLayoutTool').onclick=()=>{
- if(!studio||!studio.placed)return;
- closeArSheet();
- const active=studio.setMoveLayoutMode(!studio.moveLayoutMode);
- $('#arMoveLayoutTool').setAttribute('aria-pressed',String(active));
- if(active){$('#arRulerTool').setAttribute('aria-pressed','false');studio.setMeasureActive(false);$('#measureHint').hidden=true;}
-};
-
-
 $('#arSettingsTool').onclick=()=>showArSheet('settings');
 $('#arPhotoTool').onclick=()=>setPhotoMode(true);
 $('#arRulerTool').onclick=()=>{
  if(!studio||!studio.placed)return;
- studio.setMoveLayoutMode(false);$('#arMoveLayoutTool').setAttribute('aria-pressed','false');
+ studio.setMoveLayoutMode(false);
  closeArSheet();
  const active=studio.setMeasureActive(!studio.measureTool.active);
  $('#arRulerTool').setAttribute('aria-pressed',String(active));$('#measureHint').hidden=!active;
@@ -423,7 +428,7 @@ function handleARReport(report){
  $('#confirmFloor').textContent=report.hit?'تثبیت کف و ورود به چیدمان':'در حال شناسایی کف…';
  $('#arEditControls').hidden=true;
  $('#arSettings').hidden=!(report.placed&&arSheetMode==='settings');
- $('#arDock').hidden=!report.placed;$('#arMiniMap').hidden=!report.placed;$('#arBottomActions').hidden=!report.placed;if(report.placed)minimap.render();else $('#abInline').hidden=true;
+ $('#arDock').hidden=!report.placed;$('#arMiniMap').hidden=!report.placed;$('#arBottomActions').hidden=!report.placed;if(report.placed){minimap.render();if(!calibrationPrompted){calibrationPrompted=true;$('#abCalibrationSheet').hidden=false;}}else $('#abInline').hidden=true;
  $('#arDock').classList.toggle('ready',report.placed);
  const wideSelect=$('#wideViewMode');wideSelect.disabled=!report.placed||!studio?.hasOverlay;
  $('#wideNatural').disabled=wideSelect.disabled;
@@ -432,7 +437,7 @@ function handleARReport(report){
  if(!report.placed){closeArSheet();$('#measureHint').hidden=true;}
  updateMeasurements();
 }
-async function startAR(basic=false){if(!studio||studio.session||arStarting)return;arStarting=true;const button=$('#startAR');button.disabled=true;$('#arError').close();try{$('#overlay').hidden=false;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=false;$('#scanProgress').value=12;$('#scanStage').textContent='راه‌اندازی AR…';$('#scanPercent').textContent='۱۲٪';closeArSheet();$('#arSettings').hidden=true;$('#arStatus').textContent='در حال شناسایی کف…';resetWideViewControls();const result=await studio.startAR(message=>$('#arStatus').textContent=message,handleARReport,basic,{light:!basic&&$('#lightEnabled').checked,depth:!basic&&$('#depthEnabled').checked});if(!result.hasOverlay)$('#overlay').hidden=true;studio.setDebugVisible(debugEnabled);updateObjects();}catch(error){$('#overlay').hidden=true;$('#arDock').hidden=true;const failure=explainXR(error);lastXRErrorReport=JSON.stringify({version:'0.4.1',mode:basic?'basic':'full',stage:failure.stage,name:failure.name,message:failure.detail,secureContext:isSecureContext,webXR:!!navigator.xr,supportCheck:supported,userAgent:navigator.userAgent},null,2);$('#arErrorMessage').textContent=failure.message;$('#arErrorDetails').textContent=lastXRErrorReport;$('#arError').showModal();console.error(error);}finally{arStarting=false;button.disabled=false;}}
+async function startAR(basic=false,incomingSession=null){if(!studio||studio.session||arStarting)return;arStarting=true;calibrationPrompted=false;const button=$('#startAR');button.disabled=true;$('#arError').close();try{$('#overlay').hidden=false;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=false;$('#scanProgress').value=12;$('#scanStage').textContent='راه‌اندازی AR…';$('#scanPercent').textContent='۱۲٪';closeArSheet();$('#arSettings').hidden=true;$('#arStatus').textContent='در حال شناسایی کف…';resetWideViewControls();const result=await studio.startAR(message=>$('#arStatus').textContent=message,handleARReport,basic,{light:!basic&&$('#lightEnabled').checked,depth:!basic&&$('#depthEnabled').checked},incomingSession);if(!result.hasOverlay)$('#overlay').hidden=true;$('#launchProgress').value=3;$('#launchStage').textContent='نشست AR آماده شد؛ کف را اسکن کن.';studio.setDebugVisible(debugEnabled);updateObjects();}catch(error){$('#overlay').hidden=true;$('#arDock').hidden=true;button.hidden=false;$('#launchStage').textContent='ورود به AR ناموفق بود؛ جزئیات را بررسی کن.';const failure=explainXR(error);lastXRErrorReport=JSON.stringify({version:'0.4.1',mode:basic?'basic':'full',stage:failure.stage,name:failure.name,message:failure.detail,secureContext:isSecureContext,webXR:!!navigator.xr,supportCheck:supported,userAgent:navigator.userAgent},null,2);$('#arErrorMessage').textContent=failure.message;$('#arErrorDetails').textContent=lastXRErrorReport;$('#arError').showModal();console.error(error);}finally{arStarting=false;button.disabled=false;}}
 function resetWideViewControls(){
  const select=$('#wideViewMode');if(select){select.value='ar';select.disabled=true;}
  const natural=$('#wideNatural');if(natural)natural.disabled=true;
@@ -522,7 +527,7 @@ function setPhotoMode(enabled){
  }
  studio.setPhotoMode(enabled);
  $('#overlay').classList.toggle('photography',enabled);
- $('#cameraMode').hidden=!enabled;
+ $('#cameraMode').hidden=!enabled;if(enabled){$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;}else if(studio?.architecture?.mode){$('#arArchitectureActions').hidden=false;}
  $('#objectQuick').hidden=true;
  $('#arMiniMap').hidden=enabled||!studio.placed;
  $('#arBottomActions').hidden=enabled||!studio.placed;
@@ -682,7 +687,7 @@ $('#chidoMenuHome').onclick=async()=>{
    toast('بازگشت به صفحه اصلی کامل نشد؛ دوباره تلاش کن.');
   }
  },1400);
-};$('#resetAR').onclick=async()=>{try{$('#whiteFloorDialog').hidden=true;await studio?.beginScan();$('#arSettings').open=false;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arSettings').hidden=true;}catch(error){toast('اسکن دوباره اجرا نشد.');}};$('#confirmFloor').onclick=()=>{if(studio?.confirmFloor()){$('#overlay').append($('#whiteFloorDialog'));$('#whiteFloorDialog').hidden=false;}};$('#rescanFloor').onclick=async()=>{try{$('#whiteFloorDialog').hidden=true;await studio?.beginScan();$('#arSettings').open=false;}catch(error){toast('اسکن دوباره راه‌اندازی نشد؛ از AR خارج شو و دوباره وارد شو.');}};
+};$('#resetAR').onclick=async()=>{try{$('#whiteFloorDialog').hidden=true;$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;studio?.architecture?.setMode(null);calibrationPrompted=false;await studio?.beginScan();$('#arSettings').open=false;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arSettings').hidden=true;}catch(error){toast('اسکن دوباره اجرا نشد.');}};$('#confirmFloor').onclick=()=>{if(studio?.confirmFloor()){calibrationPrompted=true;$('#abCalibrationSheet').hidden=false;}};$('#rescanFloor').onclick=async()=>{try{$('#whiteFloorDialog').hidden=true;await studio?.beginScan();$('#arSettings').open=false;}catch(error){toast('اسکن دوباره راه‌اندازی نشد؛ از AR خارج شو و دوباره وارد شو.');}};
 $('#whiteFloorYes').onclick=()=>{studio?.setWhiteFloor(true);$('#whiteFloorDialog').hidden=true;};
 $('#whiteFloorNo').onclick=()=>{studio?.setWhiteFloor(false);$('#whiteFloorDialog').hidden=true;};
 $('#rotateAR').onclick=()=>{if(studio?.selected)studio.rotate();};$('#deleteAR').onclick=()=>studio?.remove();$('#colorAR').onclick=()=>{if(studio?.selected){const current='#'+studio.selected.material.color.getHexString();studio.color(palette[(palette.indexOf(current)+1)%palette.length]);}};$('#addAR').onclick=()=>{if(studio.items.length>=16){toast('حد آزمون این نسخه ۱۶ قطعه است.');return;}studio.add(Number($('#arProduct').value));};$('#closePhoto').onclick=()=>$('#photoHelp').close();

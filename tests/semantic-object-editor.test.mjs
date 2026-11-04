@@ -51,13 +51,14 @@ test('sofa pillows are children of furniture, near upright, and save/restore',()
  assert.equal(restored.items[0].userData.cushionPreset,'mixed');
  assert.equal(restored.items[0].userData.cushionGroup.children.length,2);
 });
-test('the A/B measurement reference no longer translates the layout',()=>{
+test('moving A moves the entire project and persists its offset',()=>{
  const state=new SpatialState(),floor=new THREE.Group(),layout=new THREE.Group();
  state.apply(floor,layout);
- const start=layout.position.clone();
- state.moveA(new THREE.Vector3(1,0,1));
+ const start=layout.position.clone(),oldA=state.a.clone();
+ const newA=new THREE.Vector3(1,0,1);
+ state.moveA(newA);
  state.apply(floor,layout);
- assert.ok(layout.position.equals(start));
+ assert.ok(layout.position.equals(start.add(newA.sub(oldA))));
  state.layoutOffset.set(2,0,-3);
  state.apply(floor,layout);
  assert.deepEqual(layout.position.toArray(),[2,0,-3]);
