@@ -23,6 +23,10 @@ export function snapPoint(p,walls=[],radius=.14){
 }
 export function closestFloorEdge(p,floor,limit=.24){
  if(!Array.isArray(floor)||floor.length<2)return null;
+ // Corners win over edge projections, so wall runs meet without tiny gaps.
+ let corner=null,cornerDistance=.16;
+ for(const v of floor){const d=distance(p,v);if(d<cornerDistance){corner=v;cornerDistance=d;}}
+ if(corner)return {x:cm(corner.x),z:cm(corner.z)};
  let result=null,dist=limit;
  for(let i=0;i<floor.length;i++){
   const a=floor[i],b=floor[(i+1)%floor.length],dx=b.x-a.x,dz=b.z-a.z,len2=dx*dx+dz*dz;
