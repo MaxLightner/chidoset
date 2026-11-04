@@ -241,6 +241,13 @@ async function guestAuth(req: Request) {
   });
 }
 
+async function cleanupGuestAccounts(sessionId: string) {
+  const { data: guests } = await admin.from("live_session_guests").select("user_id").eq("session_id", sessionId);
+  for (const guest of guests || []) {
+    await admin.auth.admin.deleteUser(guest.user_id);
+  }
+}
+
 async function revokeLiveSession(req: Request) {
   const bearer = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") || "";
   if (!bearer) return response({ error: "ورود لازم است." }, 401);
@@ -277,10 +284,7 @@ async function revokeLiveSession(req: Request) {
 
   await admin.from("live_sessions").update({ revoked_at: new Date().toISOString() }).eq("id", session.id);
 
-  const { data: guests } = await admin.from("live_session_guests").select("user_id").eq("session_id", session.id);
-  for (const guest of guests || []) {
-    await admin.auth.admin.deleteUser(guest.user_id);
-  }
+  await cleanupGuestAccounts(session.id);
   return response({ ok: true, revoked: true });
 }
 
@@ -295,6 +299,10 @@ async function guestStatus(req: Request) {
     .eq("guest_token_hash", tokenHash)
     .maybeSingle();
   const active = !!session && !session.revoked_at && new Date(session.expires_at).getTime() > Date.now();
+  if (session && !active) {
+    if (!session.revoked_at) await admin.from("live_sessions").update({ revoked_at: new Date().toISOString() }).eq("id", session.id);
+    await cleanupGuestAccounts(session.id);
+  }
   return response({ active, expires_at: session?.expires_at || null });
 }
 
