@@ -330,6 +330,7 @@ export async function requestOfficialLayout({ setId, description }) {
     description: description.trim()
   });
   if (error) throw error;
+  await logActivity(membership, 'layout_request_created', { set_id: setId });
 }
 
 export async function archiveOfficialLayout(layoutId) {
