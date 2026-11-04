@@ -60,8 +60,7 @@ create table public.company_memberships (
  user_id uuid not null references auth.users(id) on delete cascade, branch_id uuid references public.branches(id) on delete set null,
  role text not null check(role in ('company_admin','branch')),
  status text not null default 'active' check(status in ('active','pending','suspended')),
- created_at timestamptz not null default now(), unique(company_id,user_id),
- constraint company_membership_branch_role_check check((role='branch' and branch_id is not null) or role='company_admin')
+ created_at timestamptz not null default now(), unique(company_id,user_id)
 );
 create table public.branch_devices (
  id uuid primary key default gen_random_uuid(), branch_id uuid not null references public.branches(id) on delete cascade,
