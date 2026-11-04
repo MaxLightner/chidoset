@@ -109,7 +109,7 @@ function loadSceneRecord(record){
  sceneMemory=record.scene;space=record.room||'پذیرایی';layout=record.layout||'conversation';
  peopleCount=Number(record.capacity)||5;styleChoice=record.style||'مینیمال';themeIndex=record.theme||0;
 }
-window.addEventListener('pagehide',persistDraft);
+window.addEventListener('pagehide',()=>{persistDraft();if(activeLiveSession)void stopLiveSession(activeLiveSession.id);});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)persistDraft();});
 function updateObjects(){if(!studio)return;const buttons=studio.items.map(m=>`<button data-object="${m.userData.id}" class="${m===studio.selected?'selected':''}">${m.userData.product.name}</button>`).join('');for(const selector of ['#objects']){const el=$(selector);if(el){el.innerHTML=buttons||'<small>یک قطعه اضافه کن.</small>';el.querySelectorAll('[data-object]').forEach(b=>b.onclick=()=>studio.select(studio.items.find(m=>m.userData.id===+b.dataset.object)));}}
  const mesh=studio.selected,label=mesh?mesh.userData.product.name+' · '+mesh.userData.product.size.map(v=>fa(Math.round(v*100))).join(' × ')+' سانتی‌متر':'یک قطعه را لمس کن';for(const id of ['selection','arSelection']){const el=$('#'+id);if(el)el.textContent=label;}
@@ -216,6 +216,7 @@ async function render(){const version=++routeVersion;const route=location.hash.s
   $('#launchProgress').value=2;$('#launchStage').textContent='ابزارها و صحنه آماده‌اند؛ در انتظار دوربین و نشست AR…';
   if(sceneMemory)studio.restoreState(sceneMemory);else{studio.seed(layout,space,peopleCount);const colors=themes[themeIndex].colors;studio.items.forEach((m,i)=>{if(m.userData.index!==7)m.material.color.set(colors[i%colors.length]);});}
   studio.onEnd=()=>{
+    if(activeLiveSession)void endLiveShare(true);
     resetWideViewControls();closeChidoMenu();minimap.collapse();setPhotoMode(false);closeArSheet();
     $('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=true;
     $('#measureHint').hidden=true;$('#arMiniMap').hidden=true;$('#abInline').hidden=true;$('#arBottomActions').hidden=true;$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;$('#arSurfaceActions').hidden=true;
@@ -578,8 +579,12 @@ function updateLampPowerControl(){
 $('#quickPower').onclick=()=>{if(!studio?.selected||!isLamp(studio.selected.userData.index))return;const on=!studio.selected.userData.lampOn;if(studio.setLampOn(on))updateLampPowerControl();};
 $('#quickDelete').onclick=()=>{studio?.remove();};
 $('#arListTool').onclick=()=>showArSheet('objects');
-$('#arBottomSave').onclick=()=>showArSheet('save');
-$('#arBottomOpen').onclick=()=>showArSheet('saved');
+$('#arBottomSave').onclick=()=>{if(cloudMembership?.role!=='company_admin'||!activeCloudSetId){toast('ذخیره رسمی فقط برای مدیر شرکت و داخل یک ست فعال است.');return;}showArSheet('save');};
+$('#arBottomOpen').onclick=()=>showArSheet(activeCloudSetId?'cloud-layouts':'saved');
+$('#arColorwayTool').onclick=()=>showArSheet('colorways');
+$('#arShareSession').onclick=beginLiveShare;
+$('#liveShareCopy').onclick=async()=>{try{await navigator.clipboard.writeText(activeLiveSession?.url||$('#liveShareUrl').textContent);toast('لینک نمایش کپی شد.');}catch{toast('کپی خودکار ممکن نیست؛ لینک را دستی انتخاب کن.');}};
+$('#liveShareStop').onclick=()=>endLiveShare(false);
 $('#arSettingsTool').onclick=()=>showArSheet('settings');
 $('#arPhotoTool').onclick=()=>setPhotoMode(true);
 $('#arRulerTool').onclick=()=>{
@@ -614,7 +619,7 @@ function handleARReport(report){
  $('#confirmFloor').textContent=report.hit?'تثبیت کف و ورود به چیدمان':'در حال شناسایی کف…';
  $('#arEditControls').hidden=true;
  $('#arSettings').hidden=!(report.placed&&arSheetMode==='settings');
- $('#arDock').hidden=!report.placed;$('#arMiniMap').hidden=!report.placed;$('#arBottomActions').hidden=!report.placed;if(report.placed){minimap.render();if(!calibrationPrompted){calibrationPrompted=true;$('#abCalibrationSheet').hidden=false;}}else $('#abInline').hidden=true;
+ $('#arDock').hidden=!report.placed;$('#arMiniMap').hidden=!report.placed;$('#arBottomActions').hidden=!report.placed;updateCloudControls();if(report.placed){minimap.render();if(!calibrationPrompted){calibrationPrompted=true;$('#abCalibrationSheet').hidden=false;}}else $('#abInline').hidden=true;
  $('#arDock').classList.toggle('ready',report.placed);
  const wideSelect=$('#wideViewMode');wideSelect.disabled=!report.placed||!studio?.hasOverlay;
  $('#wideNatural').disabled=wideSelect.disabled;
