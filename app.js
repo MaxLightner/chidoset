@@ -371,9 +371,10 @@ function showArSheet(mode){
   const replacing=mode==='replace';
   title.textContent=replacing?'تعویض مدل با حفظ جایگاه':'انتخاب مدل برای نشانگر +';
   if(!replacing)studio.setPlacementEnabled(true);
+  const activeSet=getActiveCloudSet(),allowedProducts=activeSet?new Set(activeSet.products.map(item=>item.catalog_index)):null;
   const groups=replacing&&selected?
-   ASSET_CATEGORIES.map(c=>({...c,indexes:variantsFor(selected.userData.index).filter(i=>c.indexes.includes(i))})).filter(c=>c.indexes.length):
-   ASSET_CATEGORIES.map(c=>({...c,indexes:c.indexes.filter(i=>i!==5)}));
+   ASSET_CATEGORIES.map(c=>({...c,indexes:variantsFor(selected.userData.index).filter(i=>c.indexes.includes(i)&&(!allowedProducts||allowedProducts.has(i)))})).filter(c=>c.indexes.length):
+   ASSET_CATEGORIES.map(c=>({...c,indexes:c.indexes.filter(i=>i!==5&&(!allowedProducts||allowedProducts.has(i)))})).filter(c=>c.indexes.length);
   body.innerHTML=`<div class="ar-category-tabs">${groups.map((c,i)=>`<button data-category="${c.id}" class="${i===0?'selected':''}">${c.label}</button>`).join('')}</div>
    <div class="ar-object-grid" id="categoryObjects"></div>
    <small class="sheet-tip">${replacing?'جایگاه و رنگ مدل تا حد ممکن حفظ می‌شود.':'نشانگر + روی کف، محل مدل جدید را نشان می‌دهد؛ قبل از انتخاب مدل دوربین را به جای دلخواه بگیر.'}</small>
