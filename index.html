@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="fa" dir="rtl">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f2eb"><meta name="description" content="چیدو؛ مبلمان را پیش از انتخاب، در خانهٔ خود ببینید."><title>چیدو — خانه، به سلیقهٔ تو</title><link rel="stylesheet" href="style.css?v=0.7.1"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f2eb"><meta name="description" content="چیدو؛ مبلمان را پیش از انتخاب، در خانهٔ خود ببینید."><title>چیدو — خانه، به سلیقهٔ تو</title><link rel="stylesheet" href="style.css?v=0.8.0"></head>
 <body>
 
 <header><a class="brand" href="#welcome" aria-label="خانه چیدو">CHIDO</a><nav><a href="#spaces">چیدمان</a><a href="#gallery">گالری من <span id="galleryCount">۰</span></a></nav><button class="quiet" id="fullscreen">تمام‌صفحه ⛶</button></header>
@@ -70,7 +70,8 @@
   <button id="arListTool" aria-label="فهرست اشیا">▤ <span>اشیا</span></button>
   
   <button id="arRulerTool" aria-pressed="false" aria-label="نمایش خط‌کش مستقل">⌗ <span>خط‌کش</span></button>
-  <button id="arMoveLayoutTool" aria-pressed="false" aria-label="جابجایی کل چیدمان">↔ <span>جابه‌جایی</span></button>
+  <button id="arArchitectureTool" aria-label="کف، دیوار و پنجره">▱ <span>فضا</span></button>
+  <button id="arCalibrationTool" aria-label="مرجع و مقیاس A/B">A—B <span>مقیاس</span></button>
   <button id="arSettingsTool" aria-label="تنظیمات و خط جهت">⚙ <span>تنظیمات</span></button>
   <button id="arPhotoTool" aria-label="عکس">◎ <span>عکس</span></button>
  </nav>
@@ -93,11 +94,25 @@
       </div>
      </div>
   </section>
-  <div id="abInline" class="ab-inline" hidden><button id="abLengthButton" type="button">A—B ✎</button><form id="abLengthForm" hidden><label for="abLengthInput">طول واقعی (سانتی‌متر)</label><input type="number" id="abLengthInput" inputmode="decimal" min="100" max="1000" step="0.1" required><button type="submit">ثبت</button></form></div>
-  <div id="arSettingsBin" hidden></div><div id="measureHint" hidden role="status"><span id="measureReadout">نقطه اول را روی کف لمس کن</span> <button id="measureClear">پاک کردن</button></div><div class="ar-bottom compact"><div id="arBottomActions" class="ar-bottom-actions" hidden><button id="arBottomSave">▣ ذخیره</button><button id="arBottomOpen">▤ چیدمان‌های من</button></div><button id="confirmFloor" class="primary" disabled>تثبیت این کف</button><div id="arEditControls" hidden><div id="arSelection"></div><div class="tools"><div id="selectedARTools"><button id="rotateAR">↻ ۴۵°</button><button id="colorAR">رنگ</button><button id="deleteAR">حذف</button></div><select id="arProduct" aria-label="نوع قطعه AR"><option value="0">کاناپه ۲۱۰</option><option value="1">تک‌نفره ۹۰</option><option value="2">میز ۱۱۰</option></select><button id="addAR">افزودن +</button></div></div><details id="arSettings" hidden><summary>کف و خط‌کش A—B</summary><div class="calibration-controls"><p id="arMeasurement" class="measurement"></p><label for="aractual">طول واقعی A—B (۱۰۰ تا ۱۰۰۰ سانتی‌متر)</label><div class="input-row"><input id="aractual" type="number" inputmode="decimal" min="100" max="1000" step="0.1" placeholder="مثلاً ۱۰۰"><button id="arcalibrate">کالیبره کن</button><button id="arresetScale">۱:۱</button></div><small>خط A—B برای اندازه‌گیری و کالیبراسیون است؛ جابه‌جایی و چرخش کل چیدمان ابزار مستقل دارد.</small><label class="xr-option"><input id="lightEnabled" type="checkbox" checked> نور محیط (در صورت پشتیبانی)</label><label class="xr-option"><input id="depthEnabled" type="checkbox" checked> اکلوژن عمق واقعی (در صورت پشتیبانی)</label></div><button id="rescanFloor">انتخاب مجدد کف</button></details><small id="diagnostics" dir="ltr">tracking — · floor SCANNING</small></div></div>
+  <div id="abInline" class="ab-inline" hidden><button id="abLengthButton" type="button">A—B ✎</button></div>
+ <section id="abCalibrationSheet" class="ab-calibration-sheet" hidden aria-label="کالیبراسیون A/B">
+  <div class="ar-sheet-head"><strong>متر دیجیتال · مرجع A/B</strong><button id="abCalibrationClose" aria-label="جمع کردن پنل کالیبراسیون">×</button></div>
+  <p>نقطه A کل چیدمان را جابه‌جا می‌کند؛ نقطه B راستا را تنظیم می‌کند. دو نقطه را روی طول معلوم قرار بده.</p>
+  <p id="arMeasurement" class="measurement"></p>
+  <label for="aractual">طول واقعی A—B (سانتی‌متر)</label>
+  <div class="input-row"><input id="aractual" type="number" inputmode="decimal" min="10" max="2000" step="0.1" placeholder="مثلاً ۱۰۰">
+   <button id="arcalibrate" class="primary">اعمال مقیاس</button><button id="arresetScale">۱:۱</button></div>
+ </section>
+ <div id="arArchitectureActions" class="ar-architecture-actions" hidden>
+   <span id="arArchitectureHint">ابزار معماری</span><button id="arArchitectureUndo">بازگشت یک نقطه</button><button class="primary" id="arArchitectureFinish">اتمام</button>
+ </div>
+  <div id="arSettingsBin" hidden></div><div id="measureHint" hidden role="status"><span id="measureReadout">نقطه اول را روی کف لمس کن</span> <button id="measureClear">پاک کردن</button></div><div class="ar-bottom compact"><div id="arBottomActions" class="ar-bottom-actions" hidden><button id="arBottomSave">▣ ذخیره</button><button id="arBottomOpen">▤ چیدمان‌های من</button></div><button id="confirmFloor" class="primary" disabled>تثبیت این کف</button><div id="arEditControls" hidden><div id="arSelection"></div><div class="tools"><div id="selectedARTools"><button id="rotateAR">↻ ۴۵°</button><button id="colorAR">رنگ</button><button id="deleteAR">حذف</button></div><select id="arProduct" aria-label="نوع قطعه AR"><option value="0">کاناپه ۲۱۰</option><option value="1">تک‌نفره ۹۰</option><option value="2">میز ۱۱۰</option></select><button id="addAR">افزودن +</button></div></div><details id="arSettings" hidden><summary>تنظیمات AR</summary>
+ <label class="xr-option"><input id="lightEnabled" type="checkbox" checked> نور محیط (در صورت پشتیبانی)</label>
+ <label class="xr-option"><input id="depthEnabled" type="checkbox" checked> اکلوژن عمق واقعی (در صورت پشتیبانی)</label>
+ <button id="rescanFloor">اسکن مجدد کف</button></details><small id="diagnostics" dir="ltr">tracking — · floor SCANNING</small></div></div>
 <dialog id="photoHelp"><h2>یک قاب از خانه‌ات</h2><p>در مرورگرهای سازگار با WebXR Raw Camera Access، دکمه عکس فریم واقعی دوربین و مبلمان سه‌بعدی را درون چیدو ترکیب می‌کند.</p><p>اگر دسترسی داخلی دوربین روی دستگاه فعال نباشد، قابلیت کپچر AR ارائه نمی‌شود؛ عکس ساختگی یا بدون پس‌زمینه واقعی ذخیره نخواهد شد.</p><button id="closePhoto" class="primary">متوجه شدم</button></dialog>
 <section id="whiteFloorDialog" class="white-floor-prompt" role="dialog" aria-label="تأیید کف سفید" hidden><h2>کف سفید اضافه شود؟</h2><p>می‌خواهی پس از تثبیت کف، یک سطح سفید با شفافیت ۷۰٪ روی آن قرار بگیرد؟</p><div class="floor-dialog-actions"><button type="button" id="whiteFloorNo">خیر، بدون کف</button><button type="button" id="whiteFloorYes" class="primary">بله، کف سفید</button></div></section>
 <dialog id="modeSheet"><button id="closeMode" class="sheet-close" aria-label="بستن">×</button><h2>چطور می‌خواهید ادامه دهید؟</h2><button class="mode-option" id="chooseAR"><span>واقعیت افزوده (AR)<small>قرار دادن باکس‌ها در فضای واقعی خانه</small></span><span class="mode-icon">♧</span></button><button class="mode-option" id="chooseSimple"><span>مدل ساده<small>بدون دوربین، روی پیش‌زمینهٔ ساده</small></span><span class="mode-icon">◇</span></button><p id="modeSupport">در حال بررسی سازگاری…</p></dialog>
 <dialog id="arError"><button id="closeARError" class="sheet-close" aria-label="بستن خطای AR">×</button><h2>چرا AR شروع نشد؟</h2><p id="arErrorMessage"></p><ol><li>لینک را از منوی سه‌نقطه با «باز کردن در Chrome» در تب اصلی مرورگر باز کن.</li><li>Chrome و Google Play Services for AR را از فروشگاه رسمی به‌روز کن و مجوز دوربین سایت را بررسی کن.</li></ol><details open><summary>جزئیات خطا برای بررسی</summary><pre id="arErrorDetails" dir="ltr"></pre></details><button id="basicAR" class="primary">آزمون سادهٔ AR</button><p>این آزمون پنل کنترل را الزامی نمی‌کند. اگر پنل ظاهر نشد، دوربین را به سمت کف بگیر؛ در این آزمون بدون پنل، کف پایدار خودکار تثبیت می‌شود؛ برای خروج، دکمهٔ بازگشت گوشی را بزن.</p><button id="copyARError">کپی گزارش خطا</button></dialog>
-<script type="module" src="app.js?v=0.7.3"></script></body></html>
+<script type="module" src="app.js?v=0.8.0"></script></body></html>
 

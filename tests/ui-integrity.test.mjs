@@ -55,28 +55,25 @@ test('unique DOM IDs: camera fallback has a single input and label',()=>{
  assert.match(html,/<input\s+id=["']cameraImport["']\s+type=["']file["']/);
 });
 
-test('separate AR layout movement and A/B measurement controls',()=>{
- const html=read('index.html'),app=read('app.js');
- for(const id of ['arMoveLayoutTool','arRulerTool','arSettingsTool']){
-  assert.match(html,new RegExp('id="'+id+'"'));
- }
- assert.match(app,/A و B فقط مرجع اندازه‌گیری و کالیبراسیون هستند/);
- assert.doesNotMatch(app,/A کل ست را منتقل می‌کند/);
+test('category tabs replace the separate layout page and AR begins from the card click',()=>{
+ const html=read('index.html'),app=read('app.js'),spatial=read('spatial.js');
+ for(const id of ['arArchitectureTool','arCalibrationTool','abCalibrationSheet','arRulerTool','arSettingsTool'])assert.match(html,new RegExp('id="'+id+'"'));
+ assert.doesNotMatch(html,/id="arMoveLayoutTool"/);
+ assert.ok(app.includes("const variants=layoutOptions(space),saved=listCustomLayouts().filter(record=>record.room===space)"));
+ assert.ok(app.includes("document.querySelectorAll('[data-layout]')"));
+ assert.ok(app.includes("openLayoutForScanning(btn.dataset.layout)"));
+ assert.ok(app.includes("pendingARSession=requestARSession("));
+ assert.ok(app.includes("if(route==='layouts'){history.replaceState"));
+ assert.ok(spatial.includes('this.layoutOffset.add(delta)'));
 });
-
-test('layout subtitle interpolates selected theme and style',()=>{
- const app=read('app.js');
- assert.ok(app.includes('`تمام پلان‌ها به آبجکت‌های واقعیِ مرحله AR متصل‌اند · ${styleChoice} · ${themes[themeIndex].name}`'));
-});
-
-test('room capacities remain appropriate to room type',()=>{
+test('room capacities remain in template logic without the former preference controls',()=>{
  assert.deepEqual([...allowedCapacities('پذیرایی')],[5,7,9,11,13]);
  assert.deepEqual([...allowedCapacities('آشپزخانه')],[2,4,6,8]);
  assert.deepEqual([...allowedCapacities('ناهارخوری')],[2,4,6,8]);
  const app=read('app.js');
- assert.match(app,/\['پذیرایی','ناهارخوری','آشپزخانه'\]\.includes\(space\)/);
+ assert.ok(app.includes('peopleCount=allowedCapacities(space)[0]'));
+ assert.ok(!app.includes('class="room-prefs"'));
 });
-
 test('semantic features and three lamp variants are registered',()=>{
  const asset=read('asset-metadata.js'),studio=read('studio.js'),decor=read('decor.js');
  assert.match(asset,/indexes:\[4,6,14,15,28,29,30,5\]/);
@@ -140,9 +137,9 @@ test('rug dimensions and designs share one feature panel',()=>{
  for(const part of ['تنظیمات فرش','RUG_SIZE_PRESETS.map','RUG_STYLES.map','data-rug-size','data-rug'])assert.ok(rug.includes(part),part);
 });
 test('saved layouts precede presets and typography is larger',()=>{
- const js=read('app.js'),css=read('style.css'),begin=js.indexOf("if(route==='layouts')");
+ const js=read('app.js'),css=read('style.css'),begin=js.indexOf("if(route==='spaces')");
  assert.ok(js.indexOf('class="saved-section"',begin)<js.indexOf('class="layout-feed"',begin));
- assert.ok(css.includes('.layouts-page .layout-feed{'));
+ assert.ok(css.includes('.rooms-integrated .layout-feed{'));
  assert.ok(css.includes('body small,body .step'));
  assert.ok(css.includes('font-size:15px!important'));
 });

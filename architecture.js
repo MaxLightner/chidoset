@@ -1,0 +1,179 @@
+import * as THREE from './vendor/three.module.js';
+import {cm,distance,wallLength,nearestWall,snapPoint,validPolygon,normalizedWindow,windowIntersects,updateWindow,validArchitecture} from './architecture-geometry.js';
+
+const axis=new THREE.Vector3(0,1,0);
+const point=(x,z)=>new THREE.Vector3(x,.012,z);
+export class ArchitectureLayer {
+ constructor(root,changed){
+  this.root=root;this.changed=changed;this.group=new THREE.Group();this.group.name='Chido architecture';root.add(this.group);
+  this.data={floor:[],walls:[],windows:[]};this.mode=null;this.draft=[];this.wallStart=null;
+  this.selectedWindow=null;this.handles=[];this.serial=0;this.refresh();
+ }
+ snapshot(){return structuredClone(this.data);}
+ restore(data){
+  if(!validArchitecture(data))return;
+  this.data=structuredClone(data);this.serial=Math.max(0,...this.data.walls.concat(this.data.windows).map(x=>Number(String(x.id).split('-').pop())||0));
+  this.mode=null;this.draft=[];this.wallStart=null;this.selectedWindow=null;this.refresh();
+ }
+ setMode(mode){
+  this.mode=this.mode===mode?null:mode;this.draft=[];this.wallStart=null;this.refresh();
+  return this.mode;
+ }
+ snap(p){return snapPoint(p,this.data.walls);}
+ tap(p){
+  if(!this.mode)return false;
+  p=this.snap(p);
+  if(this.mode==='floor'){
+   if(this.draft.length>=3&&distance(p,this.draft[0])<.22)return this.finish();
+   if(this.draft.length&&distance(p,this.draft[this.draft.length-1])<.06)return false;
+   if(this.draft.length>=64)return false;
+   this.draft.push(p);this.refresh();return true;
+  }
+  if(this.mode==='wall'){
+   if(!this.wallStart){this.wallStart=p;this.refresh();return true;}
+   if(distance(p,this.wallStart)<.1)return false;
+   if(this.data.walls.length>=80)return false;
+   const a=this.wallStart,b=p;
+   const repeated=this.data.walls.some(w=>(distance(a,{x:w.x1,z:w.z1})<.02&&distance(b,{x:w.x2,z:w.z2})<.02)||(distance(b,{x:w.x1,z:w.z1})<.02&&distance(a,{x:w.x2,z:w.z2})<.02));
+   if(!repeated)this.data.walls.push({id:'wall-'+(++this.serial),x1:a.x,z1:a.z,x2:b.x,z2:b.z,height:3,thickness:.12});
+   this.wallStart=b;this.refresh();this.changed?.();return true;
+  }
+  if(this.mode==='window'){
+   const match=nearestWall(this.data.walls,p,.48);if(!match)return false;
+   const w=match.wall;let next;
+   try{next=normalizedWindow({id:'window-'+(++this.serial),along:match.along,width:1.2,height:1.2,sill:.9},w);}
+   catch{return false;}
+   if(windowIntersects(next,this.data.windows))return false;
+   this.data.windows.push(next);this.selectedWindow=next.id;this.refresh();this.changed?.();return true;
+  }
+  return false;
+ }
+ finish(){
+  if(this.mode==='floor'&&this.draft.length){
+   if(!validPolygon(this.draft))return false;
+   this.data.floor=this.draft.map(x=>({...x}));this.changed?.();
+  }
+  this.draft=[];this.wallStart=null;this.mode=null;this.refresh();return true;
+ }
+ undo(){
+  if(this.mode==='floor'&&this.draft.length)this.draft.pop();
+  else if(this.mode==='wall'&&this.wallStart){this.wallStart=null;}
+  else if(this.mode==='wall'&&this.data.walls.length){const removed=this.data.walls.pop();this.data.windows=this.data.windows.filter(w=>w.hostId!==removed.id);this.changed?.();}
+  else if(this.mode==='window'&&this.data.windows.length){this.data.windows.pop();this.selectedWindow=null;this.changed?.();}
+  else return false;
+  this.refresh();return true;
+ }
+ selected(){return this.data.windows.find(w=>w.id===this.selectedWindow)||null;}
+ editSelected(values){
+  const old=this.selected(),wall=this.data.walls.find(w=>w.id===old?.hostId);if(!wall)return false;
+  const next=normalizedWindow({...old,...values},wall);
+  if(windowIntersects(next,this.data.windows))return false;
+  Object.assign(old,next);this.refresh();this.changed?.();return true;
+ }
+ removeSelected(){
+  if(!this.selectedWindow)return false;
+  this.data.windows=this.data.windows.filter(w=>w.id!==this.selectedWindow);
+  this.selectedWindow=null;this.refresh();this.changed?.();return true;
+ }
+ makeBox(group,w,a,b,y0,y1,thickness,mat,owner=null){
+  if(b-a<.002||y1-y0<.002)return;
+  const len=wallLength(w),ux=(w.x2-w.x1)/len,uz=(w.z2-w.z1)/len,along=(a+b)/2;
+  const mesh=new THREE.Mesh(new THREE.BoxGeometry(b-a,y1-y0,thickness),mat.clone());
+  mesh.position.set(w.x1+ux*along,(y0+y1)/2,w.z1+uz*along);
+  mesh.rotation.y=-Math.atan2(uz,ux);mesh.userData.archWindow=owner;group.add(mesh);return mesh;
+ }
+ refresh(){
+  while(this.group.children.length){
+   const object=this.group.children[0];this.group.remove(object);
+   object.traverse(n=>{n.geometry?.dispose();const m=n.material;if(m)for(const a of Array.isArray(m)?m:[m])a.dispose();});
+  }
+  this.handles=[];
+  const floor=this.data.floor;
+  if(floor.length>=3&&validPolygon(floor)){
+   const shape=new THREE.Shape();floor.forEach((p,i)=>i?shape.lineTo(p.x,p.z):shape.moveTo(p.x,p.z));shape.closePath();
+   const geo=new THREE.ShapeGeometry(shape);geo.rotateX(Math.PI/2);
+   const surface=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0xece8de,roughness:.9,transparent:true,opacity:.62,side:THREE.DoubleSide,depthWrite:false}));
+   surface.position.y=-.008;surface.receiveShadow=true;surface.renderOrder=-1;this.group.add(surface);
+  }
+  const wallMat=new THREE.MeshStandardMaterial({color:0xf2eee7,roughness:.94,transparent:true,opacity:.83});
+  const frameMat=new THREE.MeshStandardMaterial({color:0x8d9799,roughness:.54,metalness:.32});
+  for(const w of this.data.walls){
+   const len=wallLength(w);if(len<.1)continue;
+   const openings=this.data.windows.filter(o=>o.hostId===w.id).sort((a,b)=>a.along-b.along);
+   const container=new THREE.Group();container.userData.wallId=w.id;this.group.add(container);
+   let before=0;
+   for(const o of openings){
+    const left=Math.max(0,o.along-o.width/2),right=Math.min(len,o.along+o.width/2);
+    this.makeBox(container,w,before,left,0,w.height,w.thickness,wallMat);
+    this.makeBox(container,w,left,right,0,o.sill,w.thickness,wallMat);
+    this.makeBox(container,w,left,right,o.sill+o.height,w.height,w.thickness,wallMat);
+    const edge=Math.min(.05,o.width/8,o.height/8),t=w.thickness+.02;
+    this.makeBox(container,w,left,left+edge,o.sill,o.sill+o.height,t,frameMat,o.id);
+    this.makeBox(container,w,right-edge,right,o.sill,o.sill+o.height,t,frameMat,o.id);
+    this.makeBox(container,w,left,right,o.sill,o.sill+edge,t,frameMat,o.id);
+    this.makeBox(container,w,left,right,o.sill+o.height-edge,o.sill+o.height,t,frameMat,o.id);
+    before=right;
+   }
+   this.makeBox(container,w,before,len,0,w.height,w.thickness,wallMat);
+  }
+  wallMat.dispose();frameMat.dispose();
+  const guideMat=new THREE.LineBasicMaterial({color:0x42ad8e,depthTest:false});
+  const pts=this.mode==='floor'?this.draft:this.mode==='wall'&&this.wallStart?[this.wallStart]:[];
+  if(pts.length){
+   const points=pts.map(p=>point(p.x,p.z));if(this.mode==='floor'&&pts.length>2)points.push(point(pts[0].x,pts[0].z));
+   if(points.length>=2){const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),guideMat.clone());line.renderOrder=30;this.group.add(line);}
+   for(const p of pts){const mark=new THREE.Mesh(new THREE.SphereGeometry(.045,10,8),new THREE.MeshBasicMaterial({color:0x32b990,depthTest:false}));mark.position.copy(point(p.x,p.z));mark.renderOrder=30;this.group.add(mark);}
+  }
+  guideMat.dispose();
+  const selected=this.selected();
+  if(selected){
+   const w=this.data.walls.find(w=>w.id===selected.hostId);if(w){
+    const len=wallLength(w),ux=(w.x2-w.x1)/len,uz=(w.z2-w.z1)/len,off=w.thickness/2+.07;
+    const p=(along,y)=>new THREE.Vector3(w.x1+ux*along-uz*off,y,w.z1+uz*along+ux*off);
+    for(const [name,along,y] of [
+     ['left',selected.along-selected.width/2,selected.sill+selected.height/2],
+     ['right',selected.along+selected.width/2,selected.sill+selected.height/2],
+     ['top',selected.along,selected.sill+selected.height],
+     ['bottom',selected.along,selected.sill],
+     ['centre',selected.along,selected.sill+selected.height/2]
+    ]){
+     const m=new THREE.Mesh(new THREE.SphereGeometry(.065,12,10),new THREE.MeshBasicMaterial({color:name==='centre'?0xffc27d:0x4fcfa9,depthTest:false}));
+     m.position.copy(p(along,y));m.renderOrder=35;m.userData.archHandle=name;this.group.add(m);this.handles.push(m);
+    }
+   }
+  }
+ }
+ pickHandle(e,target,camera){
+  if(!this.handles.length)return null;
+  this.root.updateWorldMatrix(true,true);
+  const rect=target.getBoundingClientRect();let best=null,min=42;
+  for(const m of this.handles){
+   const p=m.getWorldPosition(new THREE.Vector3()).project(camera);
+   if(p.z< -1||p.z>1)continue;
+   const d=Math.hypot(rect.left+(p.x+1)*rect.width/2-e.clientX,rect.top+(1-p.y)*rect.height/2-e.clientY);
+   if(d<min){min=d;best=m.userData.archHandle;}
+  }
+  return best;
+ }
+ pickWindow(ray){
+  const hits=ray.intersectObjects(this.group.children,true);
+  const found=hits.find(h=>h.object.userData.archWindow);
+  const id=found?.object.userData.archWindow;
+  if(!id)return false;
+  this.selectedWindow=id;this.refresh();this.changed?.();return true;
+ }
+ dragHandle(handle,worldRay){
+  const win=this.selected(),w=this.data.walls.find(w=>w.id===win?.hostId);if(!w)return false;
+  this.root.updateWorldMatrix(true,false);
+  const localRay=worldRay.clone().applyMatrix4(this.root.matrixWorld.clone().invert());
+  const len=wallLength(w),ux=(w.x2-w.x1)/len,uz=(w.z2-w.z1)/len;
+  const normal=new THREE.Vector3(-uz,0,ux);
+  const plane=new THREE.Plane().setFromNormalAndCoplanarPoint(normal,new THREE.Vector3(w.x1,0,w.z1));
+  const hit=localRay.intersectPlane(plane,new THREE.Vector3());if(!hit)return false;
+  const along=(hit.x-w.x1)*ux+(hit.z-w.z1)*uz;
+  const next=updateWindow(win,w,this.data.windows,handle,along,hit.y);
+  if(next===win)return false;
+  Object.assign(win,next);this.refresh();this.changed?.();return true;
+ }
+ dispose(){this.root.remove(this.group);this.data={floor:[],walls:[],windows:[]};this.refresh();}
+}

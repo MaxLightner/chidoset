@@ -1,4 +1,5 @@
 import * as THREE from './vendor/three.module.js';
+import {ArchitectureLayer} from './architecture.js';
 import {createFurniture,furnitureHit} from './furniture.js?v=0.5.4';
 import {createDecor} from './decor.js?v=0.5.4';
 import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.7.0';
@@ -6,7 +7,7 @@ import {applyRugStyle} from './rug-textures.js?v=0.5.4';
 import {MeasureTool} from './measure-tool.js?v=0.5.4';
 import {requestARSession,xrError} from './xr.js?v=0.5.4';
 import {WideViewRenderer,WIDE_VIEW_FOV} from './wide-view.js?v=0.7.1';
-import {SpatialState,CATALOG,pairAngle,wrappedAngle} from './spatial.js?v=0.7.0';
+import {SpatialState,CATALOG,pairAngle,wrappedAngle} from './spatial.js?v=0.8.0';
 import {FloorScanner,floorCandidates} from './surfaces.js?v=0.5.4';
 import {EnvironmentEffects} from './effects.js?v=0.7.2';
 import {AnchorStabilizer,transformPoint} from './anchor-rig.js?v=0.5.4';
@@ -26,6 +27,7 @@ export class Studio{
   this.renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.xr.enabled=true;this.renderer.xr.setReferenceSpaceType('local');host.prepend(this.renderer.domElement);
   this.effects=new EnvironmentEffects(this.scene,this.renderer);
   this.floorFrame=new THREE.Group();this.scene.add(this.floorFrame);this.root=new THREE.Group();this.floorFrame.add(this.root);
+   this.architecture=new ArchitectureLayer(this.root,()=>this.changed());
   this.whiteFloor=new THREE.Mesh(new THREE.PlaneGeometry(20,20),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.7,depthWrite:false,side:THREE.DoubleSide}));
   // The translucent floor must composite *before* transparent contact shadows.
   this.whiteFloor.rotation.x=-Math.PI/2;this.whiteFloor.position.y=.001;this.whiteFloor.renderOrder=-10;this.whiteFloor.visible=false;this.floorFrame.add(this.whiteFloor);
@@ -409,7 +411,7 @@ void main(){
  }
 
  remove(){const m=this.selected;if(!m)return;this.items=this.items.filter(x=>x!==m);for(const child of this.items)if(child.userData.attachment?.id===m.userData.id){child.userData.attachment=null;this.keepOnFloor(child);}this.root.remove(m);this.disposeObject(m);this.select(this.items[0]||null);}
- clear(){for(const m of this.items){this.root.remove(m);this.disposeObject(m);}this.items=[];this.selected=null;this.serial=0;this.changed();}
+ clear(){for(const m of this.items){this.root.remove(m);this.disposeObject(m);}this.items=[];this.selected=null;this.serial=0;this.architecture?.restore({floor:[],walls:[],windows:[]});this.changed();}
  disposeObject(object){const imported=!!object.userData.imported;object.userData.disposed=true;object.traverse(o=>{o.geometry?.dispose();if(o.material){const materials=Array.isArray(o.material)?o.material:[o.material];for(const material of materials){if(!imported)material.map?.dispose();material.dispose();}}});}
  rotate(degrees){if(!this.selected)return;const mesh=this.selected;const desired=degrees===undefined?mesh.rotation.y+Math.PI/4:degrees*Math.PI/180;
   mesh.rotation.y=this.safeObjectRotation(mesh,desired);
@@ -426,13 +428,13 @@ void main(){
  resetCalibration(){this.model.resetCalibration();this.measureTool.setCorrection(this.model.correction);this.syncSpatial();this.changed();}
  setHeight(){throw Error('ارتفاع کف فقط از شناسایی واقعی تعیین می‌شود.');}
  measurement(){return {measuredCm:this.model.length*100,correctedCm:this.model.length/this.model.correction*100,scale:this.model.correction,actualCm:this.model.actualLength===null?null:this.model.actualLength*100,heightCm:this.model.heightOffset*100};}
- exportState(){return {spatial:this.model.snapshot(),whiteFloor:!!this.whiteFloor?.visible,items:this.items.map(m=>({index:m.userData.index,id:m.userData.id,
+ exportState(){return {spatial:this.model.snapshot(),whiteFloor:!!this.whiteFloor?.visible,architecture:this.architecture?.snapshot()||{floor:[],walls:[],windows:[]},items:this.items.map(m=>({index:m.userData.index,id:m.userData.id,
  position:m.position.toArray(),rotation:m.rotation.y,color:'#'+m.material.color.getHexString(),
  attachment:m.userData.attachment||null,size:[...m.userData.product.size],capacity:m.userData.capacity||null,
  seats:m.userData.seats||null,tableId:m.userData.tableId||null,hidden:!!m.userData.hidden,
  rugStyle:m.userData.rugStyle||null,artImage:m.userData.artImage||null,lampOn:!!m.userData.lampOn,
  cushionPreset:m.userData.cushionPreset||'none',fabric:m.userData.fabric||null}))};}
- restoreState(state){this.model.restore(state.spatial);if(this.whiteFloor)this.whiteFloor.visible=!!state.whiteFloor;for(const x of state.items){const mesh=this.add(x.index,x.position?new THREE.Vector3(...x.position):undefined,{size:[22,23,24].includes(x.index)?undefined:x.size,seats:x.seats,silentSelect:true,cushionPreset:x.cushionPreset,lampOn:x.lampOn,fabric:x.fabric});mesh.userData.id=x.id;mesh.position.fromArray(x.position);if([22,23,24].includes(x.index))mesh.position.y=CATALOG[x.index].size[1]/2;mesh.rotation.y=x.rotation;mesh.material.color.set(x.color);mesh.userData.attachment=x.attachment||null;mesh.userData.capacity=x.capacity||null;mesh.userData.seats=x.seats||mesh.userData.seats;mesh.userData.tableId=x.tableId||null;mesh.userData.hidden=!!x.hidden;mesh.visible=!x.hidden;if(x.rugStyle)applyRugStyle(mesh,x.rugStyle);if(x.artImage)this.setWallArtImage(x.artImage,mesh);if(isLamp(mesh.userData.index))this.initializeLamp(mesh,x.lampOn===true);}this.serial=Math.max(0,...state.items.map(x=>x.id));this.measureTool.setCorrection(this.model.correction);this.refreshAttachments();this.syncSpatial();this.select(this.items[0]||null);}
+ restoreState(state){this.model.restore(state.spatial);this.architecture?.restore(state.architecture||{floor:[],walls:[],windows:[]});if(this.whiteFloor)this.whiteFloor.visible=!!state.whiteFloor;for(const x of state.items){const mesh=this.add(x.index,x.position?new THREE.Vector3(...x.position):undefined,{size:[22,23,24].includes(x.index)?undefined:x.size,seats:x.seats,silentSelect:true,cushionPreset:x.cushionPreset,lampOn:x.lampOn,fabric:x.fabric});mesh.userData.id=x.id;mesh.position.fromArray(x.position);if([22,23,24].includes(x.index))mesh.position.y=CATALOG[x.index].size[1]/2;mesh.rotation.y=x.rotation;mesh.material.color.set(x.color);mesh.userData.attachment=x.attachment||null;mesh.userData.capacity=x.capacity||null;mesh.userData.seats=x.seats||mesh.userData.seats;mesh.userData.tableId=x.tableId||null;mesh.userData.hidden=!!x.hidden;mesh.visible=!x.hidden;if(x.rugStyle)applyRugStyle(mesh,x.rugStyle);if(x.artImage)this.setWallArtImage(x.artImage,mesh);if(isLamp(mesh.userData.index))this.initializeLamp(mesh,x.lampOn===true);}this.serial=Math.max(0,...state.items.map(x=>x.id));this.measureTool.setCorrection(this.model.correction);this.refreshAttachments();this.syncSpatial();this.select(this.items[0]||null);}
  attachInput(target,opts){target.addEventListener('pointerdown',e=>this.down(e,target),opts);target.addEventListener('pointermove',e=>this.drag(e,target),opts);target.addEventListener('pointerup',e=>this.up(e,target),opts);target.addEventListener('pointercancel',()=>this.cancelGesture(),opts);target.addEventListener('lostpointercapture',e=>{if(this.points.has(e.pointerId))this.up(e,target);},opts);}
  activeCamera(){if(this.wideView?.active)return this.wideView.camera;if(this.session)return this.renderer.xr.getCamera().cameras[0]||this.renderer.xr.getCamera();return this.camera;}
  setRay(e,target){const r=target.getBoundingClientRect();this.pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);this.floorFrame.updateMatrixWorld(true);this.ray.setFromCamera(this.pointer,this.activeCamera());}
@@ -512,6 +514,9 @@ safeObjectMotion(mesh,desired){
   }
  hitHandle(e,target){const bounds=target.getBoundingClientRect();let best=null,distance=36;for(const h of [this.handleA,this.handleB]){const p=h.getWorldPosition(new THREE.Vector3()).project(this.activeCamera());if(p.z>1||p.z< -1)continue;const d=Math.hypot((p.x+1)*bounds.width/2+bounds.left-e.clientX,(1-p.y)*bounds.height/2+bounds.top-e.clientY);if(d<distance){distance=d;best=h.userData.handle;}}return best;}
  down(e,target){if(this.photoMode){this.onPhotoTap?.();return;}
+   if(this.architecture?.mode&&this.model.locked){e.preventDefault();const p=this.pointOnFloor(e,target);if(p){const success=this.architecture.tap(this.rootLocal(p));this.onHint?.(success?'نقطه ثبت شد؛ برای پایان ابزار «اتمام» را بزن.':'نقطه معتبر نیست یا باید به دیوار نزدیک‌تر شوی.');}return;}
+   const archHandle=this.architecture?.pickHandle(e,target,this.activeCamera());
+   if(archHandle&&this.model.locked){e.preventDefault();target.setPointerCapture(e.pointerId);this.points.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});this.gesture={kind:'arch-window',handle:archHandle};return;}
   if(this.measureTool.active&&this.model.locked&&(!this.session||this.tracking)){
    e.preventDefault();const p=this.pointOnFloor(e,target);
    if(p){const meters=this.measureTool.setPoint(this.floorLocal(p));this.onMeasure?.(meters,!!this.measureTool.a&&!this.measureTool.b);}
@@ -522,7 +527,7 @@ safeObjectMotion(mesh,desired){
    if(this.moveLayoutMode){this.gesture={kind:'layout',offset:this.model.layoutOffset.clone().sub(this.floorLocal(p))};return;}
    if(this.selected&&isWallArt(this.selected.userData.index)&&this.hitArtHandle(e,target)){this.gesture={kind:'art-handle',offset:this.selected.position.clone().sub(this.rootLocal(p))};return;}
    const handle=this.hitHandle(e,target);if(handle){this.gesture={kind:handle,offset:this.model[handle.toLowerCase()].clone().sub(this.floorLocal(p))};return;}
-   this.setRay(e,target);const hit=furnitureHit(this.ray,this.items.filter(x=>x.visible));if(!hit){this.select(null);this.gesture=null;return;}
+   this.setRay(e,target);if(this.architecture?.pickWindow(this.ray)){this.select(null);this.gesture=null;return;}const hit=furnitureHit(this.ray,this.items.filter(x=>x.visible));if(!hit){this.select(null);this.gesture=null;return;}
    this.select(hit.object);
    if(isWallArt(hit.object.userData.index)){this.gesture=null;this.onHint?.('تابلو را از دستگیره سبز روی کف جابه‌جا کن.');return;}
    // Only *standing* lamps require grabbing the base; tabletop lamps move
@@ -538,7 +543,9 @@ safeObjectMotion(mesh,desired){
  startTwist(target){const angle=this.twistAngle(target);if(angle!==null)this.gesture={kind:'twist',start:angle,rotation:this.selected.rotation.y};}
  drag(e,target){if(!this.points.has(e.pointerId)||this.photoMode||(this.session&&!this.tracking))return;e.preventDefault();this.points.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});const g=this.gesture;if(!g)return;
   if(this.points.size===2&&this.selected){if(g.kind!=='twist'){this.startTwist(target);return;}const angle=this.twistAngle(target);if(angle!==null){const desired=g.rotation+wrappedAngle(angle-g.start);const delta=desired-this.selected.rotation.y,c=Math.cos(delta),ss=Math.sin(delta);for(const chair of this.linkedChairs(this.selected)){const dx=chair.position.x-this.selected.position.x,dz=chair.position.z-this.selected.position.z;chair.position.x=this.selected.position.x+dx*c+dz*ss;chair.position.z=this.selected.position.z-dx*ss+dz*c;chair.rotation.y+=delta;}this.selected.rotation.y=desired;}this.keepOnFloor(this.selected);this.refreshAttachments();return;}
-  if(this.points.size!==1||g.kind==='twist')return;const p=this.pointOnFloor(e,target);if(!p)return;
+  if(this.points.size!==1||g.kind==='twist')return;
+   if(g.kind==='arch-window'){this.setRay(e,target);this.architecture?.dragHandle(g.handle,this.ray.ray);return;}
+   const p=this.pointOnFloor(e,target);if(!p)return;
   if(g.kind==='layout'){
    this.model.layoutOffset.copy(this.floorLocal(p).add(g.offset));this.syncSpatial();return;
   }
@@ -571,8 +578,8 @@ safeObjectMotion(mesh,desired){
    this.pendingPhoto=pending;
   });
  }
- async startAR(status,report,basic=false,options={}){
-  const session=await requestARSession(navigator.xr,document.querySelector('#overlay'),basic,options);this.session=session;this.onStatus=status;this.onReport=report;this.tracking=false;this.frames=0;this.fps=0;this.lastReport=performance.now();this.lastReportState='';this.lastStatus='';this.debugView.start();this.model.locked=false;this.model.heightOffset=0;this.model.resetCalibration();this.anchorRig=new AnchorStabilizer();this.scanMarkers.visible=true;this.scanHits=0;this.scanDrop=null;this.scanDistance=null;this.floorNet.material.uniforms.opacity.value=.85;this.syncSpatial();this.scanner.reset();this.debugView.note('scan started');this.root.visible=false;this.floorNet.visible=false;this.ruler.visible=false;this.scene.background=null;this.status('کف را اسکن کن؛ دوربین را آرام رو به پایین حرکت بده.');
+ async startAR(status,report,basic=false,options={},incomingSession=null){
+  const session=incomingSession?await incomingSession:await requestARSession(navigator.xr,document.querySelector('#overlay'),basic,options);this.session=session;this.onStatus=status;this.onReport=report;this.tracking=false;this.frames=0;this.fps=0;this.lastReport=performance.now();this.lastReportState='';this.lastStatus='';this.debugView.start();this.model.locked=false;this.model.heightOffset=0; // Restore saved project calibration; a new empty scene defaults to 1:1.this.anchorRig=new AnchorStabilizer();this.scanMarkers.visible=true;this.scanHits=0;this.scanDrop=null;this.scanDistance=null;this.floorNet.material.uniforms.opacity.value=.85;this.syncSpatial();this.scanner.reset();this.debugView.note('scan started');this.root.visible=false;this.floorNet.visible=false;this.ruler.visible=false;this.scene.background=null;this.status('کف را اسکن کن؛ دوربین را آرام رو به پایین حرکت بده.');
   session.addEventListener('end',()=>{if(this.session===session)this.endSession();},{once:true});let stage='renderer';
   try{await this.renderer.xr.setSession(session);this.cameraBinding=null;
     if(session.enabledFeatures?.includes('camera-access')&&globalThis.XRWebGLBinding){try{this.cameraBinding=new XRWebGLBinding(session,this.renderer.getContext());}catch(error){console.warn('Camera binding unavailable',error?.name||error);}}
@@ -687,7 +694,7 @@ safeObjectMotion(mesh,desired){
       this.root.visible=t>.68;
       if(t>=1)this.revealStart=null;
      }
-     this.updateAnchor(frame,space,time);if(!this.photoMode)this.status('A: انتقال ست · B: جهت ست · یک انگشت: حرکت · دو انگشت: چرخش');}
+     this.updateAnchor(frame,space,time);if(!this.photoMode)this.status('A: جابه‌جایی مرجع و چیدمان · B: تنظیم راستا · اندازه واقعی از پنل A/B');}
    this.debugView.tick(frame,space,this,time);this.effects.update(frame,time,this.fps);this.effects.updateShadowAnchor?.(this.floorFrame.position);this.frames++;if(time-this.lastReport>=750){this.fps=Math.round(this.frames*1000/(time-this.lastReport));this.frames=0;this.lastReport=time;}
    const report={fps:this.fps,objects:this.items.length,visible:this.root.visible&&pose?this.items.length:0,placed:this.model.locked,hit:this.scanner.ready,scanHits:this.scanHits,validHits:this.scanner.validHits,inlierHits:this.scanner.inlierHits,scanDrop:this.scanDrop,scanDistance:this.scanDistance,tracking:!!pose,anchor:this.anchorState,light:this.effects.lightState,depth:this.effects.depthState,photo:this.photoMode,...this.measurement()};const state=JSON.stringify(report);if(state!==this.lastReportState){this.onReport?.(report);this.lastReportState=state;}
   }
@@ -718,7 +725,7 @@ safeObjectMotion(mesh,desired){
   }
  }
  async snapshot(){if(this.session)throw Error('در AR از اسکرین‌شات گوشی استفاده کن.');const before=this.photoMode;this.setPhotoMode(true);this.renderer.render(this.scene,this.camera);try{return await new Promise((resolve,reject)=>this.renderer.domElement.toBlob(blob=>blob?resolve(blob):reject(Error('ثبت نشد')),'image/png'));}finally{this.setPhotoMode(before);}}
- destroy(){this.wideView?.dispose();this.wideView=null;this.resizeObserver.disconnect();this.events.abort();this.renderer.setAnimationLoop(null);this.dropAnchor();this.clear();this.disposeObject(this.ruler);this.disposeObject(this.artFloorHandle);this.scanCrosses[0]?.geometry.dispose();for(const m of this.scanCrosses)m.material.dispose();this.debugView.dispose();this.measureTool?.dispose();this.placementMarker.geometry.dispose();this.placementMarker.material.dispose();this.floorNet.geometry.dispose();this.floorNet.material.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
+ destroy(){this.architecture?.dispose();this.wideView?.dispose();this.wideView=null;this.resizeObserver.disconnect();this.events.abort();this.renderer.setAnimationLoop(null);this.dropAnchor();this.clear();this.disposeObject(this.ruler);this.disposeObject(this.artFloorHandle);this.scanCrosses[0]?.geometry.dispose();for(const m of this.scanCrosses)m.material.dispose();this.debugView.dispose();this.measureTool?.dispose();this.placementMarker.geometry.dispose();this.placementMarker.material.dispose();this.floorNet.geometry.dispose();this.floorNet.material.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
 }
 
 
