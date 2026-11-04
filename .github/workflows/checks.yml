@@ -1,9 +1,9 @@
 name: Tolica JavaScript checks
 on:
   push:
-    branches: [main, feature/ar-first-ui-decor-ruler-028]
+    branches: [main, feature/ar-first-ui-decor-ruler-028, feature/chido-stage1]
   pull_request:
-    branches: [main]
+    branches: [main, feature/chido-stage1]
 jobs:
   test:
     runs-on: ubuntu-latest
