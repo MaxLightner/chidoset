@@ -10,7 +10,7 @@ import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-
 import {LiveMiniMap} from './minimap.js?v=0.5.4';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
 import {SOFA_FABRICS} from './imported-models.js?v=0.7.0';
-import {supabase,activateBranch,signIn,getMembership,loadCompanySets,saveOfficialLayout,saveOfficialColorway,createLiveSession,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard} from './chido-cloud.js?v=0.10.0';
+import {supabase,activateBranch,signIn,getMembership,loadCompanySets,saveOfficialLayout,saveOfficialColorway,createLiveSession,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout} from './chido-cloud.js?v=0.10.0';
 const $=s=>document.querySelector(s),app=$('#app'),fa=n=>n.toLocaleString('fa-IR');
 let studio,Scene,palette,space='پذیرایی',layout='conversation',supported=false,routeVersion=0,photoURLs=[],savedItems=[],arReport=null,sceneMemory=null,arStarting=false,lastXRErrorReport='',activeSavedLayoutId=null;
 const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio);
@@ -173,7 +173,7 @@ async function render(){const version=++routeVersion;const route=location.hash.s
    <div class="company-set-heading"><div><h3>ست‌های رسمی شرکت</h3><small>مجموعه‌های آماده‌شده و منتشرشده برای این حساب</small></div><span class="cloud-count">${cloudSets.length} ست</span></div>
    <div class="company-set-grid">${cloudSets.map(set=>`<button class="company-set-card ${set.id===activeCloudSetId?'selected':''}" data-cloud-set="${set.id}"><strong>${set.name}</strong><small>${set.products.length} محصول · ${set.layouts.length} چیدمان · ${set.colorways.length} رنگ‌بندی</small><span>انتخاب ست ←</span></button>`).join('')||'<div class="cloud-empty">هنوز ستی برای این شرکت منتشر نشده است.</div>'}</div>
   </section>
-  ${activeSet?`<section class="company-set-detail"><div class="company-set-heading"><div><h3>${activeSet.name}</h3><small>${activeSet.description||'چیدمان‌ها و رنگ‌بندی‌های رسمی این ست'}</small></div><button data-cloud-set-clear>همه ست‌ها</button></div><div class="cloud-layout-grid">${activeSet.layouts.map(item=>`<button class="cloud-layout-card" data-cloud-layout="${item.id}"><strong>${item.name}</strong><small>${item.room} · ${item.capacity} نفر</small><span>بازکردن در AR ←</span></button>`).join('')||'<div class="cloud-empty">برای این ست هنوز چیدمان رسمی ذخیره نشده است.</div>'}</div>${cloudMembership?.role==='company_admin'?'<button class="cloud-new-layout" data-new-cloud-layout>＋ ساخت چیدمان رسمی جدید در AR</button>':''}</section>`:''}
+  ${activeSet?`<section class="company-set-detail"><div class="company-set-heading"><div><h3>${activeSet.name}</h3><small>${activeSet.description||'چیدمان‌ها و رنگ‌بندی‌های رسمی این ست'}</small></div><button data-cloud-set-clear>همه ست‌ها</button></div><div class="cloud-layout-grid">${activeSet.layouts.map(item=>`<button class="cloud-layout-card" data-cloud-layout="${item.id}"><strong>${item.name}</strong><small>${item.room} · ${item.capacity} نفر</small><span>بازکردن در AR ←</span></button>`).join('')||'<div class="cloud-empty">برای این ست هنوز چیدمان رسمی ذخیره نشده است.</div>'}</div>${cloudMembership?.role==='company_admin'?'<button class="cloud-new-layout" data-new-cloud-layout>＋ ساخت چیدمان رسمی جدید در AR</button>':'<button class="cloud-new-layout" data-request-cloud-layout>درخواست چیدمان جدید از مدیر شرکت</button>'}</section>`:''}
   ${saved.length&&!cloudSets.length?`<section class="saved-section"><h3>چیدمان‌های ذخیره‌شده</h3><div class="saved-layout-grid">
   ${saved.map(record=>`<div class="saved-plan-card"><button data-saved-layout="${record.id}" class="saved-plan-open"><div class="saved-plan-image">${savedPlanSvg(record.scene)}</div><strong>${record.name.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')}</strong></button><button class="saved-plan-delete" data-remove-layout="${record.id}" aria-label="حذف چیدمان ذخیره‌شده">×</button></div>`).join('')}
   </div></section>`:''}
@@ -189,6 +189,7 @@ async function render(){const version=++routeVersion;const route=location.hash.s
    else{sceneMemory=null;openLayoutForScanning(layout);}
   });
   document.querySelectorAll('[data-new-cloud-layout]').forEach(btn=>btn.onclick=()=>{if(cloudMembership?.role!=='company_admin')return;activeCloudLayout=null;activeCloudColorway=null;layout='empty';sceneMemory=null;openLayoutForScanning('empty');});
+  document.querySelectorAll('[data-request-cloud-layout]').forEach(btn=>btn.onclick=()=>showArSheet('request-layout'));
   document.querySelectorAll('[data-space]').forEach(btn=>btn.onclick=()=>{space=btn.dataset.space;peopleCount=allowedCapacities(space)[0];render();});
   document.querySelectorAll('[data-new-space]').forEach(btn=>btn.onclick=()=>{space=btn.dataset.newSpace;peopleCount=allowedCapacities(space)[0];if(!activeCloudSetId&&cloudSets.length)activeCloudSetId=cloudSets[0].id;activeCloudLayout=null;activeCloudColorway=null;layout='empty';sceneMemory=null;openLayoutForScanning('empty');});
   document.querySelectorAll('[data-layout]').forEach(btn=>btn.onclick=()=>openLayoutForScanning(btn.dataset.layout));
@@ -460,6 +461,14 @@ function showArSheet(mode){
    body.querySelectorAll('[data-variant]').forEach(btn=>btn.onclick=()=>{if(!studio.replaceSelected(+btn.dataset.variant)){toast('فضای کافی برای این مدل وجود ندارد.');return;}closeArSheet();showArSheet('features');});
     if(isWallArt(i))$('#artImageFile').onchange=async event=>{try{const file=event.target.files?.[0];if(!file)return;if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>8*1024*1024)throw Error('فایل تصویر معتبر نیست یا بیش از ۸ مگابایت است.');const picture=await createImageBitmap(file),ratio=selected.userData.product.size[0]/selected.userData.product.size[1],canvas=document.createElement('canvas');canvas.width=Math.min(640,Math.round(480*ratio));canvas.height=Math.round(canvas.width/ratio);const context=canvas.getContext('2d');if(!context)throw Error('دسترسی به Canvas ممکن نیست.');const scale=Math.max(canvas.width/picture.width,canvas.height/picture.height),w=picture.width*scale,h=picture.height*scale;context.drawImage(picture,(canvas.width-w)/2,(canvas.height-h)/2,w,h);picture.close?.();if(!studio.setWallArtImage(canvas.toDataURL('image/jpeg',.72),selected))throw Error('تصویر ذخیره نشد.');toast('تصویر تابلو عوض شد.');}catch(error){toast(error.message||'تغییر تصویر ممکن نشد.');}};
   }else body.innerHTML='<p class="sheet-tip">رنگ، چرخش، جابه‌جایی و تعویض مدل در دسترس است.</p>';
+ }else if(mode==='request-layout'){
+  const set=getActiveCloudSet();title.textContent='درخواست چیدمان جدید';
+  body.innerHTML='<p class="sheet-tip">توضیح بده چه ترکیب یا حالت جدیدی برای این ست لازم داری. مدیر شرکت درخواست را بررسی می‌کند.</p><textarea id="cloudLayoutRequestText" rows="4" maxlength="800" placeholder="مثلاً یک چیدمان L شکل با فضای بیشتر برای میز جلو مبلی…"></textarea><button id="sendCloudLayoutRequest" class="primary">ارسال درخواست</button>';
+  $('#sendCloudLayoutRequest').onclick=async()=>{
+   const description=$('#cloudLayoutRequestText').value.trim();if(description.length<5){toast('توضیح درخواست کوتاه است.');return;}
+   try{await requestOfficialLayout({setId:set.id,description});closeArSheet();toast('درخواست برای مدیر شرکت ارسال شد.');}
+   catch(error){toast(error.message||'ارسال درخواست انجام نشد.');}
+  };
  }else if(mode==='cloud-layouts'){
   const set=getActiveCloudSet();title.textContent='چیدمان‌های رسمی';
   body.innerHTML=set?'<div class="cloud-sheet-list">'+set.layouts.map(item=>`<button class="cloud-sheet-row" data-open-cloud-layout="${item.id}"><strong>${item.name}</strong><small>${item.room} · ${item.capacity} نفر</small></button>`).join('')+'</div>':'<p class="sheet-tip">ست فعالی انتخاب نشده است.</p>';
