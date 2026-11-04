@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from '../vendor/three.module.js';
 import {SpatialState} from '../spatial.js';
-import {snapPoint,validPolygon,nearestWall,normalizedWindow,windowIntersects,updateWindow,validArchitecture} from '../architecture-geometry.js';
+import {snapPoint,closestFloorEdge,validPolygon,nearestWall,normalizedWindow,windowIntersects,updateWindow,validArchitecture} from '../architecture-geometry.js';
+import {ArchitectureLayer} from '../architecture.js';
+import {FLOOR_FINISHES,WALL_FINISHES,finishMaterial,finishTextures} from '../architecture-materials.js';
 
 const wall={id:'wall-1',x1:0,z1:0,x2:5,z2:0,height:3,thickness:.12};
 test('floor polygon accepts concave rooms but rejects self-intersections and tiny areas',()=>{
@@ -42,4 +44,48 @@ test('the reference A moves the project and B changes its heading without a sepa
 test('scene architecture snapshots use bounded polygon, wall and window arrays',()=>{
  assert.equal(validArchitecture({floor:[],walls:[],windows:[]}),true);
  assert.equal(validArchitecture({floor:[],walls:[]}),false);
+});
+
+test('architectural floor edges attract new wall endpoints within 24 cm',()=>{
+ const floor=[{x:0,z:0},{x:4,z:0},{x:4,z:3},{x:0,z:3}];
+ assert.deepEqual(closestFloorEdge({x:1.23,z:.12},floor),{x:1.23,z:0});
+ assert.equal(closestFloorEdge({x:2,z:.35},floor),null);
+});
+test('wall preview requires confirmation and cancellation never commits',()=>{
+ const a=new ArchitectureLayer(new THREE.Group(),()=>{});
+ a.setMode('floor');for(const p of [{x:0,z:0},{x:4,z:0},{x:4,z:3},{x:0,z:3}])a.tap(p);
+ assert.equal(a.finish(),true);
+ a.setMode('wall');a.tap({x:.04,z:.1});a.tap({x:3.1,z:.08});
+ assert.equal(a.data.walls.length,0,'preview must not create a permanent wall');
+ assert.equal(a.confirmWall(),true);assert.equal(a.data.walls.length,1);
+ assert.equal(a.data.walls[0].z1,0);assert.equal(a.data.walls[0].z2,0);
+ a.tap({x:4,z:1});a.cancelPlacement();
+ assert.equal(a.data.walls.length,1,'cancel discards second preview');
+ a.dispose();
+});
+test('floor, wall and window surfaces are selectable and deletable',()=>{
+ const a=new ArchitectureLayer(new THREE.Group(),()=>{});
+ a.restore({floor:[{x:0,z:0},{x:3,z:0},{x:3,z:2},{x:0,z:2}],walls:[{id:'wall-1',x1:0,z1:0,x2:3,z2:0,height:3,thickness:.12}],windows:[]});
+ const ray=new THREE.Raycaster(new THREE.Vector3(1,2,1),new THREE.Vector3(0,-1,0));
+ a.root.updateWorldMatrix(true,true);
+ assert.equal(a.pickSurface(ray),true);assert.equal(a.selectedSurface().kind,'floor');
+ assert.equal(a.setSelectedFinish('carpet-olive'),true);assert.equal(a.data.floorMaterial,'carpet-olive');
+ assert.equal(a.deleteSelected(),true);assert.deepEqual(a.data.floor,[]);
+ const wallRay=new THREE.Raycaster(new THREE.Vector3(1,1,2),new THREE.Vector3(0,0,-1));
+ a.root.updateWorldMatrix(true,true);
+ assert.equal(a.pickSurface(wallRay),true);assert.equal(a.selectedSurface().kind,'wall');
+ assert.equal(a.setSelectedFinish('wall-grey'),true);
+ assert.equal(a.deleteSelected(),true);assert.equal(a.data.walls.length,0);
+ a.dispose();
+});
+test('ceramic and woven carpet use opaque metre-tileable PBR colour and normal maps',()=>{
+ assert.equal(FLOOR_FINISHES.length,6);assert.ok(WALL_FINISHES.length>=3);
+ for(const f of FLOOR_FINISHES){
+  const mat=finishMaterial(f.id),maps=finishTextures(f.id);
+  assert.equal(mat.transparent,false);assert.equal(mat.opacity,1);
+  assert.ok(maps.map.image.data.length>=256*256*4);
+  assert.equal(maps.normalMap.wrapS,THREE.RepeatWrapping);
+  assert.ok(mat.normalMap);
+  mat.dispose();
+ }
 });

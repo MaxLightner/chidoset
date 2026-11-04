@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three.module.js';
-import {ArchitectureLayer} from './architecture.js';
+import {ArchitectureLayer} from './architecture.js?v=0.9.0';
 import {createFurniture,furnitureHit} from './furniture.js?v=0.5.4';
 import {createDecor} from './decor.js?v=0.5.4';
 import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.7.0';
@@ -27,7 +27,7 @@ export class Studio{
   this.renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.xr.enabled=true;this.renderer.xr.setReferenceSpaceType('local');host.prepend(this.renderer.domElement);
   this.effects=new EnvironmentEffects(this.scene,this.renderer);
   this.floorFrame=new THREE.Group();this.scene.add(this.floorFrame);this.root=new THREE.Group();this.floorFrame.add(this.root);
-   this.architecture=new ArchitectureLayer(this.root,()=>this.changed());
+   this.architecture=new ArchitectureLayer(this.root,()=>{if(this.architecture?.data.floor.length&&this.whiteFloor)this.whiteFloor.visible=false;this.changed();});this.architecture.attachRenderer(this.renderer,this.scene);
   this.whiteFloor=new THREE.Mesh(new THREE.PlaneGeometry(20,20),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.7,depthWrite:false,side:THREE.DoubleSide}));
   // The translucent floor must composite *before* transparent contact shadows.
   this.whiteFloor.rotation.x=-Math.PI/2;this.whiteFloor.position.y=.001;this.whiteFloor.renderOrder=-10;this.whiteFloor.visible=false;this.floorFrame.add(this.whiteFloor);
@@ -221,7 +221,7 @@ void main(){
   for(const {mesh} of made)if(mesh.userData.index===4)this.snapVase(mesh);
   this.select(made.find(x=>[0,1,10,8,9].includes(x.mesh.userData.index))?.mesh||this.items[0]||null);
  }
- select(mesh){this.selected=mesh;this.updateArtFloorHandle();
+ select(mesh){if(mesh)this.architecture?.clearSurface();this.selected=mesh;this.updateArtFloorHandle();
   for(const m of this.items){
    m.userData.edges.material.color.set(m===mesh?'#d3a66e':'#8d7e6d');
    m.userData.edges.material.opacity=m===mesh?.48:.13;
@@ -434,7 +434,7 @@ void main(){
  seats:m.userData.seats||null,tableId:m.userData.tableId||null,hidden:!!m.userData.hidden,
  rugStyle:m.userData.rugStyle||null,artImage:m.userData.artImage||null,lampOn:!!m.userData.lampOn,
  cushionPreset:m.userData.cushionPreset||'none',fabric:m.userData.fabric||null}))};}
- restoreState(state){this.model.restore(state.spatial);this.architecture?.restore(state.architecture||{floor:[],walls:[],windows:[]});if(this.whiteFloor)this.whiteFloor.visible=!!state.whiteFloor;for(const x of state.items){const mesh=this.add(x.index,x.position?new THREE.Vector3(...x.position):undefined,{size:[22,23,24].includes(x.index)?undefined:x.size,seats:x.seats,silentSelect:true,cushionPreset:x.cushionPreset,lampOn:x.lampOn,fabric:x.fabric});mesh.userData.id=x.id;mesh.position.fromArray(x.position);if([22,23,24].includes(x.index))mesh.position.y=CATALOG[x.index].size[1]/2;mesh.rotation.y=x.rotation;mesh.material.color.set(x.color);mesh.userData.attachment=x.attachment||null;mesh.userData.capacity=x.capacity||null;mesh.userData.seats=x.seats||mesh.userData.seats;mesh.userData.tableId=x.tableId||null;mesh.userData.hidden=!!x.hidden;mesh.visible=!x.hidden;if(x.rugStyle)applyRugStyle(mesh,x.rugStyle);if(x.artImage)this.setWallArtImage(x.artImage,mesh);if(isLamp(mesh.userData.index))this.initializeLamp(mesh,x.lampOn===true);}this.serial=Math.max(0,...state.items.map(x=>x.id));this.measureTool.setCorrection(this.model.correction);this.refreshAttachments();this.syncSpatial();this.select(this.items[0]||null);}
+ restoreState(state){this.model.restore(state.spatial);this.architecture?.restore(state.architecture||{floor:[],walls:[],windows:[]});if(this.whiteFloor)this.whiteFloor.visible=!!state.whiteFloor&&!this.architecture?.data.floor.length;for(const x of state.items){const mesh=this.add(x.index,x.position?new THREE.Vector3(...x.position):undefined,{size:[22,23,24].includes(x.index)?undefined:x.size,seats:x.seats,silentSelect:true,cushionPreset:x.cushionPreset,lampOn:x.lampOn,fabric:x.fabric});mesh.userData.id=x.id;mesh.position.fromArray(x.position);if([22,23,24].includes(x.index))mesh.position.y=CATALOG[x.index].size[1]/2;mesh.rotation.y=x.rotation;mesh.material.color.set(x.color);mesh.userData.attachment=x.attachment||null;mesh.userData.capacity=x.capacity||null;mesh.userData.seats=x.seats||mesh.userData.seats;mesh.userData.tableId=x.tableId||null;mesh.userData.hidden=!!x.hidden;mesh.visible=!x.hidden;if(x.rugStyle)applyRugStyle(mesh,x.rugStyle);if(x.artImage)this.setWallArtImage(x.artImage,mesh);if(isLamp(mesh.userData.index))this.initializeLamp(mesh,x.lampOn===true);}this.serial=Math.max(0,...state.items.map(x=>x.id));this.measureTool.setCorrection(this.model.correction);this.refreshAttachments();this.syncSpatial();this.select(this.items[0]||null);}
  attachInput(target,opts){target.addEventListener('pointerdown',e=>this.down(e,target),opts);target.addEventListener('pointermove',e=>this.drag(e,target),opts);target.addEventListener('pointerup',e=>this.up(e,target),opts);target.addEventListener('pointercancel',()=>this.cancelGesture(),opts);target.addEventListener('lostpointercapture',e=>{if(this.points.has(e.pointerId))this.up(e,target);},opts);}
  activeCamera(){if(this.wideView?.active)return this.wideView.camera;if(this.session)return this.renderer.xr.getCamera().cameras[0]||this.renderer.xr.getCamera();return this.camera;}
  setRay(e,target){const r=target.getBoundingClientRect();this.pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);this.floorFrame.updateMatrixWorld(true);this.ray.setFromCamera(this.pointer,this.activeCamera());}
@@ -514,7 +514,14 @@ safeObjectMotion(mesh,desired){
   }
  hitHandle(e,target){const bounds=target.getBoundingClientRect();let best=null,distance=36;for(const h of [this.handleA,this.handleB]){const p=h.getWorldPosition(new THREE.Vector3()).project(this.activeCamera());if(p.z>1||p.z< -1)continue;const d=Math.hypot((p.x+1)*bounds.width/2+bounds.left-e.clientX,(1-p.y)*bounds.height/2+bounds.top-e.clientY);if(d<distance){distance=d;best=h.userData.handle;}}return best;}
  down(e,target){if(this.photoMode){this.onPhotoTap?.();return;}
-   if(this.architecture?.mode&&this.model.locked){e.preventDefault();const p=this.pointOnFloor(e,target);if(p){const success=this.architecture.tap(this.rootLocal(p));this.onHint?.(success?'نقطه ثبت شد؛ برای پایان ابزار «اتمام» را بزن.':'نقطه معتبر نیست یا باید به دیوار نزدیک‌تر شوی.');}return;}
+   if(this.architecture?.mode&&this.model.locked){
+    e.preventDefault();const p=this.pointOnFloor(e,target);
+    if(p){
+     const mode=this.architecture.mode,success=this.architecture.tap(this.rootLocal(p));
+     this.onHint?.(success?(mode==='wall'?'پیش‌نمایش دیوار آماده است؛ نقطه دوم را بزن و تأیید کن.':'نقطه ثبت شد.'):'نقطه معتبر نیست یا باید به دیوار نزدیک‌تر شوی.');
+    }
+    return;
+   }
    const archHandle=this.architecture?.pickHandle(e,target,this.activeCamera());
    if(archHandle&&this.model.locked){e.preventDefault();target.setPointerCapture(e.pointerId);this.points.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});this.gesture={kind:'arch-window',handle:archHandle};return;}
   if(this.measureTool.active&&this.model.locked&&(!this.session||this.tracking)){
@@ -527,7 +534,7 @@ safeObjectMotion(mesh,desired){
    if(this.moveLayoutMode){this.gesture={kind:'layout',offset:this.model.layoutOffset.clone().sub(this.floorLocal(p))};return;}
    if(this.selected&&isWallArt(this.selected.userData.index)&&this.hitArtHandle(e,target)){this.gesture={kind:'art-handle',offset:this.selected.position.clone().sub(this.rootLocal(p))};return;}
    const handle=this.hitHandle(e,target);if(handle){this.gesture={kind:handle,offset:this.model[handle.toLowerCase()].clone().sub(this.floorLocal(p))};return;}
-   this.setRay(e,target);if(this.architecture?.pickWindow(this.ray)){this.select(null);this.gesture=null;return;}const hit=furnitureHit(this.ray,this.items.filter(x=>x.visible));if(!hit){this.select(null);this.gesture=null;return;}
+   this.setRay(e,target);if(this.architecture?.pickWindow(this.ray)){this.select(null);this.gesture=null;return;}const hit=furnitureHit(this.ray,this.items.filter(x=>x.visible));if(!hit){const picked=this.architecture?.pickSurface(this.ray);this.select(null);this.gesture=null;return;}
    this.select(hit.object);
    if(isWallArt(hit.object.userData.index)){this.gesture=null;this.onHint?.('تابلو را از دستگیره سبز روی کف جابه‌جا کن.');return;}
    // Only *standing* lamps require grabbing the base; tabletop lamps move
@@ -541,7 +548,9 @@ safeObjectMotion(mesh,desired){
  }
  twistAngle(target){const [a,b]=[...this.points.values()];if(!a||!b)return null;const dx=b.clientX-a.clientX,dy=b.clientY-a.clientY;if(Math.hypot(dx,dy)<.5)return null;return Math.atan2(-dy,dx);}
  startTwist(target){const angle=this.twistAngle(target);if(angle!==null)this.gesture={kind:'twist',start:angle,rotation:this.selected.rotation.y};}
- drag(e,target){if(!this.points.has(e.pointerId)||this.photoMode||(this.session&&!this.tracking))return;e.preventDefault();this.points.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});const g=this.gesture;if(!g)return;
+ drag(e,target){
+  if(this.architecture?.mode&&this.model.locked&&!this.photoMode){const p=this.pointOnFloor(e,target);if(p)this.architecture.hover(this.rootLocal(p));}
+  if(!this.points.has(e.pointerId)||this.photoMode||(this.session&&!this.tracking))return;e.preventDefault();this.points.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});const g=this.gesture;if(!g)return;
   if(this.points.size===2&&this.selected){if(g.kind!=='twist'){this.startTwist(target);return;}const angle=this.twistAngle(target);if(angle!==null){const desired=g.rotation+wrappedAngle(angle-g.start);const delta=desired-this.selected.rotation.y,c=Math.cos(delta),ss=Math.sin(delta);for(const chair of this.linkedChairs(this.selected)){const dx=chair.position.x-this.selected.position.x,dz=chair.position.z-this.selected.position.z;chair.position.x=this.selected.position.x+dx*c+dz*ss;chair.position.z=this.selected.position.z-dx*ss+dz*c;chair.rotation.y+=delta;}this.selected.rotation.y=desired;}this.keepOnFloor(this.selected);this.refreshAttachments();return;}
   if(this.points.size!==1||g.kind==='twist')return;
    if(g.kind==='arch-window'){this.setRay(e,target);this.architecture?.dragHandle(g.handle,this.ray.ray);return;}

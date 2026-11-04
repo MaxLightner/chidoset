@@ -6,6 +6,7 @@ import {allowedCapacities,layoutOptions,buildLayout,layoutSummary,layoutPreviewS
 import {readDraft,saveDraft,clearDraft,listCustomLayouts,saveCustomLayout,overwriteCustomLayout,removeCustomLayout} from './layout-storage.js?v=0.5.4';
 import {ASSET_CATEGORIES,RUG_SIZE_PRESETS,isLamp,isSofa,isTable,isWallArt,variantsFor,categoryForIndex} from './asset-metadata.js?v=0.7.0';
 import {savedPlanSvg} from './saved-plan.js?v=0.8.0';
+import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-materials.js';
 import {LiveMiniMap} from './minimap.js?v=0.5.4';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
 import {SOFA_FABRICS} from './imported-models.js?v=0.7.0';
@@ -84,7 +85,7 @@ function heading(step,title,sub,back){return `<div class="page-heading"><div><sp
 async function full(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(!document.documentElement.requestFullscreen){toast('مرورگر شما تمام‌صفحه را پشتیبانی نمی‌کند.');return;}try{await document.documentElement.requestFullscreen();}catch{toast('ورود به تمام‌صفحه ممکن نشد؛ می‌توانی ادامه بدهی.');}}
 $('#fullscreen').onclick=full;document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'خروج از تمام‌صفحه ↙':'تمام‌صفحه ⛶');
 async function support(){try{supported=!!(isSecureContext&&navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar'));}catch{supported=false;}return supported;}
-async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.8.0');Scene=m.Studio;palette=m.palette;}}
+async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.9.0');Scene=m.Studio;palette=m.palette;}}
 let draftTimer=null;
 function currentSceneRecord(){
  if(!studio)return null;
@@ -140,21 +141,21 @@ async function render(){const version=++routeVersion;const route=location.hash.s
  photoURLs.forEach(URL.revokeObjectURL);photoURLs=[];
  if(route==='welcome'){app.innerHTML=`<section class="welcome-screen"><div class="welcome-title"><h1>CHIDO</h1><p>خانه را جور دیگری ببینید</p></div><img class="welcome-photo" src="assets/welcome.png" alt="صندلی کرم و گلدان در فضایی آرام"><div class="welcome-bottom"><button class="primary" id="welcome">ورود به نمایشگاه <span>→</span></button><button class="quick-ar" id="quickAR">ورود سریع به AR ↗</button><button class="quick-ar quick-empty" id="startEmpty">＋ ایجاد صحنه خالی</button><span class="welcome-wordmark">CHIDO</span></div></section>`;$('#welcome').onclick=()=>{full();location.hash='spaces';};const draft=readDraft();if(draft)$('#quickAR').textContent='ادامه چیدمان قبلی ↗';$('#quickAR').onclick=()=>{if(draft)loadSceneRecord(draft);else {layout='conversation';sceneMemory=null;}location.hash='studio';};$('#startEmpty').onclick=()=>{layout='empty';sceneMemory=null;activeSavedLayoutId=null;previewEnabled=false;clearDraft();location.hash='studio';};return;}
  if(route==='spaces'){
-  const rooms=['پذیرایی','ناهارخوری','آشپزخانه','اتاق خواب','فضای کار'];
+  const rooms=[['living','پذیرایی','برای کنار هم بودن'],['dining','ناهارخوری','دور یک میز، کنار هم'],['dining','آشپزخانه','میز غذاخوری و دورهمی'],['bedroom','اتاق خواب','گوشه‌ای برای آرامش'],['office','فضای کار','جایی برای ایده‌های تازه']];
   const variants=layoutOptions(space),saved=listCustomLayouts().filter(record=>record.room===space);
   app.innerHTML=`<section class="page rooms-page rooms-integrated">
   ${heading('چیدو / چیدمان','برای کدام فضا چیدمان می‌خواهی؟','یکی از طرح‌ها را انتخاب کن یا از یک فضای خالی شروع کن.','welcome')}
-  <nav class="room-tabs" aria-label="دسته‌بندی چیدمان">
-  ${rooms.map(name=>`<button type="button" data-space="${name}" class="${name===space?'selected':''}" aria-pressed="${name===space}">${name}</button>`).join('')}
-  </nav>
+  <div class="cards room-choice" aria-label="دسته‌بندی چیدمان">
+  ${rooms.map(([key,name,description])=>`<div class="room-tab-cell"><button type="button" class="card ${name===space?'selected':''}" data-space="${name}" aria-pressed="${name===space}">${svg(key)}<strong>${name}</strong><small>${description}</small></button><button type="button" class="room-tab-add" data-new-space="${name}" aria-label="ایجاد چیدمان جدید در ${name}">＋</button></div>`).join('')}
+  </div>
   ${saved.length?`<section class="saved-section"><h3>چیدمان‌های ذخیره‌شده</h3><div class="saved-layout-grid">
   ${saved.map(record=>`<div class="saved-plan-card"><button data-saved-layout="${record.id}" class="saved-plan-open"><div class="saved-plan-image">${savedPlanSvg(record.scene)}</div><strong>${record.name.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')}</strong></button><button class="saved-plan-delete" data-remove-layout="${record.id}" aria-label="حذف چیدمان ذخیره‌شده">×</button></div>`).join('')}
   </div></section>`:''}
   <section class="preset-layouts"><h3 class="layout-section-title">چیدمان‌های ${space}</h3><div class="layout-feed">
   ${variants.map(({id,title,description})=>`<button class="layout-photo-card" data-layout="${id}"><div class="layout-image floor-plan-card">${layoutPreviewSvg(buildLayout({room:space,kind:id,capacity:peopleCount}))}</div><div class="layout-caption"><strong>${title}</strong><small>${description}</small><span>←</span></div></button>`).join('')}
-  <button class="start-blank" data-layout="empty"><span>＋</span><strong>چیدمان جدید</strong><small>شروع با فضای خالی در ${space}</small></button>
   </div></section></section>`;
   document.querySelectorAll('[data-space]').forEach(btn=>btn.onclick=()=>{space=btn.dataset.space;peopleCount=allowedCapacities(space)[0];render();});
+  document.querySelectorAll('[data-new-space]').forEach(btn=>btn.onclick=()=>{space=btn.dataset.newSpace;peopleCount=allowedCapacities(space)[0];openLayoutForScanning('empty');});
   document.querySelectorAll('[data-layout]').forEach(btn=>btn.onclick=()=>openLayoutForScanning(btn.dataset.layout));
   document.querySelectorAll('[data-saved-layout]').forEach(btn=>btn.onclick=()=>{const record=listCustomLayouts().find(x=>x.id===btn.dataset.savedLayout);if(record)openLayoutForScanning(record.layout||'empty',record);});
   document.querySelectorAll('[data-remove-layout]').forEach(btn=>btn.onclick=()=>{removeCustomLayout(btn.dataset.removeLayout);render();});
@@ -182,7 +183,7 @@ async function render(){const version=++routeVersion;const route=location.hash.s
   studio.onEnd=()=>{
     resetWideViewControls();closeChidoMenu();minimap.collapse();setPhotoMode(false);closeArSheet();
     $('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=true;
-    $('#measureHint').hidden=true;$('#arMiniMap').hidden=true;$('#abInline').hidden=true;$('#arBottomActions').hidden=true;$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;
+    $('#measureHint').hidden=true;$('#arMiniMap').hidden=true;$('#abInline').hidden=true;$('#arBottomActions').hidden=true;$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;$('#arSurfaceActions').hidden=true;
     // Let Studio.endSession finish its own callbacks before disposing the 3D renderer.
     if(homeExitRequested)queueMicrotask(finishChidoHomeExit);
    };
@@ -193,7 +194,8 @@ async function render(){const version=++routeVersion;const route=location.hash.s
   studio.onWideViewProjection=projection=>{
    if($('#wideViewMode')?.value!=='ar')showWideProjection(projection);
   };
-   studio.onLiveChange=()=>minimap.render();
+   studio.architecture.onSelectionChange=updateArchitectureSelection;
+  studio.onLiveChange=()=>{minimap.render();updateArchitectureSelection();};
    studio.onABPosition=point=>{const el=$('#abInline');if(!point||!studio?.session||studio.photoMode){el.hidden=true;return;}el.hidden=false;el.style.left=Math.max(72,Math.min(innerWidth-72,point.x))+'px';el.style.top=Math.max(88,Math.min(innerHeight-125,point.y))+'px';$('#abLengthButton').textContent='A—B · '+Math.round(studio.measurement().correctedCm).toLocaleString('fa-IR')+' cm ✎';};
   studio.onSelectionScreen=()=>{
     const quick=$('#objectQuick'),selected=studio?.selected;
@@ -269,7 +271,18 @@ function showArSheet(mode){
   body.querySelectorAll('[data-category]').forEach(btn=>btn.onclick=()=>populate(btn.dataset.category));
   populate(groups[0]?.id);
  }else if(mode==='colors'){
-  if(selected?.userData.index===31){
+  const surface=studio.architecture?.selectedSurface();
+  if(surface&&['floor','wall'].includes(surface.kind)){
+   const options=surface.kind==='floor'?FLOOR_FINISHES:WALL_FINISHES;
+   const current=surface.kind==='floor'?studio.architecture.data.floorMaterial:studio.architecture.data.walls.find(w=>w.id===surface.id)?.material||studio.architecture.data.wallMaterial;
+   title.textContent=surface.kind==='floor'?'تکسچر و رنگ کف':'تکسچر و رنگ دیوار';
+   body.innerHTML=`<div class="architecture-finish-grid">${options.map(f=>`<button data-architecture-finish="${f.id}" class="${current===f.id?'selected':''}"><img src="${finishPreviewDataUrl(f.id)}" alt="بافت ${f.label}"><span>${f.label}</span></button>`).join('')}</div><small class="sheet-tip">سرامیک ۱×۱ متر؛ موکت بافت‌دار؛ بازتاب محیطی کف سرامیکی فعال است.</small>`;
+   body.querySelectorAll('[data-architecture-finish]').forEach(btn=>btn.onclick=()=>{
+    if(studio.architecture.setSelectedFinish(btn.dataset.architectureFinish)){
+     body.querySelectorAll('[data-architecture-finish]').forEach(b=>b.classList.toggle('selected',b===btn));
+    }
+   });
+  }else if(selected?.userData.index===31){
     title.textContent='متریال فرش';body.innerHTML='<p class="sheet-tip">فرش واردشده تکسچر اختصاصی دارد و رنگ آن از فایل GLB خوانده می‌شود.</p>';
    }else if(selected?.userData.index===7){
    title.textContent='طرح و رنگ فرش';
@@ -357,6 +370,7 @@ function showArSheet(mode){
     <button id="architectureDeleteWindow">حذف پنجره</button></div>`:''}`;
   body.querySelectorAll('[data-architecture-mode]').forEach(button=>button.onclick=()=>{
    const mode=a.setMode(button.dataset.architectureMode);closeArSheet();$('#arArchitectureActions').hidden=!mode;
+   $('#arArchitectureConfirm').hidden=mode!=='wall';$('#arArchitectureCancel').hidden=mode!=='wall';$('#arArchitectureFinish').hidden=mode==='wall';
    $('#arArchitectureHint').textContent=mode==='floor'?'کف · رأس‌ها را ثبت کن':mode==='wall'?'دیوار · ابتدا A سپس B':mode==='window'?'پنجره · دیوار را لمس کن':'';
    if(mode)toast('ابزار «'+button.textContent+'» فعال شد.');
   });
@@ -375,7 +389,21 @@ function showArSheet(mode){
 $('#abLengthButton').onclick=()=>{$('#abCalibrationSheet').hidden=false;$('#aractual').value=studio?.measurement().actualCm||Math.round(studio?.measurement().correctedCm||100);};
 $('#abCalibrationClose').onclick=()=>{$('#abCalibrationSheet').hidden=true;};
 $('#arCalibrationTool').onclick=()=>{closeArSheet();$('#arArchitectureActions').hidden=true;$('#abCalibrationSheet').hidden=!$('#abCalibrationSheet').hidden;};
+function updateArchitectureSelection(){
+ const selected=studio?.architecture?.selectedSurface(),bar=$('#arSurfaceActions');if(!bar)return;
+ bar.hidden=!selected||!studio?.session||!studio?.placed||studio.photoMode;
+ if(!selected)return;
+ $('#arSurfaceName').textContent=selected.kind==='floor'?'کف':selected.kind==='wall'?'دیوار':'پنجره';
+ $('#arSurfaceMaterial').hidden=selected.kind==='window';
+}
+$('#arSurfaceMaterial').onclick=()=>showArSheet('colors');
+$('#arSurfaceDelete').onclick=()=>{
+ const s=studio?.architecture?.selectedSurface();if(!s)return;
+ if(studio.architecture.deleteSelected()){closeArSheet();toast('سطح انتخاب‌شده حذف شد.');}
+};
 $('#arArchitectureTool').onclick=()=>showArSheet('architecture');
+$('#arArchitectureConfirm').onclick=()=>{if(!studio?.architecture.confirmWall()){toast('دو نقطه معتبر برای دیوار مشخص کن.');return;}toast('دیوار ثبت شد؛ برای ادامه نقطه بعدی را انتخاب کن.');};
+$('#arArchitectureCancel').onclick=()=>{studio?.architecture.cancelPlacement();$('#arArchitectureActions').hidden=true;toast('ترسیم دیوار لغو شد.');};
 $('#arArchitectureFinish').onclick=()=>{if(!studio?.architecture.finish()){toast('برای ساخت کف، سه رأس معتبر و بدون تقاطع لازم است.');return;}$('#arArchitectureActions').hidden=true;toast('ابزار معماری بسته شد.');};
 $('#arArchitectureUndo').onclick=()=>{if(!studio?.architecture.undo())toast('نقطه‌ای برای بازگشت نیست.');};
 $('#arSheetClose').onclick=closeArSheet;
@@ -546,6 +574,7 @@ function setPhotoMode(enabled){
   $('#cameraMode').classList.remove('gallery-open','capturing');
   clearCameraURLs();
  }
+ updateArchitectureSelection();
 }
 function setCameraRatio(){
  const selected=effectiveCameraRatio($('#cameraRatio').value,window.innerWidth,window.innerHeight);

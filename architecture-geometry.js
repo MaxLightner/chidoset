@@ -21,6 +21,19 @@ export function snapPoint(p,walls=[],radius=.14){
  }
  return target?{...target}:{x:cm(p.x),z:cm(p.z)};
 }
+export function closestFloorEdge(p,floor,limit=.24){
+ if(!Array.isArray(floor)||floor.length<2)return null;
+ let result=null,dist=limit;
+ for(let i=0;i<floor.length;i++){
+  const a=floor[i],b=floor[(i+1)%floor.length],dx=b.x-a.x,dz=b.z-a.z,len2=dx*dx+dz*dz;
+  if(len2<.0001)continue;
+  const t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.z-a.z)*dz)/len2));
+  const q={x:cm(a.x+t*dx),z:cm(a.z+t*dz)};
+  const d=distance(p,q);
+  if(d<dist){dist=d;result=q;}
+ }
+ return result;
+}
 export function polygonArea(points){
  return points.reduce((sum,p,i)=>{const q=points[(i+1)%points.length];return sum+p.x*q.z-q.x*p.z;},0)/2;
 }

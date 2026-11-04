@@ -198,3 +198,23 @@ test('CHIDO navigation waits for WebXR end and keeps the page open',()=>{
  assert.ok(studio.includes("if(this.session===session)this.endSession()"));
  assert.ok(studio.includes("endSession(){if(!this.session)return"));
 });
+
+test('original five icon cards have independent shallow plus bars and a dense tablet grid',()=>{
+ const app=read('app.js'),css=read('style.css');
+ assert.match(app,/class="cards room-choice"/);
+ assert.match(app,/class="room-tab-cell"/);
+ assert.match(app,/data-new-space=/);
+ assert.match(app,/svg\(key\)/);
+ assert.match(css,/rooms-integrated \.layout-feed/);
+ assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
+ assert.match(css,/@media\(max-width:540px\)/);
+});
+test('floor and wall selection exposes material palette and delete while wall placement confirms a preview',()=>{
+ const html=read('index.html'),app=read('app.js'),architecture=read('architecture.js');
+ for(const id of ['arSurfaceActions','arSurfaceDelete','arSurfaceMaterial','arArchitectureConfirm','arArchitectureCancel'])assert.ok(html.includes('id="'+id+'"'));
+ assert.ok(app.includes("studio.architecture.setSelectedFinish("));
+ assert.ok(app.includes("studio.architecture.deleteSelected()"));
+ assert.ok(app.includes("studio?.architecture.confirmWall()"));
+ assert.ok(architecture.includes("this.wallPreview=p"));
+ assert.ok(architecture.includes("this.previewGroup"));
+});
