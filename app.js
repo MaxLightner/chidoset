@@ -174,12 +174,12 @@ async function render(){const version=++routeVersion;const route=location.hash.s
    <div class="company-set-grid">${cloudSets.map(set=>`<button class="company-set-card ${set.id===activeCloudSetId?'selected':''}" data-cloud-set="${set.id}"><strong>${set.name}</strong><small>${set.products.length} محصول · ${set.layouts.length} چیدمان · ${set.colorways.length} رنگ‌بندی</small><span>انتخاب ست ←</span></button>`).join('')||'<div class="cloud-empty">هنوز ستی برای این شرکت منتشر نشده است.</div>'}</div>
   </section>
   ${activeSet?`<section class="company-set-detail"><div class="company-set-heading"><div><h3>${activeSet.name}</h3><small>${activeSet.description||'چیدمان‌ها و رنگ‌بندی‌های رسمی این ست'}</small></div><button data-cloud-set-clear>همه ست‌ها</button></div><div class="cloud-layout-grid">${activeSet.layouts.map(item=>`<button class="cloud-layout-card" data-cloud-layout="${item.id}"><strong>${item.name}</strong><small>${item.room} · ${item.capacity} نفر</small><span>بازکردن در AR ←</span></button>`).join('')||'<div class="cloud-empty">برای این ست هنوز چیدمان رسمی ذخیره نشده است.</div>'}</div>${cloudMembership?.role==='company_admin'?'<button class="cloud-new-layout" data-new-cloud-layout>＋ ساخت چیدمان رسمی جدید در AR</button>':''}</section>`:''}
-  ${saved.length?`<section class="saved-section"><h3>چیدمان‌های ذخیره‌شده</h3><div class="saved-layout-grid">
+  ${saved.length&&!cloudSets.length?`<section class="saved-section"><h3>چیدمان‌های ذخیره‌شده</h3><div class="saved-layout-grid">
   ${saved.map(record=>`<div class="saved-plan-card"><button data-saved-layout="${record.id}" class="saved-plan-open"><div class="saved-plan-image">${savedPlanSvg(record.scene)}</div><strong>${record.name.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')}</strong></button><button class="saved-plan-delete" data-remove-layout="${record.id}" aria-label="حذف چیدمان ذخیره‌شده">×</button></div>`).join('')}
   </div></section>`:''}
-  <section class="preset-layouts"><h3 class="layout-section-title">چیدمان‌های ${space}</h3><div class="layout-feed">
+  ${cloudSets.length?'':`<section class="preset-layouts"><h3 class="layout-section-title">چیدمان‌های ${space}</h3><div class="layout-feed">
   ${variants.map(({id,title,description})=>`<button class="layout-photo-card" data-layout="${id}"><div class="layout-image floor-plan-card">${layoutPreviewSvg(buildLayout({room:space,kind:id,capacity:peopleCount}))}</div><div class="layout-caption"><strong>${title}</strong><small>${description}</small><span>←</span></div></button>`).join('')}
-  </div></section></section>`;
+  </div></section>`}</section>`;
   document.querySelectorAll('[data-cloud-set]').forEach(btn=>btn.onclick=()=>{activeCloudSetId=btn.dataset.cloudSet;activeCloudLayout=null;activeCloudColorway=null;render();});
   document.querySelectorAll('[data-cloud-set-clear]').forEach(btn=>btn.onclick=()=>{activeCloudSetId=null;activeCloudLayout=null;render();});
   document.querySelectorAll('[data-cloud-layout]').forEach(btn=>btn.onclick=()=>{
@@ -190,7 +190,7 @@ async function render(){const version=++routeVersion;const route=location.hash.s
   });
   document.querySelectorAll('[data-new-cloud-layout]').forEach(btn=>btn.onclick=()=>{if(cloudMembership?.role!=='company_admin')return;activeCloudLayout=null;activeCloudColorway=null;layout='empty';sceneMemory=null;openLayoutForScanning('empty');});
   document.querySelectorAll('[data-space]').forEach(btn=>btn.onclick=()=>{space=btn.dataset.space;peopleCount=allowedCapacities(space)[0];render();});
-  document.querySelectorAll('[data-new-space]').forEach(btn=>btn.onclick=()=>{space=btn.dataset.newSpace;peopleCount=allowedCapacities(space)[0];openLayoutForScanning('empty');});
+  document.querySelectorAll('[data-new-space]').forEach(btn=>btn.onclick=()=>{space=btn.dataset.newSpace;peopleCount=allowedCapacities(space)[0];if(!activeCloudSetId&&cloudSets.length)activeCloudSetId=cloudSets[0].id;activeCloudLayout=null;activeCloudColorway=null;layout='empty';sceneMemory=null;openLayoutForScanning('empty');});
   document.querySelectorAll('[data-layout]').forEach(btn=>btn.onclick=()=>openLayoutForScanning(btn.dataset.layout));
   document.querySelectorAll('[data-saved-layout]').forEach(btn=>btn.onclick=()=>{const record=listCustomLayouts().find(x=>x.id===btn.dataset.savedLayout);if(record)openLayoutForScanning(record.layout||'empty',record);});
   document.querySelectorAll('[data-remove-layout]').forEach(btn=>btn.onclick=()=>{removeCustomLayout(btn.dataset.removeLayout);render();});
