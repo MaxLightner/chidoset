@@ -25,6 +25,7 @@ const themes=[
 let themeIndex=0,styleChoice='مینیمال',previewEnabled=false,peopleCount=5;
 let cloudMembership=null,cloudSets=[],activeCloudSetId=null,activeCloudLayout=null,activeCloudColorway=null,activeLiveSession=null;
 let liveSceneTimer=null,lastLiveCameraSent=0,liveCameraBusy=false,liveCameraQueued=null;
+let appSessionLogged=false,lastHeartbeatAt=0;
 const catalogImages=[
  ['کاناپه','<rect x="14" y="24" width="74" height="46" rx="10"/><path d="M16 38h70M32 42v25m37-25v25"/>'],
  ['تک‌نفره','<rect x="27" y="20" width="48" height="54" rx="10"/><path d="M28 40h46"/>'],
@@ -137,6 +138,8 @@ async function render(){const version=++routeVersion;const route=location.hash.s
  if(route!=='access'){
   try{cloudMembership=await getMembership();}catch(error){console.warn('Chido account check failed',error);cloudMembership=null;}
   if(!cloudMembership){location.hash='access';return;}
+  if(!appSessionLogged){appSessionLogged=true;void logActivity(cloudMembership,'app_opened',{role:cloudMembership.role});}
+  if(cloudMembership.role==='branch'&&Date.now()-lastHeartbeatAt>60000){lastHeartbeatAt=Date.now();void updateDeviceHeartbeat(cloudMembership);}
  }else{
   try{const existing=await getMembership();if(existing){cloudMembership=existing;location.hash='welcome';return;}}catch{}
   cloudMembership=null;
