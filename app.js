@@ -226,12 +226,13 @@ function closeArSheet(){
  const settings=$('#arSettings');if(settings.parentElement===$('#arSheetContent'))$('#arSettingsBin').append(settings);
  settings.open=false;settings.hidden=true;
  $('#arToolSheet').hidden=true;arSheetMode=null;
+ if(studio?.architecture?.mode&&!studio?.photoMode)$('#arArchitectureActions').hidden=false;
  studio?.setPlacementEnabled(false);
 }
 function showArSheet(mode){
  if(!studio||!studio.placed)return;
  if(arSheetMode===mode){closeArSheet();return;}
- closeArSheet();$('#abCalibrationSheet').hidden=true;arSheetMode=mode;
+ closeArSheet();$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;arSheetMode=mode;
  const body=$('#arSheetContent'),title=$('#arSheetTitle');body.innerHTML='';
  const selected=studio.selected;
  if(mode==='add'||mode==='replace'){
@@ -364,7 +365,7 @@ function showArSheet(mode){
 }
 $('#abLengthButton').onclick=()=>{$('#abCalibrationSheet').hidden=false;$('#aractual').value=studio?.measurement().actualCm||Math.round(studio?.measurement().correctedCm||100);};
 $('#abCalibrationClose').onclick=()=>{$('#abCalibrationSheet').hidden=true;};
-$('#arCalibrationTool').onclick=()=>{closeArSheet();$('#abCalibrationSheet').hidden=!$('#abCalibrationSheet').hidden;};
+$('#arCalibrationTool').onclick=()=>{closeArSheet();$('#arArchitectureActions').hidden=true;$('#abCalibrationSheet').hidden=!$('#abCalibrationSheet').hidden;};
 $('#arArchitectureTool').onclick=()=>showArSheet('architecture');
 $('#arArchitectureFinish').onclick=()=>{if(!studio?.architecture.finish()){toast('برای ساخت کف، سه رأس معتبر و بدون تقاطع لازم است.');return;}$('#arArchitectureActions').hidden=true;toast('ابزار معماری بسته شد.');};
 $('#arArchitectureUndo').onclick=()=>{if(!studio?.architecture.undo())toast('نقطه‌ای برای بازگشت نیست.');};
