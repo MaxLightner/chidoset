@@ -7,6 +7,8 @@ const fa=value=>Number(value||0).toLocaleString('fa-IR');
 async function showDashboard(membership){
   if(!membership||membership.role!=='company_admin')throw new Error('این حساب مدیر شرکت نیست.');
   const data=await getCompanyDashboard(membership);
+  $('#companyActivationForm').hidden=true;
+  $('#companyLoginForm').hidden=true;
   $('#companyDashboard').hidden=false;
   $('#dashboardCompanyName').textContent=membership.company?.name||'شرکت';
   $('#dashboardCompanyStatus').textContent='حساب مدیر شرکت · وضعیت '+(membership.company?.status==='active'?'فعال':'در انتظار بررسی');
@@ -32,7 +34,7 @@ async function restoreSession(){
 
 $('#companyActivationForm').onsubmit=async event=>{
   event.preventDefault();
-  const message=$('#activationMessage'),button=event.submitter;
+  const message=$('#activationMessage'),button=event.submitter||$('#companyActivationForm button[type=submit]');
   message.textContent='';button.disabled=true;button.textContent='در حال ساخت حساب…';
   try{
     await activateCompanyAdmin($('#companyInviteCode').value,$('#companyAdminEmail').value,$('#companyAdminPassword').value);
@@ -48,7 +50,7 @@ $('#companyActivationForm').onsubmit=async event=>{
 
 $('#companyLoginForm').onsubmit=async event=>{
   event.preventDefault();
-  const message=$('#loginMessage'),button=event.submitter;
+  const message=$('#loginMessage'),button=event.submitter||$('#companyLoginForm button[type=submit]');
   message.textContent='';button.disabled=true;
   try{
     const membership=await signIn($('#loginEmail').value,$('#loginPassword').value);
@@ -67,7 +69,7 @@ $('#companySignOut').onclick=async()=>{
 
 $('#accessRequestForm').onsubmit=async event=>{
   event.preventDefault();
-  const status=$('#requestStatus'),button=event.submitter;
+  const status=$('#requestStatus'),button=event.submitter||$('#accessRequestForm button[type=submit]');
   status.textContent='';button.disabled=true;
   try{
     await requestCompanyAccess({
