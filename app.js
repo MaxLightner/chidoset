@@ -10,7 +10,7 @@ import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-
 import {LiveMiniMap} from './minimap.js?v=0.5.4';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
 import {SOFA_FABRICS} from './imported-models.js?v=0.7.0';
-import {supabase,activateBranch,signIn,getMembership,loadCompanySets,saveOfficialLayout,saveOfficialColorway,createLiveSession,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout} from './chido-cloud.js?v=0.10.0';
+import {supabase,activateBranch,signIn,getMembership,loadCompanySets,saveOfficialLayout,saveOfficialColorway,createLiveSession,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.10.0';
 const $=s=>document.querySelector(s),app=$('#app'),fa=n=>n.toLocaleString('fa-IR');
 let studio,Scene,palette,space='پذیرایی',layout='conversation',supported=false,routeVersion=0,photoURLs=[],savedItems=[],arReport=null,sceneMemory=null,arStarting=false,lastXRErrorReport='',activeSavedLayoutId=null;
 const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio);
@@ -471,7 +471,7 @@ function showArSheet(mode){
   };
  }else if(mode==='cloud-layouts'){
   const set=getActiveCloudSet();title.textContent='چیدمان‌های رسمی';
-  body.innerHTML=set?'<div class="cloud-sheet-list">'+set.layouts.map(item=>`<button class="cloud-sheet-row" data-open-cloud-layout="${item.id}"><strong>${item.name}</strong><small>${item.room} · ${item.capacity} نفر</small></button>`).join('')+'</div>':'<p class="sheet-tip">ست فعالی انتخاب نشده است.</p>';
+  body.innerHTML=set?'<div class="cloud-sheet-list">'+set.layouts.map(item=>`<div class="cloud-sheet-row-wrap"><button class="cloud-sheet-row" data-open-cloud-layout="${item.id}"><strong>${item.name}</strong><small>${item.room} · ${item.capacity} نفر</small></button>${cloudMembership?.role==='company_admin'?'<button class="cloud-archive" data-archive-cloud-layout="'+item.id+'">آرشیو</button>':''}</div>`).join('')+'</div>':'<p class="sheet-tip">ست فعالی انتخاب نشده است.</p>';
   body.querySelectorAll('[data-open-cloud-layout]').forEach(btn=>btn.onclick=()=>{
    const record=set.layouts.find(item=>item.id===btn.dataset.openCloudLayout);if(!record)return;
    activeCloudLayout=record;space=record.room||space;peopleCount=Number(record.capacity)||5;layout=record.template_kind||'empty';
@@ -479,10 +479,20 @@ function showArSheet(mode){
    else{studio.clear();studio.seed(record.template_kind||'conversation',space,peopleCount);}
    minimap.render();closeArSheet();toast('چیدمان رسمی باز شد.');
   });
+  body.querySelectorAll('[data-archive-cloud-layout]').forEach(btn=>btn.onclick=async()=>{
+   if(!confirm('این چیدمان از فهرست رسمی خارج شود؟'))return;
+   try{await archiveOfficialLayout(btn.dataset.archiveCloudLayout);await refreshCloudSets();showArSheet('cloud-layouts');toast('چیدمان آرشیو شد.');}
+   catch(error){toast(error.message||'آرشیو چیدمان انجام نشد.');}
+  });
  }else if(mode==='colorways'){
   const set=getActiveCloudSet();title.textContent='رنگ‌بندی‌های رسمی ست';
-  body.innerHTML=set?'<div class="cloud-sheet-list">'+set.colorways.map(item=>`<button class="cloud-sheet-row" data-apply-cloud-colorway="${item.id}"><strong>${item.name}</strong><small>اعمال روی محصولات این ست</small></button>`).join('')+'</div>':'<p class="sheet-tip">ست فعالی انتخاب نشده است.</p>';
+  body.innerHTML=set?'<div class="cloud-sheet-list">'+set.colorways.map(item=>`<div class="cloud-sheet-row-wrap"><button class="cloud-sheet-row" data-apply-cloud-colorway="${item.id}"><strong>${item.name}</strong><small>اعمال روی محصولات این ست</small></button>${cloudMembership?.role==='company_admin'?'<button class="cloud-archive" data-archive-cloud-colorway="'+item.id+'">آرشیو</button>':''}</div>`).join('')+'</div>':'<p class="sheet-tip">ست فعالی انتخاب نشده است.</p>';
   body.querySelectorAll('[data-apply-cloud-colorway]').forEach(btn=>btn.onclick=()=>{const record=set.colorways.find(item=>item.id===btn.dataset.applyCloudColorway);if(record){applyCloudColorway(record);closeArSheet();}});
+  body.querySelectorAll('[data-archive-cloud-colorway]').forEach(btn=>btn.onclick=async()=>{
+   if(!confirm('این رنگ‌بندی از فهرست رسمی خارج شود؟'))return;
+   try{await archiveOfficialColorway(btn.dataset.archiveCloudColorway);await refreshCloudSets();showArSheet('colorways');toast('رنگ‌بندی آرشیو شد.');}
+   catch(error){toast(error.message||'آرشیو رنگ‌بندی انجام نشد.');}
+  });
  }else if(mode==='save'&&cloudMembership?.role==='company_admin'&&activeCloudSetId){
   const set=getActiveCloudSet();title.textContent='ذخیره رسمی در '+(set?.name||'ست');
   body.innerHTML=`<section class="cloud-save-section"><h3>چیدمان</h3><label>نام چیدمان<input id="cloudLayoutName" maxlength="70" value="${(activeCloudLayout?.name||'').replaceAll('"','&quot;')}" placeholder="مثلاً چیدمان هفت‌نفره"></label><button id="saveCloudLayoutNew" class="primary">ذخیره به‌عنوان چیدمان جدید</button>${activeCloudLayout?'<button id="saveCloudLayoutUpdate">به‌روزرسانی همین چیدمان رسمی</button>':''}</section><section class="cloud-save-section"><h3>رنگ‌بندی</h3><label>نام رنگ‌بندی<input id="cloudColorwayName" maxlength="70" value="${(activeCloudColorway?.name||'').replaceAll('"','&quot;')}" placeholder="مثلاً آبی نفتی"></label><button id="saveCloudColorway" class="primary">ذخیره رنگ‌بندی فعلی</button></section><small class="sheet-tip">ذخیره فقط با فشردن دکمه انجام می‌شود. جابه‌جایی و تغییر رنگ به‌تنهایی هیچ نسخه رسمی جدیدی نمی‌سازد.</small>`;
