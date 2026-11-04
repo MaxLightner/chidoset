@@ -207,7 +207,16 @@ async function render(){const version=++routeVersion;const route=location.hash.s
    };
   studio.debugView.onUpdate=()=>{if(debugEnabled)refreshDebugPanel();};
   studio.setMeasureHandler((m,awaitSecond)=>$('#measureReadout').textContent=awaitSecond?'نقطه دوم را روی کف لمس کن':m===null?'نقطه اول را روی کف لمس کن':m.toFixed(2)+' متر');
- }catch(error){$('#viewport').textContent='محیط سه‌بعدی آماده نشد.';console.error(error);return;}
+ }catch(error){
+  // A rejected renderer or module import must not leave a camera session or loading overlay active.
+  $('#overlay').hidden=true;
+  $('#launchLoading').hidden=true;
+  $('#launchStage').textContent='بارگذاری محیط سه‌بعدی ناموفق بود.';
+  $('#viewport').textContent='محیط سه‌بعدی آماده نشد: '+(error?.message||'خطای نامشخص');
+  const session=pendingARSession;pendingARSession=null;
+  if(session)void Promise.resolve(session).then(s=>s?.end?.()).catch(()=>{});
+  console.error(error);return;
+ }
  bindCalibration('ar');
  $('#preview3D').onclick=()=>{previewEnabled=!previewEnabled;$('#viewport').classList.toggle('show-preview',previewEnabled);$('#preview3D').textContent=previewEnabled?'بستن پیش‌نمایش':'پیش‌نمایش سه‌بعدی';};
  const autoSession=pendingARSession;
