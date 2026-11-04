@@ -313,3 +313,16 @@ export async function authenticateGuest(token) {
   if (error) throw error;
   return { sessionId: result.session_id, expiresAt: result.expires_at, user: data.user };
 }
+
+export async function requestOfficialLayout({ setId, description }) {
+  const membership = await getMembership();
+  if (!membership || membership.role !== 'branch') throw new Error('ثبت درخواست از حساب نمایشگاه انجام می‌شود.');
+  const { error } = await supabase.from('layout_requests').insert({
+    company_id: membership.company_id,
+    branch_id: membership.branch_id,
+    set_id: setId,
+    requested_by: membership.user.id,
+    description: description.trim()
+  });
+  if (error) throw error;
+}
