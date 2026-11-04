@@ -48,6 +48,7 @@ export async function signIn(email, password) {
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
+  await logActivity(membership, 'layout_request_created', { set_id: setId });
 }
 
 export async function getMembership() {
@@ -116,6 +117,7 @@ export async function saveOfficialLayout({ setId, layoutId = null, name, room, t
   if (layoutId) {
     const { data, error } = await supabase.from('layouts').update(row).eq('id', layoutId).select().single();
     if (error) throw error;
+    await logActivity(membership, 'official_layout_updated', { set_id: setId, layout_id: data.id });
     return data;
   }
   const { data, error } = await supabase
@@ -124,6 +126,7 @@ export async function saveOfficialLayout({ setId, layoutId = null, name, room, t
     .select()
     .single();
   if (error) throw error;
+  await logActivity(membership, 'official_layout_created', { set_id: setId, layout_id: data.id });
   return data;
 }
 
@@ -150,6 +153,7 @@ export async function saveOfficialColorway({ setId, colorwayId = null, name, mat
   if (colorwayId) {
     const { data, error } = await supabase.from('colorways').update(row).eq('id', colorwayId).select().single();
     if (error) throw error;
+    await logActivity(membership, 'official_colorway_updated', { set_id: setId, colorway_id: data.id });
     return data;
   }
   const { data, error } = await supabase
@@ -158,6 +162,7 @@ export async function saveOfficialColorway({ setId, colorwayId = null, name, mat
     .select()
     .single();
   if (error) throw error;
+  await logActivity(membership, 'official_colorway_created', { set_id: setId, colorway_id: data.id });
   return data;
 }
 
@@ -325,4 +330,26 @@ export async function requestOfficialLayout({ setId, description }) {
     description: description.trim()
   });
   if (error) throw error;
+}
+
+export async function archiveOfficialLayout(layoutId) {
+  const membership = await getMembership();
+  if (!membership || membership.role !== 'company_admin') throw new Error('آرشیو چیدمان رسمی فقط برای مدیر شرکت فعال است.');
+  const { data, error } = await supabase.from('layouts')
+    .update({ status: 'archived', updated_at: new Date().toISOString() })
+    .eq('id', layoutId).select('id,set_id').single();
+  if (error) throw error;
+  await logActivity(membership, 'official_layout_archived', { set_id: data.set_id, layout_id: data.id });
+  return data;
+}
+
+export async function archiveOfficialColorway(colorwayId) {
+  const membership = await getMembership();
+  if (!membership || membership.role !== 'company_admin') throw new Error('آرشیو رنگ‌بندی رسمی فقط برای مدیر شرکت فعال است.');
+  const { data, error } = await supabase.from('colorways')
+    .update({ status: 'archived', updated_at: new Date().toISOString() })
+    .eq('id', colorwayId).select('id,set_id').single();
+  if (error) throw error;
+  await logActivity(membership, 'official_colorway_archived', { set_id: data.set_id, colorway_id: data.id });
+  return data;
 }
