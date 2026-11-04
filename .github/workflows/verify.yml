@@ -1,7 +1,7 @@
 name: Verify Tolica
 on:
   push:
-    branches: [main]
+    branches: [main, feature/chido-stage1]
   pull_request:
     branches: [main]
 permissions:
