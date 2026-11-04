@@ -436,6 +436,23 @@ void main(){
  cushionPreset:m.userData.cushionPreset||'none',fabric:m.userData.fabric||null}))};}
  restoreState(state){this.model.restore(state.spatial);this.architecture?.restore(state.architecture||{floor:[],walls:[],windows:[]});if(this.whiteFloor)this.whiteFloor.visible=!!state.whiteFloor&&!this.architecture?.data.floor.length;for(const x of state.items){const mesh=this.add(x.index,x.position?new THREE.Vector3(...x.position):undefined,{size:[22,23,24].includes(x.index)?undefined:x.size,seats:x.seats,silentSelect:true,cushionPreset:x.cushionPreset,lampOn:x.lampOn,fabric:x.fabric});mesh.userData.id=x.id;mesh.position.fromArray(x.position);if([22,23,24].includes(x.index))mesh.position.y=CATALOG[x.index].size[1]/2;mesh.rotation.y=x.rotation;mesh.material.color.set(x.color);mesh.userData.attachment=x.attachment||null;mesh.userData.capacity=x.capacity||null;mesh.userData.seats=x.seats||mesh.userData.seats;mesh.userData.tableId=x.tableId||null;mesh.userData.hidden=!!x.hidden;mesh.visible=!x.hidden;if(x.rugStyle)applyRugStyle(mesh,x.rugStyle);if(x.artImage)this.setWallArtImage(x.artImage,mesh);if(isLamp(mesh.userData.index))this.initializeLamp(mesh,x.lampOn===true);}this.serial=Math.max(0,...state.items.map(x=>x.id));this.measureTool.setCorrection(this.model.correction);this.refreshAttachments();this.syncSpatial();this.select(this.items[0]||null);}
  attachInput(target,opts){target.addEventListener('pointerdown',e=>this.down(e,target),opts);target.addEventListener('pointermove',e=>this.drag(e,target),opts);target.addEventListener('pointerup',e=>this.up(e,target),opts);target.addEventListener('pointercancel',()=>this.cancelGesture(),opts);target.addEventListener('lostpointercapture',e=>{if(this.points.has(e.pointerId))this.up(e,target);},opts);}
+
+ cameraSnapshot(){
+  const camera=this.activeCamera();camera.updateMatrixWorld(true);
+  const position=camera.getWorldPosition(new THREE.Vector3());
+  const quaternion=camera.getWorldQuaternion(new THREE.Quaternion());
+  const rect=this.host.getBoundingClientRect();
+  return {position:position.toArray(),quaternion:quaternion.toArray(),fov:camera.fov||48,zoom:camera.zoom||1,near:camera.near||.03,far:camera.far||40,aspect:camera.aspect||(rect.width/Math.max(1,rect.height)),wideMode:this.wideMode||'ar',timestamp:Date.now()};
+ }
+ applyExternalCameraState(state){
+  if(!state||!Array.isArray(state.position)||state.position.length!==3||!Array.isArray(state.quaternion)||state.quaternion.length!==4)return false;
+  this.camera.position.fromArray(state.position);this.camera.quaternion.fromArray(state.quaternion);
+  this.camera.fov=Number(state.fov)||48;this.camera.zoom=Number(state.zoom)||1;
+  this.camera.near=Number(state.near)||.03;this.camera.far=Number(state.far)||40;
+  const aspect=Number(state.aspect);if(Number.isFinite(aspect)&&aspect>.1&&aspect<10)this.camera.aspect=aspect;
+  this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld(true);return true;
+ }
+
  activeCamera(){if(this.wideView?.active)return this.wideView.camera;if(this.session)return this.renderer.xr.getCamera().cameras[0]||this.renderer.xr.getCamera();return this.camera;}
  setRay(e,target){const r=target.getBoundingClientRect();this.pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);this.floorFrame.updateMatrixWorld(true);this.ray.setFromCamera(this.pointer,this.activeCamera());}
  pointOnFloor(e,target){this.setRay(e,target);return this.ray.ray.intersectPlane(this.model.plane,new THREE.Vector3());}
@@ -717,6 +734,7 @@ safeObjectMotion(mesh,desired){
    if(time-this.lastSelectionUI>65){this.onSelectionScreen?.(this.selectionScreenPosition());this.onABPosition?.(this.rulerScreenPosition());this.lastSelectionUI=time;}
   }
   this.scaleLabels();this.renderer.render(this.scene,this.camera);
+  try{this.onFrame?.(time,frame);}catch(error){console.warn('Chido live frame callback failed',error);}
   if(this.wideView?.active&&this.tracking){
    try{this.wideView.draw();}catch(error){
     this.setWideView('ar');this.onWideViewError?.('رندر Wide View روی این مرورگر ممکن نشد: '+(error?.message||error));
