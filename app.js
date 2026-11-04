@@ -157,7 +157,7 @@ async function render(){const version=++routeVersion;const route=location.hash.s
   $('#managerLoginForm').onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;message.textContent='';try{cloudMembership=await signIn($('#managerEmail').value,$('#managerPassword').value);if(!cloudMembership)throw new Error('این حساب به هیچ شرکت فعالی متصل نیست.');await logActivity(cloudMembership,'manager_app_login',{});location.hash='welcome';}catch(error){message.textContent=error.message||'ورود انجام نشد.';}finally{button.disabled=false;}};
   return;
  }
- if(route==='welcome'){app.innerHTML=`<section class="welcome-screen"><div class="welcome-title"><h1>CHIDO</h1><p>خانه را جور دیگری ببینید</p></div><img class="welcome-photo" src="assets/welcome.png" alt="صندلی کرم و گلدان در فضایی آرام"><div class="welcome-bottom"><button class="primary" id="welcome">ورود به نمایشگاه <span>→</span></button><button class="quick-ar" id="quickAR">ورود سریع به AR ↗</button><button class="quick-ar quick-empty" id="startEmpty">＋ ایجاد صحنه خالی</button><span class="welcome-wordmark">CHIDO</span></div></section>`;$('#welcome').onclick=()=>{full();location.hash='spaces';};const draft=readDraft();if(draft)$('#quickAR').textContent='ادامه چیدمان قبلی ↗';$('#quickAR').onclick=()=>{if(draft)loadSceneRecord(draft);else {layout='conversation';sceneMemory=null;}location.hash='studio';};$('#startEmpty').onclick=()=>{layout='empty';sceneMemory=null;activeSavedLayoutId=null;previewEnabled=false;clearDraft();location.hash='studio';};return;}
+ if(route==='welcome'){app.innerHTML=`<section class="welcome-screen"><div class="welcome-title"><h1>CHIDO</h1><p>خانه را جور دیگری ببینید</p></div><img class="welcome-photo" src="assets/welcome.png" alt="صندلی کرم و گلدان در فضایی آرام"><div class="welcome-bottom"><button class="primary" id="welcome">ورود به نمایشگاه <span>→</span></button><button class="quick-ar" id="quickAR">ورود سریع به AR ↗</button><button class="quick-ar quick-empty" id="startEmpty">＋ ایجاد صحنه خالی</button><span class="welcome-wordmark">CHIDO</span></div></section>`;$('#welcome').onclick=()=>{full();location.hash='spaces';};const draft=cloudMembership?.role==='branch'?null:readDraft();if(draft)$('#quickAR').textContent='ادامه چیدمان قبلی ↗';$('#quickAR').onclick=()=>{if(draft)loadSceneRecord(draft);else {layout='conversation';sceneMemory=null;}location.hash='studio';};$('#startEmpty').onclick=()=>{layout='empty';sceneMemory=null;activeSavedLayoutId=null;previewEnabled=false;clearDraft();location.hash='studio';};return;}
  if(route==='spaces'){
   const rooms=[['living','پذیرایی','برای کنار هم بودن'],['dining','ناهارخوری','دور یک میز، کنار هم'],['dining','آشپزخانه','میز غذاخوری و دورهمی'],['bedroom','اتاق خواب','گوشه‌ای برای آرامش'],['office','فضای کار','جایی برای ایده‌های تازه']];
   try{cloudSets=await loadCompanySets(cloudMembership.company_id);}catch(error){console.warn('Chido company catalog unavailable',error);cloudSets=[];toast('دریافت ست‌های رسمی شرکت انجام نشد.');}
@@ -583,6 +583,7 @@ $('#arBottomSave').onclick=()=>{if(cloudMembership?.role!=='company_admin'||!act
 $('#arBottomOpen').onclick=()=>showArSheet(activeCloudSetId?'cloud-layouts':'saved');
 $('#arColorwayTool').onclick=()=>showArSheet('colorways');
 $('#arShareSession').onclick=beginLiveShare;
+$('#liveShareClose').onclick=()=>$('#liveShareDialog').close();
 $('#liveShareCopy').onclick=async()=>{try{await navigator.clipboard.writeText(activeLiveSession?.url||$('#liveShareUrl').textContent);toast('لینک نمایش کپی شد.');}catch{toast('کپی خودکار ممکن نیست؛ لینک را دستی انتخاب کن.');}};
 $('#liveShareStop').onclick=()=>endLiveShare(false);
 $('#arSettingsTool').onclick=()=>showArSheet('settings');
@@ -818,8 +819,8 @@ function toggleChidoMenu(){
 $('#overlay').addEventListener('beforexrselect',event=>event.preventDefault());
 $('#homeAR').onclick=toggleChidoMenu;
 $('#chidoMenuContinue').onclick=closeChidoMenu;
-$('#chidoMenuSaved').onclick=()=>{closeChidoMenu();if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}showArSheet('saved');};
-$('#chidoMenuSave').onclick=()=>{closeChidoMenu();if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}showArSheet('save');};
+$('#chidoMenuSaved').onclick=()=>{closeChidoMenu();if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}showArSheet(activeCloudSetId?'cloud-layouts':'saved');};
+$('#chidoMenuSave').onclick=()=>{closeChidoMenu();if(cloudMembership?.role!=='company_admin'||!activeCloudSetId){toast('ذخیره رسمی فقط برای مدیر شرکت و داخل یک ست فعال است.');return;}if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}showArSheet('save');};
 $('#chidoMenuBlank').onclick=()=>{
  if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}
  const button=$('#chidoMenuBlank');
