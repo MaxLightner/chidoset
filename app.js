@@ -160,18 +160,35 @@ async function render(){const version=++routeVersion;const route=location.hash.s
  if(route==='welcome'){app.innerHTML=`<section class="welcome-screen"><div class="welcome-title"><h1>CHIDO</h1><p>خانه را جور دیگری ببینید</p></div><img class="welcome-photo" src="assets/welcome.png" alt="صندلی کرم و گلدان در فضایی آرام"><div class="welcome-bottom"><button class="primary" id="welcome">ورود به نمایشگاه <span>→</span></button><button class="quick-ar" id="quickAR">ورود سریع به AR ↗</button><button class="quick-ar quick-empty" id="startEmpty">＋ ایجاد صحنه خالی</button><span class="welcome-wordmark">CHIDO</span></div></section>`;$('#welcome').onclick=()=>{full();location.hash='spaces';};const draft=readDraft();if(draft)$('#quickAR').textContent='ادامه چیدمان قبلی ↗';$('#quickAR').onclick=()=>{if(draft)loadSceneRecord(draft);else {layout='conversation';sceneMemory=null;}location.hash='studio';};$('#startEmpty').onclick=()=>{layout='empty';sceneMemory=null;activeSavedLayoutId=null;previewEnabled=false;clearDraft();location.hash='studio';};return;}
  if(route==='spaces'){
   const rooms=[['living','پذیرایی','برای کنار هم بودن'],['dining','ناهارخوری','دور یک میز، کنار هم'],['dining','آشپزخانه','میز غذاخوری و دورهمی'],['bedroom','اتاق خواب','گوشه‌ای برای آرامش'],['office','فضای کار','جایی برای ایده‌های تازه']];
-  const variants=layoutOptions(space),saved=listCustomLayouts().filter(record=>record.room===space);
+  try{cloudSets=await loadCompanySets(cloudMembership.company_id);}catch(error){console.warn('Chido company catalog unavailable',error);cloudSets=[];toast('دریافت ست‌های رسمی شرکت انجام نشد.');}
+  if(activeCloudSetId&&!cloudSets.some(item=>item.id===activeCloudSetId))activeCloudSetId=null;
+  const activeSet=cloudSets.find(item=>item.id===activeCloudSetId)||null;
+  const variants=layoutOptions(space),saved=cloudMembership?.role==='branch'?[]:listCustomLayouts().filter(record=>record.room===space);
   app.innerHTML=`<section class="page rooms-page rooms-integrated">
   ${heading('چیدو / چیدمان','برای کدام فضا چیدمان می‌خواهی؟','یکی از طرح‌ها را انتخاب کن یا از یک فضای خالی شروع کن.','welcome')}
   <div class="cards room-choice" aria-label="دسته‌بندی چیدمان">
   ${rooms.map(([key,name,description])=>`<div class="room-tab-cell"><button type="button" class="card ${name===space?'selected':''}" data-space="${name}" aria-pressed="${name===space}">${svg(key)}<strong>${name}</strong><small>${description}</small></button><button type="button" class="room-tab-add" data-new-space="${name}" aria-label="ایجاد چیدمان جدید در ${name}">＋</button></div>`).join('')}
   </div>
+  <section class="company-set-section">
+   <div class="company-set-heading"><div><h3>ست‌های رسمی شرکت</h3><small>مجموعه‌های آماده‌شده و منتشرشده برای این حساب</small></div><span class="cloud-count">${cloudSets.length} ست</span></div>
+   <div class="company-set-grid">${cloudSets.map(set=>`<button class="company-set-card ${set.id===activeCloudSetId?'selected':''}" data-cloud-set="${set.id}"><strong>${set.name}</strong><small>${set.products.length} محصول · ${set.layouts.length} چیدمان · ${set.colorways.length} رنگ‌بندی</small><span>انتخاب ست ←</span></button>`).join('')||'<div class="cloud-empty">هنوز ستی برای این شرکت منتشر نشده است.</div>'}</div>
+  </section>
+  ${activeSet?`<section class="company-set-detail"><div class="company-set-heading"><div><h3>${activeSet.name}</h3><small>${activeSet.description||'چیدمان‌ها و رنگ‌بندی‌های رسمی این ست'}</small></div><button data-cloud-set-clear>همه ست‌ها</button></div><div class="cloud-layout-grid">${activeSet.layouts.map(item=>`<button class="cloud-layout-card" data-cloud-layout="${item.id}"><strong>${item.name}</strong><small>${item.room} · ${item.capacity} نفر</small><span>بازکردن در AR ←</span></button>`).join('')||'<div class="cloud-empty">برای این ست هنوز چیدمان رسمی ذخیره نشده است.</div>'}</div>${cloudMembership?.role==='company_admin'?'<button class="cloud-new-layout" data-new-cloud-layout>＋ ساخت چیدمان رسمی جدید در AR</button>':''}</section>`:''}
   ${saved.length?`<section class="saved-section"><h3>چیدمان‌های ذخیره‌شده</h3><div class="saved-layout-grid">
   ${saved.map(record=>`<div class="saved-plan-card"><button data-saved-layout="${record.id}" class="saved-plan-open"><div class="saved-plan-image">${savedPlanSvg(record.scene)}</div><strong>${record.name.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')}</strong></button><button class="saved-plan-delete" data-remove-layout="${record.id}" aria-label="حذف چیدمان ذخیره‌شده">×</button></div>`).join('')}
   </div></section>`:''}
   <section class="preset-layouts"><h3 class="layout-section-title">چیدمان‌های ${space}</h3><div class="layout-feed">
   ${variants.map(({id,title,description})=>`<button class="layout-photo-card" data-layout="${id}"><div class="layout-image floor-plan-card">${layoutPreviewSvg(buildLayout({room:space,kind:id,capacity:peopleCount}))}</div><div class="layout-caption"><strong>${title}</strong><small>${description}</small><span>←</span></div></button>`).join('')}
   </div></section></section>`;
+  document.querySelectorAll('[data-cloud-set]').forEach(btn=>btn.onclick=()=>{activeCloudSetId=btn.dataset.cloudSet;activeCloudLayout=null;activeCloudColorway=null;render();});
+  document.querySelectorAll('[data-cloud-set-clear]').forEach(btn=>btn.onclick=()=>{activeCloudSetId=null;activeCloudLayout=null;render();});
+  document.querySelectorAll('[data-cloud-layout]').forEach(btn=>btn.onclick=()=>{
+   const set=cloudSets.find(item=>item.id===activeCloudSetId),record=set?.layouts.find(item=>item.id===btn.dataset.cloudLayout);if(!set||!record)return;
+   activeCloudSetId=set.id;activeCloudLayout=record;activeCloudColorway=null;space=record.room||space;peopleCount=Number(record.capacity)||5;layout=record.template_kind||'empty';
+   if(record.scene_state)openLayoutForScanning(layout,{id:record.id,scene:record.scene_state,room:space,layout,capacity:peopleCount});
+   else{sceneMemory=null;openLayoutForScanning(layout);}
+  });
+  document.querySelectorAll('[data-new-cloud-layout]').forEach(btn=>btn.onclick=()=>{if(cloudMembership?.role!=='company_admin')return;activeCloudLayout=null;activeCloudColorway=null;layout='empty';sceneMemory=null;openLayoutForScanning('empty');});
   document.querySelectorAll('[data-space]').forEach(btn=>btn.onclick=()=>{space=btn.dataset.space;peopleCount=allowedCapacities(space)[0];render();});
   document.querySelectorAll('[data-new-space]').forEach(btn=>btn.onclick=()=>{space=btn.dataset.newSpace;peopleCount=allowedCapacities(space)[0];openLayoutForScanning('empty');});
   document.querySelectorAll('[data-layout]').forEach(btn=>btn.onclick=()=>openLayoutForScanning(btn.dataset.layout));
