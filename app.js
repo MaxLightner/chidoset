@@ -275,6 +275,91 @@ function closeArSheet(){
  if(studio?.architecture?.mode&&!studio?.photoMode)$('#arArchitectureActions').hidden=false;
  studio?.setPlacementEnabled(false);
 }
+function getActiveCloudSet(){return cloudSets.find(item=>item.id===activeCloudSetId)||null;}
+function updateCloudControls(){
+ const hasSet=!!activeCloudSetId,manager=cloudMembership?.role==='company_admin';
+ const save=$('#arBottomSave'),open=$('#arBottomOpen'),color=$('#arColorwayTool'),share=$('#arShareSession');
+ if(save)save.hidden=!(manager&&hasSet);
+ if(open){open.hidden=!hasSet;open.textContent='چیدمان‌های رسمی';}
+ if(color)color.hidden=!hasSet;
+ if(share)share.hidden=false;
+ const menuSave=$('#chidoMenuSave'),menuSaved=$('#chidoMenuSaved');
+ if(menuSave)menuSave.hidden=!(manager&&hasSet);
+ if(menuSaved)menuSaved.hidden=!hasSet;
+}
+function applyCloudColorway(record){
+ if(!studio||!record)return;
+ const map=record.material_map||{};
+ let changed=0;
+ for(const mesh of studio.items){
+  const spec=map[String(mesh.userData.index)];if(!spec)continue;
+  if(spec.fabric&&[22,23,24].includes(mesh.userData.index))studio.setSofaFabric(spec.fabric,mesh);
+  else if(spec.color)mesh.traverse(node=>{
+   if(!node.isMesh||!node.material)return;
+   const materials=Array.isArray(node.material)?node.material:[node.material];
+   for(const material of materials)if(material.color)material.color.set(spec.color);
+  });
+  changed++;
+ }
+ activeCloudColorway=record;
+ if(changed)toast('رنگ‌بندی «'+record.name+'» اعمال شد؛ این تغییر هنوز ذخیره نشده است.');
+ else toast('آبجکت‌های مربوط به این رنگ‌بندی در صحنه نیستند.');
+}
+function currentMaterialMap(){
+ const map={};
+ for(const mesh of studio?.items||[]){
+  let color=null;
+  mesh.traverse(node=>{
+   if(color||!node.isMesh||!node.material)return;
+   const material=Array.isArray(node.material)?node.material.find(item=>item.color):node.material;
+   if(material?.color)color='#'+material.color.getHexString();
+  });
+  map[String(mesh.userData.index)]={...(color?{color}:{}),...(mesh.userData.fabric?{fabric:mesh.userData.fabric}:{})};
+ }
+ return map;
+}
+function scheduleLiveScenePublish(){
+ if(!activeLiveSession||!studio)return;
+ clearTimeout(liveSceneTimer);
+ liveSceneTimer=setTimeout(()=>{
+  if(activeLiveSession&&studio)publishLiveScene(activeLiveSession.id,studio.exportState()).catch(error=>console.warn('Live scene sync failed',error));
+ },160);
+}
+function liveCameraFrame(time){
+ if(!activeLiveSession||!studio?.session||!studio.placed||time-lastLiveCameraSent<110||liveCameraBusy)return;
+ const state=studio.cameraSnapshot();if(!state)return;
+ liveCameraBusy=true;lastLiveCameraSent=time;
+ publishLiveCamera(activeLiveSession.id,state).catch(error=>console.warn('Live camera sync failed',error)).finally(()=>{liveCameraBusy=false;});
+}
+async function beginLiveShare(){
+ if(!studio?.session||!studio.placed){toast('ابتدا AR را اجرا و کف را تثبیت کن.');return;}
+ if(activeLiveSession){$('#liveShareDialog')?.showModal();return;}
+ const button=$('#arShareSession');if(button)button.disabled=true;
+ try{
+  activeLiveSession=await createLiveSession({sceneState:studio.exportState(),cameraState:studio.cameraSnapshot()});
+  studio.onFrame=liveCameraFrame;
+  $('#liveShareUrl').textContent=activeLiveSession.url;
+  $('#liveShareQr').innerHTML='<span>در حال ساخت QR…</span>';
+  $('#liveShareDialog').showModal();
+  try{const QRCode=await import('https://esm.sh/qrcode@1.5.4');$('#liveShareQr').innerHTML=await QRCode.toString(activeLiveSession.url,{type:'svg',width:240,margin:1,errorCorrectionLevel:'M'});}
+  catch(error){console.warn('QR module unavailable',error);$('#liveShareQr').innerHTML='<span>QR در دسترس نیست؛ لینک را کپی کن.</span>';}
+  await logActivity(cloudMembership,'live_session_started',{session_id:activeLiveSession.id});
+ }catch(error){console.error(error);toast(error.message||'ساخت نمایش زنده انجام نشد.');}
+ finally{if(button)button.disabled=false;}
+}
+async function endLiveShare(silent=false){
+ const current=activeLiveSession;if(!current)return;
+ activeLiveSession=null;clearTimeout(liveSceneTimer);liveSceneTimer=null;
+ if(studio)studio.onFrame=null;
+ try{await stopLiveSession(current.id);}catch(error){console.warn('Live session revoke failed',error);}
+ const dialog=$('#liveShareDialog');if(dialog?.open)dialog.close();
+ if(!silent)toast('نمایش زنده پایان یافت.');
+}
+async function refreshCloudSets(){
+ if(!cloudMembership)return;
+ cloudSets=await loadCompanySets(cloudMembership.company_id);
+ const set=getActiveCloudSet();if(set){activeCloudLayout=set.layouts.find(x=>x.id===activeCloudLayout?.id)||activeCloudLayout;activeCloudColorway=set.colorways.find(x=>x.id===activeCloudColorway?.id)||activeCloudColorway;}
+}
 function showArSheet(mode){
  if(!studio||!studio.placed)return;
  if(arSheetMode===mode){closeArSheet();return;}
@@ -373,6 +458,35 @@ function showArSheet(mode){
    body.querySelectorAll('[data-variant]').forEach(btn=>btn.onclick=()=>{if(!studio.replaceSelected(+btn.dataset.variant)){toast('فضای کافی برای این مدل وجود ندارد.');return;}closeArSheet();showArSheet('features');});
     if(isWallArt(i))$('#artImageFile').onchange=async event=>{try{const file=event.target.files?.[0];if(!file)return;if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>8*1024*1024)throw Error('فایل تصویر معتبر نیست یا بیش از ۸ مگابایت است.');const picture=await createImageBitmap(file),ratio=selected.userData.product.size[0]/selected.userData.product.size[1],canvas=document.createElement('canvas');canvas.width=Math.min(640,Math.round(480*ratio));canvas.height=Math.round(canvas.width/ratio);const context=canvas.getContext('2d');if(!context)throw Error('دسترسی به Canvas ممکن نیست.');const scale=Math.max(canvas.width/picture.width,canvas.height/picture.height),w=picture.width*scale,h=picture.height*scale;context.drawImage(picture,(canvas.width-w)/2,(canvas.height-h)/2,w,h);picture.close?.();if(!studio.setWallArtImage(canvas.toDataURL('image/jpeg',.72),selected))throw Error('تصویر ذخیره نشد.');toast('تصویر تابلو عوض شد.');}catch(error){toast(error.message||'تغییر تصویر ممکن نشد.');}};
   }else body.innerHTML='<p class="sheet-tip">رنگ، چرخش، جابه‌جایی و تعویض مدل در دسترس است.</p>';
+ }else if(mode==='cloud-layouts'){
+  const set=getActiveCloudSet();title.textContent='چیدمان‌های رسمی';
+  body.innerHTML=set?'<div class="cloud-sheet-list">'+set.layouts.map(item=>`<button class="cloud-sheet-row" data-open-cloud-layout="${item.id}"><strong>${item.name}</strong><small>${item.room} · ${item.capacity} نفر</small></button>`).join('')+'</div>':'<p class="sheet-tip">ست فعالی انتخاب نشده است.</p>';
+  body.querySelectorAll('[data-open-cloud-layout]').forEach(btn=>btn.onclick=()=>{
+   const record=set.layouts.find(item=>item.id===btn.dataset.openCloudLayout);if(!record)return;
+   activeCloudLayout=record;space=record.room||space;peopleCount=Number(record.capacity)||5;layout=record.template_kind||'empty';
+   if(record.scene_state){studio.clear();studio.restoreState(record.scene_state);sceneMemory=record.scene_state;}
+   else{studio.clear();studio.seed(record.template_kind||'conversation',space,peopleCount);}
+   minimap.render();closeArSheet();toast('چیدمان رسمی باز شد.');
+  });
+ }else if(mode==='colorways'){
+  const set=getActiveCloudSet();title.textContent='رنگ‌بندی‌های رسمی ست';
+  body.innerHTML=set?'<div class="cloud-sheet-list">'+set.colorways.map(item=>`<button class="cloud-sheet-row" data-apply-cloud-colorway="${item.id}"><strong>${item.name}</strong><small>اعمال روی محصولات این ست</small></button>`).join('')+'</div>':'<p class="sheet-tip">ست فعالی انتخاب نشده است.</p>';
+  body.querySelectorAll('[data-apply-cloud-colorway]').forEach(btn=>btn.onclick=()=>{const record=set.colorways.find(item=>item.id===btn.dataset.applyCloudColorway);if(record){applyCloudColorway(record);closeArSheet();}});
+ }else if(mode==='save'&&cloudMembership?.role==='company_admin'&&activeCloudSetId){
+  const set=getActiveCloudSet();title.textContent='ذخیره رسمی در '+(set?.name||'ست');
+  body.innerHTML=`<section class="cloud-save-section"><h3>چیدمان</h3><label>نام چیدمان<input id="cloudLayoutName" maxlength="70" value="${(activeCloudLayout?.name||'').replaceAll('"','&quot;')}" placeholder="مثلاً چیدمان هفت‌نفره"></label><button id="saveCloudLayoutNew" class="primary">ذخیره به‌عنوان چیدمان جدید</button>${activeCloudLayout?'<button id="saveCloudLayoutUpdate">به‌روزرسانی همین چیدمان رسمی</button>':''}</section><section class="cloud-save-section"><h3>رنگ‌بندی</h3><label>نام رنگ‌بندی<input id="cloudColorwayName" maxlength="70" value="${(activeCloudColorway?.name||'').replaceAll('"','&quot;')}" placeholder="مثلاً آبی نفتی"></label><button id="saveCloudColorway" class="primary">ذخیره رنگ‌بندی فعلی</button></section><small class="sheet-tip">ذخیره فقط با فشردن دکمه انجام می‌شود. جابه‌جایی و تغییر رنگ به‌تنهایی هیچ نسخه رسمی جدیدی نمی‌سازد.</small>`;
+  const saveLayout=async overwrite=>{
+   const name=$('#cloudLayoutName').value.trim();if(!name){toast('نام چیدمان را وارد کن.');return;}
+   try{const saved=await saveOfficialLayout({setId:activeCloudSetId,layoutId:overwrite?activeCloudLayout?.id:null,name,room:space,templateKind:layout,capacity:peopleCount,sceneState:studio.exportState()});activeCloudLayout=saved;await refreshCloudSets();closeArSheet();toast('چیدمان رسمی ذخیره شد.');}
+   catch(error){toast(error.message||'ذخیره چیدمان انجام نشد.');}
+  };
+  $('#saveCloudLayoutNew').onclick=()=>saveLayout(false);
+  if($('#saveCloudLayoutUpdate'))$('#saveCloudLayoutUpdate').onclick=()=>saveLayout(true);
+  $('#saveCloudColorway').onclick=async()=>{
+   const name=$('#cloudColorwayName').value.trim();if(!name){toast('نام رنگ‌بندی را وارد کن.');return;}
+   try{const saved=await saveOfficialColorway({setId:activeCloudSetId,colorwayId:activeCloudColorway?.id||null,name,materialMap:currentMaterialMap()});activeCloudColorway=saved;await refreshCloudSets();closeArSheet();toast('رنگ‌بندی رسمی ذخیره شد.');}
+   catch(error){toast(error.message||'ذخیره رنگ‌بندی انجام نشد.');}
+  };
  }else if(mode==='save'||mode==='saved'){
    title.textContent=mode==='save'?'ذخیره چیدمان':'چیدمان‌های ذخیره‌شده';
    const saved=listCustomLayouts().filter(x=>x.room===space);
