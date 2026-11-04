@@ -134,6 +134,13 @@ function openLayoutForScanning(kind,record=null){
  location.hash='studio';
 }
 async function render(){const version=++routeVersion;const route=location.hash.slice(1)||'welcome';document.body.dataset.route=route;
+ if(route!=='access'){
+  try{cloudMembership=await getMembership();}catch(error){console.warn('Chido account check failed',error);cloudMembership=null;}
+  if(!cloudMembership){location.hash='access';return;}
+ }else{
+  try{const existing=await getMembership();if(existing){cloudMembership=existing;location.hash='welcome';return;}}catch{}
+  cloudMembership=null;
+ }
  if(studio?.session){if(location.hash!=='#studio')history.replaceState(null,'',location.pathname+location.search+'#studio');return;}
  closeChidoMenu();minimap.collapse();
  if(studio){
@@ -143,6 +150,13 @@ async function render(){const version=++routeVersion;const route=location.hash.s
   try{previous.destroy();}catch(error){console.warn('Scene renderer cleanup failed',error);}
  }
  photoURLs.forEach(URL.revokeObjectURL);photoURLs=[];
+ if(route==='access'){
+  app.innerHTML=`<section class="page cloud-access-page"><div class="cloud-access-card"><div class="cloud-brand">CHIDO <span>WORKSPACE</span></div><h1>ورود به چیدو</h1><p>برای دسترسی به ست‌ها و چیدمان‌های شرکت، کد شعبه را وارد کن. مدیر شرکت می‌تواند با حساب سایت وارد شود.</p><div class="cloud-access-grid"><form id="branchActivationForm" class="cloud-access-form"><h2>فعال‌سازی نمایشگاه</h2><label>کد فعال‌سازی<input id="branchActivationCode" autocomplete="one-time-code" placeholder="CHIDO-BRANCH-…" required></label><label>نام دستگاه<input id="branchDeviceLabel" value="تبلت نمایشگاه" maxlength="100"></label><button class="primary" id="activateBranchButton" type="submit">فعال‌سازی دستگاه</button></form><form id="managerLoginForm" class="cloud-access-form"><h2>ورود مدیر شرکت</h2><label>ایمیل<input id="managerEmail" type="email" autocomplete="username" required></label><label>رمز عبور<input id="managerPassword" type="password" autocomplete="current-password" required></label><button class="primary" type="submit">ورود مدیر</button><a href="portal.html">ساخت حساب مدیر با کد دعوت ←</a></form></div><p id="accessMessage" class="cloud-message" role="status"></p><div class="cloud-access-foot"><span>دسترسی اختصاصی شرکت‌ها و نمایشگاه‌ها</span><a href="portal.html">وب‌سایت چیدو</a></div></div></section>`;
+  const message=$('#accessMessage');
+  $('#branchActivationForm').onsubmit=async event=>{event.preventDefault();const button=$('#activateBranchButton');button.disabled=true;button.textContent='در حال فعال‌سازی…';message.textContent='';try{cloudMembership=await activateBranch($('#branchActivationCode').value,$('#branchDeviceLabel').value);if(!cloudMembership)throw new Error('دسترسی شرکت برای این کد پیدا نشد.');await updateDeviceHeartbeat(cloudMembership);await logActivity(cloudMembership,'app_opened',{source:'activation'});location.hash='welcome';}catch(error){message.textContent=error.message||'فعال‌سازی انجام نشد.';}finally{button.disabled=false;button.textContent='فعال‌سازی دستگاه';}};
+  $('#managerLoginForm').onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;message.textContent='';try{cloudMembership=await signIn($('#managerEmail').value,$('#managerPassword').value);if(!cloudMembership)throw new Error('این حساب به هیچ شرکت فعالی متصل نیست.');await logActivity(cloudMembership,'manager_app_login',{});location.hash='welcome';}catch(error){message.textContent=error.message||'ورود انجام نشد.';}finally{button.disabled=false;}};
+  return;
+ }
  if(route==='welcome'){app.innerHTML=`<section class="welcome-screen"><div class="welcome-title"><h1>CHIDO</h1><p>خانه را جور دیگری ببینید</p></div><img class="welcome-photo" src="assets/welcome.png" alt="صندلی کرم و گلدان در فضایی آرام"><div class="welcome-bottom"><button class="primary" id="welcome">ورود به نمایشگاه <span>→</span></button><button class="quick-ar" id="quickAR">ورود سریع به AR ↗</button><button class="quick-ar quick-empty" id="startEmpty">＋ ایجاد صحنه خالی</button><span class="welcome-wordmark">CHIDO</span></div></section>`;$('#welcome').onclick=()=>{full();location.hash='spaces';};const draft=readDraft();if(draft)$('#quickAR').textContent='ادامه چیدمان قبلی ↗';$('#quickAR').onclick=()=>{if(draft)loadSceneRecord(draft);else {layout='conversation';sceneMemory=null;}location.hash='studio';};$('#startEmpty').onclick=()=>{layout='empty';sceneMemory=null;activeSavedLayoutId=null;previewEnabled=false;clearDraft();location.hash='studio';};return;}
  if(route==='spaces'){
   const rooms=[['living','پذیرایی','برای کنار هم بودن'],['dining','ناهارخوری','دور یک میز، کنار هم'],['dining','آشپزخانه','میز غذاخوری و دورهمی'],['bedroom','اتاق خواب','گوشه‌ای برای آرامش'],['office','فضای کار','جایی برای ایده‌های تازه']];
