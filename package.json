@@ -1,10 +1,10 @@
 {
   "name": "chido-ar",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check app.js && node --check architecture.js && node --check architecture-geometry.js && node --check studio.js && node --check imported-models.js && node --check vendor/GLTFLoader.js && node --check vendor/BufferGeometryUtils.js && node --check spatial.js && node --check effects.js && node --check furniture.js && node --check decor.js && node --check measure-tool.js && node --check rug-textures.js && node --check camera-capture.js && node --check layout-templates.js && node --check layout-storage.js && node --check asset-metadata.js && node --check saved-plan.js && node --check sofa-cushions.js && node --check collision.js && node --check internal-camera-capture.js && node --check settings-store.js && node --check project-services.js && node --check scene.js && node --check minimap.js && node --check xr.js && node --check wide-view.js"
+    "check": "node --check app.js && node --check architecture.js && node --check architecture-materials.js && node --check floor-reflection.js && node --check architecture-geometry.js && node --check studio.js && node --check imported-models.js && node --check vendor/GLTFLoader.js && node --check vendor/BufferGeometryUtils.js && node --check spatial.js && node --check effects.js && node --check furniture.js && node --check decor.js && node --check measure-tool.js && node --check rug-textures.js && node --check camera-capture.js && node --check layout-templates.js && node --check layout-storage.js && node --check asset-metadata.js && node --check saved-plan.js && node --check sofa-cushions.js && node --check collision.js && node --check internal-camera-capture.js && node --check settings-store.js && node --check project-services.js && node --check scene.js && node --check minimap.js && node --check xr.js && node --check wide-view.js"
   }
 }

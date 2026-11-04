@@ -797,3 +797,51 @@ header .quiet{font-size:14px!important;min-width:60px}
 #overlay .window-editor label{font-size:13px;display:grid;gap:4px}
 #overlay .window-editor input{min-width:0;width:100%;font-size:16px}
 @media(max-width:600px){.rooms-integrated .layout-feed{grid-template-columns:repeat(2,minmax(0,1fr))}.rooms-integrated .room-tabs button{padding:10px 13px}.rooms-integrated .start-blank{min-height:154px}#overlay .ab-calibration-sheet{left:69px;right:6px;padding:11px}#overlay .architecture-tool-list{grid-template-columns:1fr}}
+
+/* Chido 0.9: original icon-led space cards and compact 2-column tablet feed */
+.rooms-page.rooms-integrated{max-width:860px!important;padding-top:6px!important;padding-bottom:24px!important}
+.rooms-integrated .page-heading{margin:0 0 8px!important}
+.rooms-integrated .page-heading h1{font-size:clamp(20px,3vw,25px)!important;margin:3px 0}
+.rooms-integrated .page-heading p{font-size:13px!important;line-height:1.45}
+.rooms-integrated .room-choice{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin:7px 0 10px}
+.rooms-integrated .room-tab-cell{min-width:0;display:flex;flex-direction:column;gap:4px}
+.rooms-integrated .room-choice .card{width:100%;height:96px;min-height:96px!important;max-height:96px;aspect-ratio:auto!important;margin:0;transform:none}
+.rooms-integrated .room-choice .card svg{height:32px!important;width:32px!important;flex:0 0 32px}
+.rooms-integrated .room-choice .card strong{font-size:clamp(11px,1.5vw,15px)!important;margin:4px 0 0!important}
+.rooms-integrated .room-tab-add{display:grid;place-items:center;width:100%;height:30px;min-height:30px;padding:0;border:1px dashed #baa995;border-radius:8px;background:#f5ede3;color:#57695d;font-size:25px;line-height:1}
+.rooms-integrated .room-tab-add:active{background:#d9e4db}
+.rooms-integrated .preset-layouts{margin-top:6px}
+.rooms-integrated .layout-section-title{font-size:17px!important;line-height:1.3;margin:5px 0 7px}
+.rooms-integrated .layout-feed,.rooms-integrated .saved-layout-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;align-items:start}
+.rooms-integrated .layout-photo-card{display:grid;grid-template-rows:98px auto;min-width:0;min-height:0;padding:5px;background:#f3ece4;border:1px solid #dfd3c4;border-radius:11px;overflow:hidden;box-shadow:none}
+.rooms-integrated .layout-image{width:100%;height:98px!important;max-height:98px;min-height:0;overflow:hidden;border-radius:7px;background:#faf7f0}
+.rooms-integrated .layout-image svg{display:block;width:100%;height:100%;max-height:100%;object-fit:contain}
+.rooms-integrated .layout-caption{padding:4px 6px 3px;min-height:34px;line-height:1.2}
+.rooms-integrated .layout-caption strong{font-size:14px!important;line-height:1.2!important;font-weight:600}
+.rooms-integrated .layout-caption small{font-size:11px!important;line-height:1.25!important;margin-top:2px;color:#85786c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:18px}
+.rooms-integrated .layout-caption>span{left:5px;top:7px;font-size:15px}
+.rooms-integrated .saved-section{margin:0 0 12px!important}
+.rooms-integrated .saved-section h3{font-size:16px!important;margin:0 0 6px}
+.rooms-integrated .saved-plan-image{aspect-ratio:3/1.15}
+#overlay .architecture-finish-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:8px 0}
+#overlay .architecture-finish-grid button{border:2px solid #d2c5b5;border-radius:12px;background:#eee6db;padding:6px;display:grid;gap:5px;text-align:center;color:#4d4e47;min-width:0}
+#overlay .architecture-finish-grid button.selected{border-color:#3d9278;background:#dce9df;box-shadow:0 0 0 1px #3d9278}
+#overlay .architecture-finish-grid img{display:block;width:100%;aspect-ratio:1.35;object-fit:cover;border-radius:7px;image-rendering:auto}
+#overlay .architecture-finish-grid span{font-size:13px;line-height:1.45}
+#overlay .ar-surface-actions{position:absolute;z-index:25;left:max(9px,env(safe-area-inset-left));top:36%;max-width:122px;background:#f8f0e7ee;border:1px solid #d8cab9;border-radius:13px;padding:7px;box-shadow:0 6px 19px #151c1952;display:flex;flex-direction:column;gap:5px;pointer-events:auto}
+#overlay .ar-surface-actions strong{font-size:13px;text-align:center}
+#overlay .ar-surface-actions button{font-size:13px;line-height:1.2;border:0;border-radius:8px;background:#e8e5da;color:#3c5549;padding:8px 10px;min-height:39px}
+#overlay .ar-surface-actions .danger{color:#a74038;background:#f4dbd4}
+#overlay .ar-surface-actions[hidden]{display:none!important}
+@media(max-width:540px){
+ .rooms-integrated .room-choice{gap:4px}
+ .rooms-integrated .room-choice .card{min-height:90px!important;height:90px;max-height:90px}
+ .rooms-integrated .room-choice .card svg{width:28px!important;height:28px!important;flex-basis:28px}
+ .rooms-integrated .room-choice .card strong{font-size:10.5px!important;white-space:normal}
+ .rooms-integrated .room-tab-add{height:28px;min-height:28px}
+ .rooms-integrated .layout-feed,.rooms-integrated .saved-layout-grid{grid-template-columns:1fr!important;gap:7px!important}
+ .rooms-integrated .layout-photo-card{grid-template-columns:116px minmax(0,1fr);grid-template-rows:auto;min-height:108px;align-items:center}
+ .rooms-integrated .layout-image{height:98px!important;max-height:98px}
+ .rooms-integrated .layout-caption{min-height:0}
+ #overlay .architecture-finish-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
