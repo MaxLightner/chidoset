@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f5f3ed">
+<meta name="description" content="چیدو؛ تجربه سه‌بعدی مبلمان، مدیریت ست‌ها و نمایش زنده در نمایشگاه.">
+<title>CHIDO — فضای کاری شرکت‌ها</title>
+<link rel="stylesheet" href="style.css?v=0.10.0">
+<link rel="stylesheet" href="cloud.css?v=0.10.0">
+</head>
+<body class="portal-page">
+<div class="portal-shell">
+<header class="portal-top">
+  <div class="portal-logo">CHIDO<small>IMMERSIVE FURNITURE EXPERIENCE</small></div>
+  <nav class="portal-nav"><a href="#features">امکانات</a><a href="#workflow">روند کار</a><a href="#company-access">ورود شرکت</a><a href="index.html">ورود به اپلیکیشن ↗</a></nav>
+</header>
+
+<section class="portal-hero">
+  <div><span class="portal-kicker">A NEW WAY TO EXPERIENCE FURNITURE</span><h1>مبلمان را فقط نبینید؛ در فضا تجربه کنید.</h1><p>چیدو کتابخانه محصولات، ست‌های مبلمان، چیدمان‌های رسمی و تجربه واقعیت افزوده را به یک فضای کاری متصل می‌کند. فروشنده تغییرات را روی تبلت انجام می‌دهد و مشتری‌ها همان نمای سه‌بعدی را هم‌زمان روی گوشی خود می‌بینند.</p></div>
+  <div class="portal-hero-art"><div class="portal-scene-card"><strong>CHIDO LIVE VIEW</strong><div class="scene-line"></div><div class="scene-line short"></div><div class="scene-swatches"><i style="background:#244957"></i><i style="background:#d2c0aa"></i><i style="background:#7e825c"></i><i style="background:#783d4b"></i></div><div class="scene-line"></div><div class="scene-line short"></div><small>یک صحنه · چند نمایشگر · یک کنترل‌کننده</small></div></div>
+</section>
+
+<section id="workflow" class="portal-section">
+  <span class="portal-kicker">HOW CHIDO WORKS</span><h2>از محصول تا تجربه نمایشگاه</h2><p>مدل‌ها و ست‌ها توسط مدیریت مرکزی آماده می‌شوند؛ مدیر شرکت چیدمان و رنگ‌بندی رسمی را در محیط AR ذخیره می‌کند و شعبه‌ها فقط از نسخه‌های منتشرشده استفاده می‌کنند.</p>
+  <div class="portal-module-grid">
+    <article class="portal-module"><span class="module-icon">01</span><h3>کتابخانه محصولات</h3><p>هر محصول یک مدل مستقل است و می‌تواند در چند ست مختلف استفاده شود.</p></article>
+    <article class="portal-module"><span class="module-icon">02</span><h3>ست‌های رسمی</h3><p>ترکیب محصولات و انتشار ست‌ها در اختیار مدیریت مرکزی چیدو است.</p></article>
+    <article class="portal-module"><span class="module-icon">03</span><h3>چیدمان و رنگ‌بندی</h3><p>مدیر شرکت در همان محیط AR نسخه‌های رسمی را ذخیره و منتشر می‌کند.</p></article>
+    <article class="portal-module"><span class="module-icon">04</span><h3>حساب شعبه‌ها</h3><p>هر شعبه دسترسی مستقل دارد؛ تغییرات روزمره آن ذخیره دائمی نمی‌شود.</p></article>
+    <article class="portal-module"><span class="module-icon">05</span><h3>نمایش زنده با QR</h3><p>مشتری با گوشی خودش نمای مجازی فروشنده را می‌بیند؛ بدون تصویر دوربین و بدون نیاز به AR.</p></article>
+    <article class="portal-module"><span class="module-icon">06</span><h3>اشتراک و گزارش</h3><p>وضعیت پلن، شعبه‌ها، فعالیت و گزارش استفاده در فضای وب شرکت مدیریت می‌شود.</p></article>
+  </div>
+</section>
+
+<section id="company-access" class="portal-section">
+  <span class="portal-kicker">COMPANY WORKSPACE</span><h2>ورود و فعال‌سازی شرکت</h2><p>مدیر شرکت با کد دعوت یک‌بارمصرف حساب خود را فعال می‌کند. پس از ورود، وضعیت شرکت و شعبه‌ها را می‌بیند و برای تعریف چیدمان رسمی وارد اپلیکیشن AR می‌شود.</p>
+  <div class="portal-panel">
+    <form id="companyActivationForm" class="portal-card">
+      <h3>فعال‌سازی حساب مدیر</h3>
+      <label>کد دعوت<input id="companyInviteCode" autocomplete="one-time-code" placeholder="CHIDO-ADMIN-…" required></label>
+      <label>ایمیل مدیر<input id="companyAdminEmail" type="email" autocomplete="email" required></label>
+      <label>رمز عبور (حداقل ۱۰ کاراکتر)<input id="companyAdminPassword" type="password" minlength="10" autocomplete="new-password" required></label>
+      <button class="primary" type="submit">ساخت حساب مدیر</button>
+      <p id="activationMessage" class="portal-message" role="status"></p>
+    </form>
+    <form id="companyLoginForm" class="portal-card">
+      <h3>ورود مدیر شرکت</h3>
+      <label>ایمیل<input id="loginEmail" type="email" autocomplete="username" required></label>
+      <label>رمز عبور<input id="loginPassword" type="password" autocomplete="current-password" required></label>
+      <button class="primary" type="submit">ورود به فضای شرکت</button>
+      <p id="loginMessage" class="portal-message" role="status"></p>
+    </form>
+  </div>
+  <section id="companyDashboard" hidden class="portal-card" style="margin-top:16px">
+    <div class="company-set-heading"><div><span class="portal-kicker">COMPANY DASHBOARD</span><h2 id="dashboardCompanyName">شرکت</h2><small id="dashboardCompanyStatus"></small></div><div><a href="index.html#spaces" class="primary" style="display:inline-block;padding:12px 16px;border-radius:10px;text-decoration:none">ورود به ویرایش AR ↗</a><button id="companySignOut">خروج</button></div></div>
+    <div id="dashboardKpis" class="portal-kpis"></div>
+    <div class="portal-panel">
+      <div class="portal-card"><h3>شعبه‌های شرکت</h3><div id="dashboardBranches"></div></div>
+      <div class="portal-card"><h3>ست‌های منتشرشده</h3><div id="dashboardSets"></div></div>
+    </div>
+    <div class="portal-card" style="margin-top:14px"><h3>فعالیت‌های اخیر</h3><div id="dashboardActivity"></div></div>
+    <p class="portal-preview-note">مدیریت کامل اشتراک، صدور کد شعبه، بارگذاری محصول و گزارش‌های پیشرفته در نسخه بعدی پنل مرکزی تکمیل می‌شود. در این نسخه، تعریف چیدمان و رنگ‌بندی رسمی از داخل AR انجام می‌شود.</p>
+  </section>
+  <form id="accessRequestForm" class="portal-card" style="margin-top:14px">
+    <h3>درخواست دسترسی شرکت جدید</h3>
+    <div class="portal-panel">
+      <label>نام و نام خانوادگی<input id="requestContact" required></label>
+      <label>نام شرکت<input id="requestCompany" required></label>
+      <label>ایمیل<input id="requestEmail" type="email" required></label>
+      <label>شماره تماس<input id="requestPhone" inputmode="tel"></label>
+    </div>
+    <label>توضیحات<textarea id="requestMessage" rows="3"></textarea></label>
+    <button class="primary" type="submit">ارسال درخواست</button><p id="requestStatus" class="portal-message" role="status"></p>
+  </form>
+</section>
+
+<section id="features" class="portal-section">
+  <span class="portal-kicker">CENTRAL CONTROL · NEXT STAGE</span><h2>مرکز مدیریت چیدو</h2><p>این بخش در مرحله بعد تکمیل می‌شود. ساختار و چرخه کار از همین حالا مشخص است؛ ماژول‌های زیر در نسخه فعلی صرفاً پیش‌نمایش هستند.</p>
+  <div class="portal-module-grid">
+    <article class="portal-module"><span class="module-icon">⌂</span><h3>شرکت‌ها و حساب‌ها</h3><p>ساخت شرکت، مدیران، شعبه‌ها و سطح دسترسی.</p><span class="coming">پیش‌نمایش · مرحله دوم</span></article>
+    <article class="portal-module"><span class="module-icon">◷</span><h3>اشتراک‌ها و پرداخت</h3><p>پلن‌ها، تمدید، تاریخ انقضا و پرداخت‌ها.</p><span class="coming">پیش‌نمایش · مرحله دوم</span></article>
+    <article class="portal-module"><span class="module-icon">▦</span><h3>محصولات و مدل‌ها</h3><p>درخواست مدل‌سازی، آماده‌سازی و انتشار مدل‌ها.</p><span class="coming">پیش‌نمایش · مرحله دوم</span></article>
+    <article class="portal-module"><span class="module-icon">⌁</span><h3>ست‌ها و انتشار</h3><p>تعریف ست‌ها و اتصال محصولات به آن‌ها.</p><span class="coming">پیش‌نمایش · مرحله دوم</span></article>
+    <article class="portal-module"><span class="module-icon">▤</span><h3>فعالیت و تحلیل</h3><p>کاربران فعال، ساعت‌های پرترافیک و محبوبیت ست‌ها.</p><span class="coming">پیش‌نمایش · مرحله دوم</span></article>
+    <article class="portal-module"><span class="module-icon">⌁</span><h3>سلامت سرویس</h3><p>خطاها، زمان پاسخ، مصرف منابع و هشدارها.</p><span class="coming">پیش‌نمایش · مرحله دوم</span></article>
+  </div>
+</section>
+<footer class="portal-top"><div class="portal-logo">CHIDO<small>POYARA · IMMERSIVE TOOLS</small></div><a href="index.html">رفتن به اپلیکیشن چیدو ←</a></footer>
+</div>
+<script type="module" src="portal.js?v=0.10.0"></script>
+</body>
+</html>
