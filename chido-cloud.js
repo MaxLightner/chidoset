@@ -169,8 +169,19 @@ async function sha256(value) {
 export async function createLiveSession({ sceneState, cameraState, branchId = null }) {
   const membership = await getMembership();
   if (!membership) throw new Error('برای شروع نمایش زنده باید وارد چیدو شوی.');
-  const selectedBranch = branchId || membership.branch_id;
-  if (!selectedBranch) throw new Error('برای حساب مدیر، ابتدا شعبه میزبان نمایش را مشخص کن.');
+  let selectedBranch = branchId || membership.branch_id;
+  if (!selectedBranch && membership.role === 'company_admin') {
+    const { data: branches, error: branchError } = await supabase
+      .from('branches')
+      .select('id')
+      .eq('company_id', membership.company_id)
+      .eq('status', 'active')
+      .order('created_at', { ascending: true })
+      .limit(1);
+    if (branchError) throw branchError;
+    selectedBranch = branches?.[0]?.id || null;
+  }
+  if (!selectedBranch) throw new Error('برای این شرکت هنوز شعبه فعالی ثبت نشده است.');
   const rawToken = crypto.randomUUID().replaceAll('-', '') + crypto.randomUUID().replaceAll('-', '');
   const tokenHash = await sha256(rawToken);
   const expiresAt = new Date(Date.now() + 45 * 60 * 1000).toISOString();
