@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f8f7f3" />
+  <meta name="description" content="چیدو؛ نمایشگاه سه‌بعدی و فروشگاه‌ساز مبلمان با تجربه واقعیت افزوده" />
+  <title>چیدو | نمایشگاه شما، در خانه مشتری</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./motion.css" />
+  <link rel="stylesheet" href="./review.css" />
+  <script type="importmap">
+    {"imports":{"three":"./vendor/three.module.js"}}
+  </script>
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+  <div class="demo-banner"><span class="live-dot"></span> پیش‌نمایش طراحی چیدو — ثبت‌نام، پرداخت و ذخیره‌سازی سروری هنوز فعال نیستند</div>
+
+  <header class="topbar" id="topbar">
+    <a class="brand" href="#/" aria-label="چیدو — صفحه اصلی">
+      <span class="brand-icon"><span></span><span></span><span></span></span>
+      <span class="brand-words"><strong>چیدو</strong><small>CHIDO SET</small></span>
+    </a>
+    <nav class="desktop-nav" aria-label="منوی اصلی">
+      <a href="#/" data-nav="home">معرفی چیدو</a>
+      <a href="#/shop" data-nav="shop">فروشگاه‌ساز</a>
+      <a href="#/dashboard" data-nav="dashboard">پنل مدیریت</a>
+      <a href="#/terms" data-nav="terms">قوانین</a>
+    </nav>
+    <div class="header-actions">
+      <button class="quiet-btn login-trigger" data-action="login">ورود به حساب <span class="arrow-icon">↗</span></button>
+      <a class="pill-btn primary header-start" href="#/signup">شروع رایگان <span>↗</span></a>
+      <button class="menu-toggle" id="menu-toggle" aria-expanded="false" aria-label="باز کردن منو"><span></span><span></span></button>
+    </div>
+  </header>
+  <div class="mobile-nav" id="mobile-nav" hidden>
+    <a href="#/">معرفی چیدو</a><a href="#/shop">فروشگاه‌ساز</a><a href="#/dashboard">پنل مدیریت</a><a href="#/terms">قوانین</a>
+    <button data-action="login">ورود / ثبت‌نام</button>
+  </div>
+
+  <main id="home-page" class="page active-page">
+    <section class="scroll-experience" id="scroll-experience" aria-label="داستان سه‌بعدی چیدو">
+      <div class="hero-sticky">
+        <div class="hero-grid" aria-hidden="true"></div>
+        <div class="hero-orbit orbit-a" aria-hidden="true"></div><div class="hero-orbit orbit-b" aria-hidden="true"></div>
+        <div class="hero-halo" aria-hidden="true"></div>
+        <div class="hero-scene-wrap"><div class="hero-fallback" aria-hidden="true"><img class="hero-fallback-sofa is-current" src="./sofa-aria.webp" alt="" /><img class="hero-fallback-sofa" src="./sofa-nava.webp" alt="" /><img class="hero-fallback-sofa" src="./sofa-roza.webp" alt="" /></div><canvas id="hero-3d" aria-label="مبل سه‌بعدی چرخان"></canvas><div class="scene-ground" aria-hidden="true"></div></div>
+        <div class="hero-copy">
+          <div class="story-panel is-active" data-story="0">
+            <p class="eyebrow"><span class="eyebrow-line"></span> نسل تازه نمایشگاه مبلمان</p>
+            <h1>نمایشگاه شما،<br /><em>در خانهٔ مشتری.</em></h1>
+            <p class="hero-desc">مشتری قبل از خرید، مبلمان شما را با ابعاد واقعی در فضای خودش می‌بیند. چیدو فاصله میان تصور و انتخاب را کم می‌کند.</p>
+            <div class="hero-cta"><a href="#/signup" class="pill-btn primary big">نمایشگاهم را بسازم <span>↗</span></a><a href="#/shop" class="text-link">دیدن فروشگاه نمونه <span>←</span></a></div>
+          </div>
+          <div class="story-panel" data-story="1">
+            <p class="eyebrow"><span class="eyebrow-line"></span> انتخاب با اطمینان بیشتر</p>
+            <h2>از تماشا کردن،<br /><em>تا تجربه کردن.</em></h2>
+            <p class="hero-desc">سلیقه‌ها شخصی‌تر شده‌اند. وقتی مشتری رنگ، فرم و اندازه محصول را در محیط واقعی امتحان می‌کند، گفت‌وگو درباره خرید ملموس‌تر می‌شود.</p>
+            <div class="hero-cta"><a href="#/shop" class="pill-btn primary big">تجربه فروشگاه <span>↗</span></a></div>
+          </div>
+          <div class="story-panel" data-story="2">
+            <p class="eyebrow"><span class="eyebrow-line"></span> فروشگاه همیشه در دسترس</p>
+            <h2>هر مدل،<br /><em>یک فرصت تازه.</em></h2>
+            <p class="hero-desc">از چند عکس محصول تا مدل سه‌بعدی آماده؛ کتابخانه مبلمان شما می‌تواند همیشه در کنار مشتری باشد، حتی بیرون از فروشگاه.</p>
+            <div class="hero-cta"><a href="#/signup" class="pill-btn primary big">اولین محصولم را اضافه کنم <span>↗</span></a></div>
+          </div>
+        </div>
+        <div class="hero-side-note" aria-hidden="true"><span>طراحی واقعی‌تر</span><span class="tiny-rule"></span><span>انتخاب ساده‌تر</span></div>
+        <div class="scroll-tracker"><span class="track-count" id="story-count">01 / 03</span><div class="track-line"><div id="track-progress"></div></div><span class="scroll-caption">برای کشف بیشتر اسکرول کنید ↓</span></div>
+        <div class="model-label" id="model-label"><span class="model-dot"></span><strong>آریا</strong><span>سه‌نفره مدرن</span></div>
+      </div>
+    </section>
+
+    <section class="insight-strip reveal" aria-label="سه نگاه به آینده فروش">
+      <div class="insight-intro"><p class="eyebrow">برای دنیای امروز مبلمان</p><h2>نمایش محصول دیگر<br />فقط نشان‌دادن نیست.</h2></div>
+      <div class="insight-columns"><div><span class="insight-no">۰۱</span><strong>انتخاب‌های شخصی‌تر</strong><p>رنگ و پارچه، بخشی از تجربه خریدند؛ نه یک تصمیم بعد از آن.</p></div><div><span class="insight-no">۰۲</span><strong>فرصت تعامل بیشتر</strong><p>زمانی که مشتری محصول را امتحان می‌کند، فرصت گفت‌وگوی دقیق‌تری شکل می‌گیرد.</p></div><div><span class="insight-no">۰۳</span><strong>نمایشگاه بدون مرز</strong><p>یک مدل آماده می‌تواند بارها در خانه‌های مختلف دیده شود.</p></div></div>
+    </section>
+
+    <section class="section feature-section" id="features">
+      <div class="feature-lead">
+        <div class="section-head reveal"><p class="eyebrow"><span class="eyebrow-line"></span> چیدو چگونه کار می‌کند؟</p><h2>از محصول شما،<br /><em>تا تجربه مشتری.</em></h2><p>سه قدم ساده برای آوردن فناوری واقعیت افزوده به فروشگاه شما.</p><div class="feature-lead-steps" aria-label="مراحل کار چیدو"><span>۱. تصاویر محصول</span><b>←</b><span>۲. مدل سه‌بعدی</span><b>←</b><span>۳. نمایش در خانه</span></div></div>
+        <div class="feature-showcase reveal" aria-label="سه مدل مبل آریا، نوا و رزا؛ از عکس محصول تا نمایش سه‌بعدی">
+          <div class="showcase-orbit" aria-hidden="true"></div>
+          <div class="showcase-top" aria-hidden="true"><span>CHIDO / FROM PHOTO TO AR</span><span>◈</span></div>
+          <div class="sofa-gallery" role="group" aria-label="نمونه مبل‌های چیدو">
+            <div class="sofa-gallery-item sofa-gallery-aria"><img src="./sofa-aria.webp" alt="مبل آریا" loading="lazy"/><span>01 / ARIA</span></div>
+            <div class="sofa-gallery-item sofa-gallery-nava"><img src="./sofa-nava.webp" alt="مبل نوا" loading="lazy"/><span>02 / NAVA</span></div>
+            <div class="sofa-gallery-item sofa-gallery-roza"><img src="./sofa-roza.webp" alt="مبل رزا" loading="lazy"/><span>03 / ROZA</span></div>
+          </div>
+          <div class="showcase-bottom">از عکس تا واقعیت افزوده <span>PRODUCT JOURNEY</span></div>
+        </div>
+      </div>
+      <div class="feature-grid">
+        <article class="feature-card large-card reveal"><div class="feature-top"><span>01 / AR SHOWROOM</span><span class="feature-icon">⌑</span></div><div class="feature-illustration room-sketch" aria-hidden="true"><div class="room-wall"></div><div class="room-window"></div><div class="room-plant"></div><div class="mini-sofa"><i></i><i></i><i></i></div><span class="ar-target">◎</span><span class="ar-chip">نمایش در محیط واقعی</span></div><div class="feature-bottom"><h3>نمایشگاه مجازی شما با واقعیت افزوده</h3><p>مبلمان را با اندازه واقعی در خانه مشتری قرار دهید؛ جابه‌جا کنید، بچرخانید و رنگ مناسب را انتخاب کنید.</p></div></article>
+        <article class="feature-card reveal"><div class="feature-top"><span>02 / MODEL STUDIO</span><span class="feature-icon">◈</span></div><div class="upload-illustration"><div class="upload-sheet"><span>تصاویر محصول</span><div class="photo-tiles"><i></i><i></i><i></i></div><div class="upload-bar"><b></b></div><small>آماده‌سازی مدل</small></div><span class="upload-star">✦</span></div><div class="feature-bottom"><h3>از چند عکس تا مدل سه‌بعدی</h3><p>عکس محصولات را در داشبورد بارگذاری کنید؛ فرایند تبدیل بدون مراجعه حضوری تیم چیدو آغاز می‌شود.</p></div></article>
+        <article class="feature-card reveal"><div class="feature-top"><span>03 / FLEXIBLE PLANS</span><span class="feature-icon">↗</span></div><div class="plans-illustration"><div class="plan-tile p1"><span>آزمایشی</span><strong>۱ ماهه</strong></div><div class="plan-tile p2"><span>رشد</span><strong>۶ ماهه</strong></div><div class="plan-tile p3"><span>حرفه‌ای</span><strong>سالانه</strong></div></div><div class="feature-bottom"><h3>با هزینه کنترل‌شده شروع کنید</h3><p>محصولات پرفروش را در ماه اول آزمایش کنید و سپس متناسب با نیاز فروشگاه، اشتراک خود را توسعه دهید.</p></div></article>
+      </div>
+    </section>
+
+    <section class="dark-stage reveal" id="store-builder-promo"><div class="dark-glow" aria-hidden="true"></div><div class="dark-text"><p class="eyebrow">یک قدم فراتر از چیدمان</p><h2>فروشگاه شما.<br /><em>با هویت خودتان.</em></h2><p>محصولات، رنگ‌ها، قیمت‌ها و ترتیب نمایش را خودتان مدیریت کنید؛ ما تجربه آنلاین مشتری را یکپارچه می‌کنیم.</p><a class="pill-btn light" href="#/shop">فروشگاه نمونه را ببینید <span>↗</span></a></div><div class="store-visual" aria-hidden="true"><div class="store-window"><div class="window-bar"><span>◉ CHIDO SHOP</span><span>⌕　♡　☰</span></div><div class="window-heading">دکور زندگی از اینجا شروع می‌شود</div><div class="window-tiles"><div><img data-sofa-image="0" alt="" /></div><div><img data-sofa-image="1" alt="" /></div></div><div class="window-footer"><span>مجموعه بهار</span><span>مشاهده محصولات ←</span></div></div></div></section>
+
+    <section class="section extras-section" id="extras-stage"><div class="extras-pin"><div class="extras-heading-row"><div class="section-head reveal"><p class="eyebrow"><span class="eyebrow-line"></span> فراتر از نمایش سه‌بعدی</p><h2>ابزارهایی برای تمام<br /><em>مسیر فروش.</em></h2><p>امکانات تکمیلی چیدو، در مسیر توسعه یک پلتفرم یکپارچه فروش مبلمان.</p></div><div class="extras-meter" aria-hidden="true"><div class="extras-meter-top"><span>CHIDO / YOUR BUSINESS</span><strong id="extras-number">۰۰ / ۰۸</strong></div><div class="extras-meter-line"><span id="extras-meter-fill"></span></div><small>هر کارت، یک امکان تازه برای کسب‌وکار شما</small></div></div><div class="extras-grid" id="extras-grid"></div><div class="extras-action"><a href="#/shop" class="pulse-button"><span>ورود به فروشگاه‌ساز</span><b>↗</b></a></div></div></section>
+
+    <section class="section pricing-section"><div class="pricing-intro reveal"><p class="eyebrow">اشتراک متناسب با کسب‌وکار شما</p><h2>کوچک شروع کنید.<br /><em>بزرگ‌تر بفروشید.</em></h2><p>دوره آزمایشی برای بررسی عملیِ کاربرد چیدو روی محصولات پرفروش شما طراحی شده است. مبالغ نهایی پس از تعیین بسته‌ها اعلام می‌شود.</p></div><div class="pricing-cards"><article class="pricing-card reveal"><span class="plan-tag">برای آشنایی</span><h3>یک‌ماهه</h3><p>تجربه واقعی چیدو با چند محصول منتخب فروشگاه</p><div class="pricing-placeholder">تعرفه به‌زودی</div><a href="#/signup" class="outline-pill">درخواست تست <span>↗</span></a></article><article class="pricing-card featured reveal"><span class="plan-tag">پیشنهاد رشد</span><h3>شش‌ماهه</h3><p>فرصت کافی برای تکمیل کتابخانه و سنجش بازخورد مشتریان</p><div class="pricing-placeholder">تعرفه به‌زودی</div><a href="#/signup" class="pill-btn primary">درخواست مشاوره <span>↗</span></a></article><article class="pricing-card reveal"><span class="plan-tag">برای کسب‌وکار پایدار</span><h3>سالانه و بیشتر</h3><p>توسعه نمایشگاه و فروشگاه اختصاصی در مقیاس بزرگ‌تر</p><div class="pricing-placeholder">تعرفه به‌زودی</div><a href="#/signup" class="outline-pill">بررسی شرایط <span>↗</span></a></article></div></section>
+
+    <section class="final-cta reveal" id="consult"><div class="final-orbit" aria-hidden="true"></div><p class="eyebrow">فرصت ساخت تجربه متفاوت همین حالاست</p><h2 class="cta-heading" aria-label="همین امروز شروع کنید؛ در اوج بازار دیر است."><span class="typewriter-line" aria-hidden="true"><span class="typewriter-measure">همین امروز شروع کنید؛</span><span class="typewriter-text" id="cta-typewriter" data-copy="همین امروز شروع کنید؛">همین امروز شروع کنید؛</span></span><em class="cta-type-second" aria-hidden="true">در اوج بازار دیر است.</em></h2><p>برای فروشگاه یا کارخانه شما، یک مسیر ساده و قابل آزمایش طراحی می‌کنیم.</p><a href="#/signup" class="pulse-button"><span>مشاوره رایگان برای فروشگاه شما</span><b>↗</b></a><div class="big-contact"><span>ارتباط مستقیم با چیدو</span><strong>شماره تماس پس از تأیید درج می‌شود</strong></div></section>
+
+    <section class="registration-strip"><div><p class="eyebrow">اولین قدم به دنیای چیدو</p><h2>اکانت رایگان خود را بسازید.</h2><p>اولین محصولتان را در نمایشگاه و فروشگاه مجازی ببینید.</p></div><a href="#/signup" class="pill-btn primary big">ساخت حساب <span>↗</span></a></section>
+  </main>
+
+  <main id="shop-page" class="page" hidden>
+    <section class="shop-hero"><div class="shop-hero-content"><p class="eyebrow">فروشگاه‌ساز چیدو / نمونه نمایشی</p><h1>فروشگاه شما،<br /><em>به وسعت سلیقه مشتری.</em></h1><p>محصولات، جشنواره‌ها و یک تجربه خرید متفاوت؛ با نمایش سه‌بعدی و واقعیت افزوده در کنار هر محصول.</p><a href="#/dashboard" class="pill-btn primary">مدیریت فروشگاه من <span>↗</span></a></div><div class="shop-hero-art"><img data-sofa-image="1" alt="مبل نوا، نمونه سه‌بعدی" /><span class="shop-art-tag">فروشگاه نمونه / CHIDO</span></div></section>
+    <section class="campaign-panel section-sm"><div class="campaign-symbol">✦</div><div><p class="eyebrow">کمپین‌های هوشمند چیدو</p><h2>از ایده جشنواره تا انتشار محتوا</h2><p>سیستم برای شما پیشنهاد جشنواره آماده می‌کند؛ بعد از تأیید شما، بنر، کاتالوگ دیجیتال و محتوای کانال تلگرام در فرایند انتشار قرار می‌گیرند.</p><span class="small-pill">در نقشه راه توسعه</span></div><a href="#/dashboard" class="outline-pill">پیش‌نمایش پنل <span>↗</span></a></section>
+    <section class="shop-products section"><div class="section-head inline-head"><div><p class="eyebrow">مجموعه نمونه</p><h2>انتخاب کنید،<br /><em>از نزدیک ببینید.</em></h2></div><p>کنار هر محصول، نمای سه‌بعدی و امکان مشاهده در محیط واقعی قرار دارد.</p></div><div class="shop-toolbar"><div class="category-tabs" id="shop-categories"><button class="active" data-category="همه">همه محصولات</button><button data-category="راحتی">مبل راحتی</button><button data-category="ال">مبل ال</button></div><label class="search-field"><span>⌕</span><input id="shop-search" type="search" placeholder="جستجوی محصول..." aria-label="جستجوی محصول" /></label></div><div class="products-grid" id="products-grid"></div></section>
+    <section class="shop-bottom-banner"><div><h2>فروشگاه خودتان را بسازید.</h2><p>دسته‌بندی، ترتیب محصولات، موجودی و رنگ‌ها را از پنل چیدو کنترل کنید.</p></div><a href="#/signup" class="pill-btn primary">ساخت فروشگاه رایگان <span>↗</span></a></section>
+  </main>
+
+  <main id="dashboard-page" class="page dashboard-page" hidden>
+    <div class="dashboard-shell">
+      <aside class="dashboard-side"><div class="side-title"><span class="side-logo">◈</span><div><strong>پنل فروشگاه</strong><small>پیش‌نمایش چیدو</small></div></div><div class="side-shop"><div class="side-shop-avatar">چ</div><div><strong id="side-store-name">فروشگاه نمونه</strong><small>حساب آزمایشی</small></div></div><nav class="dashboard-tabs" id="dashboard-tabs"><button class="active" data-dashboard-tab="overview"><span>▦</span> نمای کلی</button><button data-dashboard-tab="products"><span>◫</span> محصولات و موجودی</button><button data-dashboard-tab="store"><span>▤</span> چیدمان فروشگاه</button><button data-dashboard-tab="gallery"><span>▧</span> گالری رسانه</button><button data-dashboard-tab="campaigns"><span>✦</span> جشنواره‌ها</button><button data-dashboard-tab="settings"><span>⚙</span> تنظیمات</button></nav><div class="sidebar-note">اطلاعات این نسخه فقط روی همین مرورگر ذخیره می‌شود؛ به سرور متصل نیست.</div></aside>
+      <div class="dashboard-main"><div class="dashboard-top"><div><p class="eyebrow">داشبورد مدیریت</p><h1 id="dashboard-page-title">صبح بخیر، به چیدو خوش آمدید.</h1></div><div class="dashboard-top-actions"><span class="demo-tag">حالت نمایشی</span><a class="outline-pill" href="#/shop">مشاهده فروشگاه <span>↗</span></a></div></div><div id="dashboard-content"></div></div>
+    </div>
+  </main>
+
+  <main id="signup-page" class="page signup-page" hidden><div class="signup-layout"><div class="signup-story"><a href="#/" class="back-link">→ بازگشت به صفحه اصلی</a><p class="eyebrow">به نمایشگاه آینده خوش آمدید</p><h1>اولین محصولتان<br /><em>در فضای واقعی.</em></h1><p>یک حساب برای فروشگاه بسازید و مسیر تبدیل تصاویر محصولات به مدل سه‌بعدی را آغاز کنید.</p><div class="signup-art"><span>CHIDO / NEW POSSIBILITIES</span><div class="signup-art-box"><img data-sofa-image="0" alt="نمای محصول نمونه چیدو" /></div></div></div><div class="signup-form-shell"><div class="form-heading"><span class="form-mark">◈</span><h2>ساخت حساب رایگان</h2><p>ثبت‌نام اولیه در نسخه نهایی با تأیید شماره موبایل انجام می‌شود.</p></div><form id="signup-form"><label>نام فروشگاه یا کارخانه<input name="storeName" type="text" placeholder="مثلاً مبلمان آریا" required minlength="2" /></label><label>شماره موبایل<input name="phone" type="tel" inputmode="numeric" placeholder="09xxxxxxxxx" required pattern="09[0-9]{9}" /></label><label class="check-line"><input type="checkbox" name="terms" required /><span>با <a href="#/terms">قوانین استفاده</a> و <a href="#/privacy">حریم خصوصی</a> موافقم.</span></label><button type="submit" class="pill-btn primary full">ادامه و تأیید شماره <span>←</span></button><div class="form-info"><span>ⓘ</span><p>ارسال پیامک در این نسخه فعال نیست. می‌توانید پیش‌نمایش داشبورد را بدون ساخت حساب ببینید.</p></div></form><button id="demo-dashboard" class="demo-entry">ورود به داشبورد نمونه ←</button><p class="login-alt">قبلاً حساب ساخته‌اید؟ <button data-action="login">ورود به حساب</button></p></div></div></main>
+
+  <main id="legal-page" class="page legal-page" hidden><section class="legal-wrap"><a href="#/" class="back-link">→ بازگشت به سایت</a><p class="eyebrow">شفافیت، از ابتدا</p><h1 id="legal-title">قوانین استفاده</h1><div class="legal-content" id="legal-content"></div><div class="legal-alert">این متن، پیش‌نویس ساختار حقوقی محصول است و پیش از عرضه عمومی باید با اطلاعات شرکت و شرایط واقعی خدمات نهایی شود.</div></section></main>
+
+  <footer class="site-footer"><div class="footer-main"><div class="footer-brand"><span class="brand-icon"><span></span><span></span><span></span></span><strong>چیدو</strong><p>تجربه تازه انتخاب، چیدمان و فروش مبلمان.</p></div><div><strong>کاوش</strong><a href="#/">معرفی چیدو</a><a href="#/shop">فروشگاه نمونه</a><a href="#/dashboard">پنل مدیریت</a></div><div><strong>همراه شما</strong><a href="#/signup">ثبت‌نام اولیه</a><a href="#/terms">قوانین استفاده</a><a href="#/privacy">حریم خصوصی</a></div><div class="footer-contact"><strong>با ما در ارتباط باشید</strong><span>شماره رسمی پس از تأیید</span><a href="#/signup" class="text-link">درخواست مشاوره ←</a></div></div><div class="footer-bottom"><span>© ۲۰۲۶ چیدو. تمام حقوق محفوظ است.</span><span>طراحی برای خانه‌هایی که هنوز نچیده‌ایم.</span><span>CHIDOSET.IR</span></div></footer>
+
+  <div class="modal-backdrop" id="modal-backdrop" hidden><section class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button class="modal-close" id="modal-close" aria-label="بستن">×</button><div id="modal-content"></div></section></div>
+
+  <div class="ar-shell" id="ar-shell" hidden><div class="ar-header"><button id="ar-exit">× خروج</button><strong>نمایش در محیط واقعی</strong><span>چیدو AR</span></div><div class="ar-message" id="ar-message">برای شناسایی کف آماده شوید.</div><div class="ar-controls"><button id="ar-rotate-left">↶ چرخش</button><div id="ar-colors" class="ar-colors"></div><button id="ar-rotate-right">چرخش ↷</button><button id="ar-reset">جابه‌جایی دوباره</button></div></div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
