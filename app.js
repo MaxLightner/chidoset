@@ -10,6 +10,7 @@ import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-
 import {LiveMiniMap} from './minimap.js?v=0.5.4';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
 import {SOFA_FABRICS} from './imported-models.js?v=0.7.0';
+import {supabase,activateBranch,signIn,getMembership,loadCompanySets,saveOfficialLayout,saveOfficialColorway,createLiveSession,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.10.0';
 const $=s=>document.querySelector(s),app=$('#app'),fa=n=>n.toLocaleString('fa-IR');
 let studio,Scene,palette,space='پذیرایی',layout='conversation',supported=false,routeVersion=0,photoURLs=[],savedItems=[],arReport=null,sceneMemory=null,arStarting=false,lastXRErrorReport='',activeSavedLayoutId=null;
 const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio);
@@ -22,6 +23,9 @@ const themes=[
  {name:'سبز زیتونی',colors:['#909c84','#d4c6b4','#adba9d','#b6a793']}
 ];
 let themeIndex=0,styleChoice='مینیمال',previewEnabled=false,peopleCount=5;
+let cloudMembership=null,cloudSets=[],activeCloudSetId=null,activeCloudLayout=null,activeCloudColorway=null,activeLiveSession=null;
+let liveSceneTimer=null,lastLiveCameraSent=0,liveCameraBusy=false,liveCameraQueued=null;
+let appSessionLogged=false,lastHeartbeatAt=0;
 const catalogImages=[
  ['کاناپه','<rect x="14" y="24" width="74" height="46" rx="10"/><path d="M16 38h70M32 42v25m37-25v25"/>'],
  ['تک‌نفره','<rect x="27" y="20" width="48" height="54" rx="10"/><path d="M28 40h46"/>'],
@@ -85,7 +89,7 @@ function heading(step,title,sub,back){return `<div class="page-heading"><div><sp
 async function full(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(!document.documentElement.requestFullscreen){toast('مرورگر شما تمام‌صفحه را پشتیبانی نمی‌کند.');return;}try{await document.documentElement.requestFullscreen();}catch{toast('ورود به تمام‌صفحه ممکن نشد؛ می‌توانی ادامه بدهی.');}}
 $('#fullscreen').onclick=full;document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'خروج از تمام‌صفحه ↙':'تمام‌صفحه ⛶');
 async function support(){try{supported=!!(isSecureContext&&navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar'));}catch{supported=false;}return supported;}
-async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.9.0');Scene=m.Studio;palette=m.palette;}}
+async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.10.0');Scene=m.Studio;palette=m.palette;}}
 let draftTimer=null;
 function currentSceneRecord(){
  if(!studio)return null;
@@ -93,6 +97,7 @@ function currentSceneRecord(){
 }
 function persistDraft(){
  if(!studio)return;
+ if(cloudMembership?.role==='branch'){clearDraft();return;}
  try{saveDraft(currentSceneRecord());}catch(error){console.warn('Draft save unavailable',error);}
 }
 function scheduleDraftSave(){
@@ -105,13 +110,13 @@ function loadSceneRecord(record){
  sceneMemory=record.scene;space=record.room||'پذیرایی';layout=record.layout||'conversation';
  peopleCount=Number(record.capacity)||5;styleChoice=record.style||'مینیمال';themeIndex=record.theme||0;
 }
-window.addEventListener('pagehide',persistDraft);
+window.addEventListener('pagehide',()=>{persistDraft();if(activeLiveSession)void stopLiveSession(activeLiveSession.id);});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)persistDraft();});
 function updateObjects(){if(!studio)return;const buttons=studio.items.map(m=>`<button data-object="${m.userData.id}" class="${m===studio.selected?'selected':''}">${m.userData.product.name}</button>`).join('');for(const selector of ['#objects']){const el=$(selector);if(el){el.innerHTML=buttons||'<small>یک قطعه اضافه کن.</small>';el.querySelectorAll('[data-object]').forEach(b=>b.onclick=()=>studio.select(studio.items.find(m=>m.userData.id===+b.dataset.object)));}}
  const mesh=studio.selected,label=mesh?mesh.userData.product.name+' · '+mesh.userData.product.size.map(v=>fa(Math.round(v*100))).join(' × ')+' سانتی‌متر':'یک قطعه را لمس کن';for(const id of ['selection','arSelection']){const el=$('#'+id);if(el)el.textContent=label;}
  const rotation=$('#rotation');if(rotation)rotation.value=mesh?Math.round(mesh.rotation.y*180/Math.PI)%360:0;
  for(const id of ['rotate','delete','rotation']){const el=$('#'+id);if(el)el.disabled=!mesh;}for(const id of ['selectedARTools']){const el=$('#'+id);if(el)el.hidden=!mesh;}
- updateMeasurements();minimap.render();scheduleDraftSave();}
+ updateMeasurements();minimap.render();scheduleDraftSave();if(activeLiveSession)scheduleLiveScenePublish();}
 function updateMeasurements(){if(!studio)return;const m=studio.measurement();for(const id of ['measurement','arMeasurement']){const el=$('#'+id);if(el)el.textContent=`A—B: ${fa(m.measuredCm)} سانتی‌متر اندازه‌گیری‌شده · ضریب ${fa(m.scale)} · طول اصلاح‌شده ${fa(m.correctedCm)} سانتی‌متر`;}}
 function calibrationControls(prefix=''){return `<div class="calibration-controls"><p class="measurement" id="${prefix?'arMeasurement':'measurement'}"></p><label for="${prefix}actual">طول واقعی A—B (۱۰۰ تا ۱۰۰۰ سانتی‌متر)</label><div class="input-row"><input id="${prefix}actual" type="number" inputmode="decimal" min="100" max="1000" step="0.1" placeholder="مثلاً ۱۰۰"><button id="${prefix}calibrate">کالیبره کن</button><button id="${prefix}resetScale">۱:۱</button></div><small>A کل صحنه را جابه‌جا می‌کند و B جهت آن را تعیین می‌کند.</small></div>`;}
 function bindCalibration(prefix=''){const initial=studio.measurement();if(initial.actualCm!==null)$('#'+prefix+'actual').value=initial.actualCm;const fail=fn=>()=>{try{fn();}catch(error){toast(error.message);}};$('#'+prefix+'calibrate').onclick=fail(()=>{studio.calibrate($('#'+prefix+'actual').value);$('#abCalibrationSheet').hidden=true;toast('مقیاس و مرجع پروژه تنظیم شد.');});$('#'+prefix+'resetScale').onclick=()=>studio.resetCalibration();}
@@ -130,6 +135,15 @@ function openLayoutForScanning(kind,record=null){
  location.hash='studio';
 }
 async function render(){const version=++routeVersion;const route=location.hash.slice(1)||'welcome';document.body.dataset.route=route;
+ if(route!=='access'){
+  try{cloudMembership=await getMembership();}catch(error){console.warn('Chido account check failed',error);cloudMembership=null;}
+  if(!cloudMembership){location.hash='access';return;}
+  if(!appSessionLogged){appSessionLogged=true;void logActivity(cloudMembership,'app_opened',{role:cloudMembership.role});}
+  if(cloudMembership.role==='branch'&&Date.now()-lastHeartbeatAt>60000){lastHeartbeatAt=Date.now();void updateDeviceHeartbeat(cloudMembership);}
+ }else{
+  try{const existing=await getMembership();if(existing){cloudMembership=existing;location.hash='welcome';return;}}catch{}
+  cloudMembership=null;
+ }
  if(studio?.session){if(location.hash!=='#studio')history.replaceState(null,'',location.pathname+location.search+'#studio');return;}
  closeChidoMenu();minimap.collapse();
  if(studio){
@@ -139,23 +153,48 @@ async function render(){const version=++routeVersion;const route=location.hash.s
   try{previous.destroy();}catch(error){console.warn('Scene renderer cleanup failed',error);}
  }
  photoURLs.forEach(URL.revokeObjectURL);photoURLs=[];
- if(route==='welcome'){app.innerHTML=`<section class="welcome-screen"><div class="welcome-title"><h1>CHIDO</h1><p>خانه را جور دیگری ببینید</p></div><img class="welcome-photo" src="assets/welcome.png" alt="صندلی کرم و گلدان در فضایی آرام"><div class="welcome-bottom"><button class="primary" id="welcome">ورود به نمایشگاه <span>→</span></button><button class="quick-ar" id="quickAR">ورود سریع به AR ↗</button><button class="quick-ar quick-empty" id="startEmpty">＋ ایجاد صحنه خالی</button><span class="welcome-wordmark">CHIDO</span></div></section>`;$('#welcome').onclick=()=>{full();location.hash='spaces';};const draft=readDraft();if(draft)$('#quickAR').textContent='ادامه چیدمان قبلی ↗';$('#quickAR').onclick=()=>{if(draft)loadSceneRecord(draft);else {layout='conversation';sceneMemory=null;}location.hash='studio';};$('#startEmpty').onclick=()=>{layout='empty';sceneMemory=null;activeSavedLayoutId=null;previewEnabled=false;clearDraft();location.hash='studio';};return;}
+ if(route==='access'){
+  app.innerHTML=`<section class="page cloud-access-page"><div class="cloud-access-card"><div class="cloud-brand">CHIDO <span>WORKSPACE</span></div><h1>ورود به چیدو</h1><p>برای دسترسی به ست‌ها و چیدمان‌های شرکت، کد شعبه را وارد کن. مدیر شرکت می‌تواند با حساب سایت وارد شود.</p><div class="cloud-access-grid"><form id="branchActivationForm" class="cloud-access-form"><h2>فعال‌سازی نمایشگاه</h2><label>کد فعال‌سازی<input id="branchActivationCode" autocomplete="one-time-code" placeholder="CHIDO-BRANCH-…" required></label><label>نام دستگاه<input id="branchDeviceLabel" value="تبلت نمایشگاه" maxlength="100"></label><button class="primary" id="activateBranchButton" type="submit">فعال‌سازی دستگاه</button></form><form id="managerLoginForm" class="cloud-access-form"><h2>ورود مدیر شرکت</h2><label>ایمیل<input id="managerEmail" type="email" autocomplete="username" required></label><label>رمز عبور<input id="managerPassword" type="password" autocomplete="current-password" required></label><button class="primary" type="submit">ورود مدیر</button><a href="portal.html">ساخت حساب مدیر با کد دعوت ←</a></form></div><p id="accessMessage" class="cloud-message" role="status"></p><div class="cloud-access-foot"><span>دسترسی اختصاصی شرکت‌ها و نمایشگاه‌ها</span><a href="portal.html">وب‌سایت چیدو</a></div></div></section>`;
+  const message=$('#accessMessage');
+  $('#branchActivationForm').onsubmit=async event=>{event.preventDefault();const button=$('#activateBranchButton');button.disabled=true;button.textContent='در حال فعال‌سازی…';message.textContent='';try{cloudMembership=await activateBranch($('#branchActivationCode').value,$('#branchDeviceLabel').value);if(!cloudMembership)throw new Error('دسترسی شرکت برای این کد پیدا نشد.');await updateDeviceHeartbeat(cloudMembership);await logActivity(cloudMembership,'app_opened',{source:'activation'});location.hash='welcome';}catch(error){message.textContent=error.message||'فعال‌سازی انجام نشد.';}finally{button.disabled=false;button.textContent='فعال‌سازی دستگاه';}};
+  $('#managerLoginForm').onsubmit=async event=>{event.preventDefault();const button=event.submitter||$('#managerLoginForm button[type=submit]');button.disabled=true;message.textContent='';try{cloudMembership=await signIn($('#managerEmail').value,$('#managerPassword').value);if(!cloudMembership)throw new Error('این حساب به هیچ شرکت فعالی متصل نیست.');await logActivity(cloudMembership,'manager_app_login',{});location.hash='welcome';}catch(error){message.textContent=error.message||'ورود انجام نشد.';}finally{button.disabled=false;}};
+  return;
+ }
+ if(route==='welcome'){app.innerHTML=`<section class="welcome-screen"><div class="welcome-title"><h1>CHIDO</h1><p>خانه را جور دیگری ببینید</p></div><img class="welcome-photo" src="assets/welcome.png" alt="صندلی کرم و گلدان در فضایی آرام"><div class="welcome-bottom"><button class="primary" id="welcome">ورود به نمایشگاه <span>→</span></button><button class="quick-ar" id="quickAR">ورود سریع به AR ↗</button><button class="quick-ar quick-empty" id="startEmpty">＋ ایجاد صحنه خالی</button><span class="welcome-wordmark">CHIDO</span></div></section>`;$('#welcome').onclick=()=>{full();location.hash='spaces';};const draft=cloudMembership?.role==='branch'?null:readDraft();if(draft)$('#quickAR').textContent='ادامه چیدمان قبلی ↗';$('#quickAR').onclick=()=>{if(draft)loadSceneRecord(draft);else {layout='conversation';sceneMemory=null;}location.hash='studio';};$('#startEmpty').onclick=()=>{layout='empty';sceneMemory=null;activeSavedLayoutId=null;previewEnabled=false;clearDraft();location.hash='studio';};return;}
  if(route==='spaces'){
   const rooms=[['living','پذیرایی','برای کنار هم بودن'],['dining','ناهارخوری','دور یک میز، کنار هم'],['dining','آشپزخانه','میز غذاخوری و دورهمی'],['bedroom','اتاق خواب','گوشه‌ای برای آرامش'],['office','فضای کار','جایی برای ایده‌های تازه']];
-  const variants=layoutOptions(space),saved=listCustomLayouts().filter(record=>record.room===space);
+  try{cloudSets=await loadCompanySets(cloudMembership.company_id);}catch(error){console.warn('Chido company catalog unavailable',error);cloudSets=[];toast('دریافت ست‌های رسمی شرکت انجام نشد.');}
+  if(activeCloudSetId&&!cloudSets.some(item=>item.id===activeCloudSetId))activeCloudSetId=null;
+  const activeSet=cloudSets.find(item=>item.id===activeCloudSetId)||null;
+  const variants=layoutOptions(space),saved=cloudMembership?.role==='branch'?[]:listCustomLayouts().filter(record=>record.room===space);
   app.innerHTML=`<section class="page rooms-page rooms-integrated">
   ${heading('چیدو / چیدمان','برای کدام فضا چیدمان می‌خواهی؟','یکی از طرح‌ها را انتخاب کن یا از یک فضای خالی شروع کن.','welcome')}
   <div class="cards room-choice" aria-label="دسته‌بندی چیدمان">
   ${rooms.map(([key,name,description])=>`<div class="room-tab-cell"><button type="button" class="card ${name===space?'selected':''}" data-space="${name}" aria-pressed="${name===space}">${svg(key)}<strong>${name}</strong><small>${description}</small></button><button type="button" class="room-tab-add" data-new-space="${name}" aria-label="ایجاد چیدمان جدید در ${name}">＋</button></div>`).join('')}
   </div>
-  ${saved.length?`<section class="saved-section"><h3>چیدمان‌های ذخیره‌شده</h3><div class="saved-layout-grid">
+  <section class="company-set-section">
+   <div class="company-set-heading"><div><h3>ست‌های رسمی شرکت</h3><small>مجموعه‌های آماده‌شده و منتشرشده برای این حساب</small></div><span class="cloud-count">${cloudSets.length} ست</span></div>
+   <div class="company-set-grid">${cloudSets.map(set=>`<button class="company-set-card ${set.id===activeCloudSetId?'selected':''}" data-cloud-set="${set.id}"><strong>${set.name}</strong><small>${set.products.length} محصول · ${set.layouts.length} چیدمان · ${set.colorways.length} رنگ‌بندی</small><span>انتخاب ست ←</span></button>`).join('')||'<div class="cloud-empty">هنوز ستی برای این شرکت منتشر نشده است.</div>'}</div>
+  </section>
+  ${activeSet?`<section class="company-set-detail"><div class="company-set-heading"><div><h3>${activeSet.name}</h3><small>${activeSet.description||'چیدمان‌ها و رنگ‌بندی‌های رسمی این ست'}</small></div><button data-cloud-set-clear>همه ست‌ها</button></div><div class="cloud-layout-grid">${activeSet.layouts.map(item=>`<button class="cloud-layout-card" data-cloud-layout="${item.id}"><strong>${item.name}</strong><small>${item.room} · ${item.capacity} نفر</small><span>بازکردن در AR ←</span></button>`).join('')||'<div class="cloud-empty">برای این ست هنوز چیدمان رسمی ذخیره نشده است.</div>'}</div>${cloudMembership?.role==='company_admin'?'<button class="cloud-new-layout" data-new-cloud-layout>＋ ساخت چیدمان رسمی جدید در AR</button>':'<button class="cloud-new-layout" data-request-cloud-layout>درخواست چیدمان جدید از مدیر شرکت</button>'}</section>`:''}
+  ${saved.length&&!cloudSets.length?`<section class="saved-section"><h3>چیدمان‌های ذخیره‌شده</h3><div class="saved-layout-grid">
   ${saved.map(record=>`<div class="saved-plan-card"><button data-saved-layout="${record.id}" class="saved-plan-open"><div class="saved-plan-image">${savedPlanSvg(record.scene)}</div><strong>${record.name.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')}</strong></button><button class="saved-plan-delete" data-remove-layout="${record.id}" aria-label="حذف چیدمان ذخیره‌شده">×</button></div>`).join('')}
   </div></section>`:''}
-  <section class="preset-layouts"><h3 class="layout-section-title">چیدمان‌های ${space}</h3><div class="layout-feed">
+  ${cloudSets.length?'':`<section class="preset-layouts"><h3 class="layout-section-title">چیدمان‌های ${space}</h3><div class="layout-feed">
   ${variants.map(({id,title,description})=>`<button class="layout-photo-card" data-layout="${id}"><div class="layout-image floor-plan-card">${layoutPreviewSvg(buildLayout({room:space,kind:id,capacity:peopleCount}))}</div><div class="layout-caption"><strong>${title}</strong><small>${description}</small><span>←</span></div></button>`).join('')}
-  </div></section></section>`;
+  </div></section>`}</section>`;
+  document.querySelectorAll('[data-cloud-set]').forEach(btn=>btn.onclick=()=>{activeCloudSetId=btn.dataset.cloudSet;activeCloudLayout=null;activeCloudColorway=null;render();});
+  document.querySelectorAll('[data-cloud-set-clear]').forEach(btn=>btn.onclick=()=>{activeCloudSetId=null;activeCloudLayout=null;render();});
+  document.querySelectorAll('[data-cloud-layout]').forEach(btn=>btn.onclick=()=>{
+   const set=cloudSets.find(item=>item.id===activeCloudSetId),record=set?.layouts.find(item=>item.id===btn.dataset.cloudLayout);if(!set||!record)return;
+   activeCloudSetId=set.id;activeCloudLayout=record;activeCloudColorway=null;space=record.room||space;peopleCount=Number(record.capacity)||5;layout=record.template_kind||'empty';
+   if(record.scene_state)openLayoutForScanning(layout,{id:record.id,scene:record.scene_state,room:space,layout,capacity:peopleCount});
+   else{sceneMemory=null;openLayoutForScanning(layout);}
+  });
+  document.querySelectorAll('[data-new-cloud-layout]').forEach(btn=>btn.onclick=()=>{if(cloudMembership?.role!=='company_admin')return;activeCloudLayout=null;activeCloudColorway=null;layout='empty';sceneMemory=null;openLayoutForScanning('empty');});
+  document.querySelectorAll('[data-request-cloud-layout]').forEach(btn=>btn.onclick=()=>showArSheet('request-layout'));
   document.querySelectorAll('[data-space]').forEach(btn=>btn.onclick=()=>{space=btn.dataset.space;peopleCount=allowedCapacities(space)[0];render();});
-  document.querySelectorAll('[data-new-space]').forEach(btn=>btn.onclick=()=>{space=btn.dataset.newSpace;peopleCount=allowedCapacities(space)[0];openLayoutForScanning('empty');});
+  document.querySelectorAll('[data-new-space]').forEach(btn=>btn.onclick=()=>{space=btn.dataset.newSpace;peopleCount=allowedCapacities(space)[0];if(!activeCloudSetId&&cloudSets.length)activeCloudSetId=cloudSets[0].id;activeCloudLayout=null;activeCloudColorway=null;layout='empty';sceneMemory=null;openLayoutForScanning('empty');});
   document.querySelectorAll('[data-layout]').forEach(btn=>btn.onclick=()=>openLayoutForScanning(btn.dataset.layout));
   document.querySelectorAll('[data-saved-layout]').forEach(btn=>btn.onclick=()=>{const record=listCustomLayouts().find(x=>x.id===btn.dataset.savedLayout);if(record)openLayoutForScanning(record.layout||'empty',record);});
   document.querySelectorAll('[data-remove-layout]').forEach(btn=>btn.onclick=()=>{removeCustomLayout(btn.dataset.removeLayout);render();});
@@ -181,6 +220,7 @@ async function render(){const version=++routeVersion;const route=location.hash.s
   $('#launchProgress').value=2;$('#launchStage').textContent='ابزارها و صحنه آماده‌اند؛ در انتظار دوربین و نشست AR…';
   if(sceneMemory)studio.restoreState(sceneMemory);else{studio.seed(layout,space,peopleCount);const colors=themes[themeIndex].colors;studio.items.forEach((m,i)=>{if(m.userData.index!==7)m.material.color.set(colors[i%colors.length]);});}
   studio.onEnd=()=>{
+    if(activeLiveSession)void endLiveShare(true);
     resetWideViewControls();closeChidoMenu();minimap.collapse();setPhotoMode(false);closeArSheet();
     $('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=true;
     $('#measureHint').hidden=true;$('#arMiniMap').hidden=true;$('#abInline').hidden=true;$('#arBottomActions').hidden=true;$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;$('#arSurfaceActions').hidden=true;
@@ -240,6 +280,96 @@ function closeArSheet(){
  if(studio?.architecture?.mode&&!studio?.photoMode)$('#arArchitectureActions').hidden=false;
  studio?.setPlacementEnabled(false);
 }
+function getActiveCloudSet(){return cloudSets.find(item=>item.id===activeCloudSetId)||null;}
+function updateCloudControls(){
+ const hasSet=!!activeCloudSetId,manager=cloudMembership?.role==='company_admin';
+ const save=$('#arBottomSave'),open=$('#arBottomOpen'),color=$('#arColorwayTool'),share=$('#arShareSession');
+ if(save)save.hidden=!(manager&&hasSet);
+ if(open){open.hidden=!hasSet;open.textContent='چیدمان‌های رسمی';}
+ if(color)color.hidden=!hasSet;
+ if(share)share.hidden=false;
+ const menuSave=$('#chidoMenuSave'),menuSaved=$('#chidoMenuSaved');
+ if(menuSave)menuSave.hidden=!(manager&&hasSet);
+ if(menuSaved)menuSaved.hidden=!hasSet;
+}
+function applyCloudColorway(record){
+ if(!studio||!record)return;
+ const map=record.material_map||{};
+ let changed=0;
+ for(const mesh of studio.items){
+  const spec=map[String(mesh.userData.index)];if(!spec)continue;
+  if(spec.fabric&&[22,23,24].includes(mesh.userData.index))studio.setSofaFabric(spec.fabric,mesh);
+  else if(spec.color)mesh.traverse(node=>{
+   if(!node.isMesh||!node.material)return;
+   const materials=Array.isArray(node.material)?node.material:[node.material];
+   for(const material of materials)if(material.color)material.color.set(spec.color);
+  });
+  changed++;
+ }
+ activeCloudColorway=record;
+ if(changed)toast('رنگ‌بندی «'+record.name+'» اعمال شد؛ این تغییر هنوز ذخیره نشده است.');
+ else toast('آبجکت‌های مربوط به این رنگ‌بندی در صحنه نیستند.');
+}
+function currentMaterialMap(){
+ const map={};
+ for(const mesh of studio?.items||[]){
+  let color=null;
+  mesh.traverse(node=>{
+   if(color||!node.isMesh||!node.material)return;
+   const material=Array.isArray(node.material)?node.material.find(item=>item.color):node.material;
+   if(material?.color)color='#'+material.color.getHexString();
+  });
+  map[String(mesh.userData.index)]={...(color?{color}:{}),...(mesh.userData.fabric?{fabric:mesh.userData.fabric}:{})};
+ }
+ return map;
+}
+function scheduleLiveScenePublish(){
+ if(!activeLiveSession||!studio)return;
+ clearTimeout(liveSceneTimer);
+ liveSceneTimer=setTimeout(()=>{
+  if(activeLiveSession&&studio)publishLiveScene(activeLiveSession.id,studio.exportLiveState()).catch(error=>console.warn('Live scene sync failed',error));
+ },160);
+}
+function liveCameraFrame(time){
+ if(!activeLiveSession||!studio?.session||!studio.placed||time-lastLiveCameraSent<110||liveCameraBusy)return;
+ const state=studio.cameraSnapshot();if(!state)return;
+ liveCameraBusy=true;lastLiveCameraSent=time;
+ publishLiveCamera(activeLiveSession.id,state).catch(error=>console.warn('Live camera sync failed',error)).finally(()=>{liveCameraBusy=false;});
+}
+async function beginLiveShare(){
+ if(!studio?.session||!studio.placed){toast('ابتدا AR را اجرا و کف را تثبیت کن.');return;}
+ if(activeLiveSession){$('#liveShareDialog')?.showModal();return;}
+ const button=$('#arShareSession');if(button)button.disabled=true;
+ try{
+  activeLiveSession=await createLiveSession({sceneState:studio.exportLiveState(),cameraState:studio.cameraSnapshot()});
+  studio.onFrame=liveCameraFrame;
+  $('#liveShareUrl').textContent=activeLiveSession.url;
+  $('#liveShareQr').innerHTML='<span>در حال ساخت QR…</span>';
+  $('#liveShareDialog').showModal();
+  try{const QRCode=await import('https://esm.sh/qrcode@1.5.4');$('#liveShareQr').innerHTML=await QRCode.toString(activeLiveSession.url,{type:'svg',width:240,margin:1,errorCorrectionLevel:'M'});}
+  catch(error){console.warn('QR module unavailable',error);$('#liveShareQr').innerHTML='<span>QR در دسترس نیست؛ لینک را کپی کن.</span>';}
+  await logActivity(cloudMembership,'live_session_started',{session_id:activeLiveSession.id});
+ }catch(error){console.error(error);toast(error.message||'ساخت نمایش زنده انجام نشد.');}
+ finally{if(button)button.disabled=false;}
+}
+async function endLiveShare(silent=false){
+ const current=activeLiveSession;if(!current)return;
+ try{await stopLiveSession(current.id);}catch(error){
+  console.warn('Live session revoke failed',error);
+  toast('پایان نمایش ثبت نشد؛ دوباره تلاش کن. لینک تا پایان زمان اعتبار فعال می‌ماند.');
+  return false;
+ }
+ activeLiveSession=null;clearTimeout(liveSceneTimer);liveSceneTimer=null;
+ if(studio)studio.onFrame=null;
+ const dialog=$('#liveShareDialog');if(dialog?.open)dialog.close();
+ if(!silent)toast('نمایش زنده پایان یافت.');
+ return true;
+}
+async function refreshCloudSets(){
+ if(!cloudMembership)return;
+ cloudSets=await loadCompanySets(cloudMembership.company_id);
+ const set=getActiveCloudSet();if(set){activeCloudLayout=set.layouts.find(x=>x.id===activeCloudLayout?.id)||activeCloudLayout;activeCloudColorway=set.colorways.find(x=>x.id===activeCloudColorway?.id)||activeCloudColorway;}
+}
 function showArSheet(mode){
  if(!studio||!studio.placed)return;
  if(arSheetMode===mode){closeArSheet();return;}
@@ -250,9 +380,10 @@ function showArSheet(mode){
   const replacing=mode==='replace';
   title.textContent=replacing?'تعویض مدل با حفظ جایگاه':'انتخاب مدل برای نشانگر +';
   if(!replacing)studio.setPlacementEnabled(true);
+  const activeSet=getActiveCloudSet(),allowedProducts=activeSet?new Set(activeSet.products.map(item=>item.catalog_index)):null;
   const groups=replacing&&selected?
-   ASSET_CATEGORIES.map(c=>({...c,indexes:variantsFor(selected.userData.index).filter(i=>c.indexes.includes(i))})).filter(c=>c.indexes.length):
-   ASSET_CATEGORIES.map(c=>({...c,indexes:c.indexes.filter(i=>i!==5)}));
+   ASSET_CATEGORIES.map(c=>({...c,indexes:variantsFor(selected.userData.index).filter(i=>c.indexes.includes(i)&&(!allowedProducts||allowedProducts.has(i)))})).filter(c=>c.indexes.length):
+   ASSET_CATEGORIES.map(c=>({...c,indexes:c.indexes.filter(i=>i!==5&&(!allowedProducts||allowedProducts.has(i)))})).filter(c=>c.indexes.length);
   body.innerHTML=`<div class="ar-category-tabs">${groups.map((c,i)=>`<button data-category="${c.id}" class="${i===0?'selected':''}">${c.label}</button>`).join('')}</div>
    <div class="ar-object-grid" id="categoryObjects"></div>
    <small class="sheet-tip">${replacing?'جایگاه و رنگ مدل تا حد ممکن حفظ می‌شود.':'نشانگر + روی کف، محل مدل جدید را نشان می‌دهد؛ قبل از انتخاب مدل دوربین را به جای دلخواه بگیر.'}</small>
@@ -338,6 +469,53 @@ function showArSheet(mode){
    body.querySelectorAll('[data-variant]').forEach(btn=>btn.onclick=()=>{if(!studio.replaceSelected(+btn.dataset.variant)){toast('فضای کافی برای این مدل وجود ندارد.');return;}closeArSheet();showArSheet('features');});
     if(isWallArt(i))$('#artImageFile').onchange=async event=>{try{const file=event.target.files?.[0];if(!file)return;if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>8*1024*1024)throw Error('فایل تصویر معتبر نیست یا بیش از ۸ مگابایت است.');const picture=await createImageBitmap(file),ratio=selected.userData.product.size[0]/selected.userData.product.size[1],canvas=document.createElement('canvas');canvas.width=Math.min(640,Math.round(480*ratio));canvas.height=Math.round(canvas.width/ratio);const context=canvas.getContext('2d');if(!context)throw Error('دسترسی به Canvas ممکن نیست.');const scale=Math.max(canvas.width/picture.width,canvas.height/picture.height),w=picture.width*scale,h=picture.height*scale;context.drawImage(picture,(canvas.width-w)/2,(canvas.height-h)/2,w,h);picture.close?.();if(!studio.setWallArtImage(canvas.toDataURL('image/jpeg',.72),selected))throw Error('تصویر ذخیره نشد.');toast('تصویر تابلو عوض شد.');}catch(error){toast(error.message||'تغییر تصویر ممکن نشد.');}};
   }else body.innerHTML='<p class="sheet-tip">رنگ، چرخش، جابه‌جایی و تعویض مدل در دسترس است.</p>';
+ }else if(mode==='request-layout'){
+  const set=getActiveCloudSet();title.textContent='درخواست چیدمان جدید';
+  body.innerHTML='<p class="sheet-tip">توضیح بده چه ترکیب یا حالت جدیدی برای این ست لازم داری. مدیر شرکت درخواست را بررسی می‌کند.</p><textarea id="cloudLayoutRequestText" rows="4" maxlength="800" placeholder="مثلاً یک چیدمان L شکل با فضای بیشتر برای میز جلو مبلی…"></textarea><button id="sendCloudLayoutRequest" class="primary">ارسال درخواست</button>';
+  $('#sendCloudLayoutRequest').onclick=async()=>{
+   const description=$('#cloudLayoutRequestText').value.trim();if(description.length<5){toast('توضیح درخواست کوتاه است.');return;}
+   try{await requestOfficialLayout({setId:set.id,description});closeArSheet();toast('درخواست برای مدیر شرکت ارسال شد.');}
+   catch(error){toast(error.message||'ارسال درخواست انجام نشد.');}
+  };
+ }else if(mode==='cloud-layouts'){
+  const set=getActiveCloudSet();title.textContent='چیدمان‌های رسمی';
+  body.innerHTML=set?'<div class="cloud-sheet-list">'+set.layouts.map(item=>`<div class="cloud-sheet-row-wrap"><button class="cloud-sheet-row" data-open-cloud-layout="${item.id}"><strong>${item.name}</strong><small>${item.room} · ${item.capacity} نفر</small></button>${cloudMembership?.role==='company_admin'?'<button class="cloud-archive" data-archive-cloud-layout="'+item.id+'">آرشیو</button>':''}</div>`).join('')+'</div>':'<p class="sheet-tip">ست فعالی انتخاب نشده است.</p>';
+  body.querySelectorAll('[data-open-cloud-layout]').forEach(btn=>btn.onclick=()=>{
+   const record=set.layouts.find(item=>item.id===btn.dataset.openCloudLayout);if(!record)return;
+   activeCloudLayout=record;space=record.room||space;peopleCount=Number(record.capacity)||5;layout=record.template_kind||'empty';
+   if(record.scene_state){studio.clear();studio.restoreState(record.scene_state);sceneMemory=record.scene_state;}
+   else{studio.clear();studio.seed(record.template_kind||'conversation',space,peopleCount);}
+   minimap.render();closeArSheet();toast('چیدمان رسمی باز شد.');
+  });
+  body.querySelectorAll('[data-archive-cloud-layout]').forEach(btn=>btn.onclick=async()=>{
+   if(!confirm('این چیدمان از فهرست رسمی خارج شود؟'))return;
+   try{await archiveOfficialLayout(btn.dataset.archiveCloudLayout);await refreshCloudSets();showArSheet('cloud-layouts');toast('چیدمان آرشیو شد.');}
+   catch(error){toast(error.message||'آرشیو چیدمان انجام نشد.');}
+  });
+ }else if(mode==='colorways'){
+  const set=getActiveCloudSet();title.textContent='رنگ‌بندی‌های رسمی ست';
+  body.innerHTML=set?'<div class="cloud-sheet-list">'+set.colorways.map(item=>`<div class="cloud-sheet-row-wrap"><button class="cloud-sheet-row" data-apply-cloud-colorway="${item.id}"><strong>${item.name}</strong><small>اعمال روی محصولات این ست</small></button>${cloudMembership?.role==='company_admin'?'<button class="cloud-archive" data-archive-cloud-colorway="'+item.id+'">آرشیو</button>':''}</div>`).join('')+'</div>':'<p class="sheet-tip">ست فعالی انتخاب نشده است.</p>';
+  body.querySelectorAll('[data-apply-cloud-colorway]').forEach(btn=>btn.onclick=()=>{const record=set.colorways.find(item=>item.id===btn.dataset.applyCloudColorway);if(record){applyCloudColorway(record);closeArSheet();}});
+  body.querySelectorAll('[data-archive-cloud-colorway]').forEach(btn=>btn.onclick=async()=>{
+   if(!confirm('این رنگ‌بندی از فهرست رسمی خارج شود؟'))return;
+   try{await archiveOfficialColorway(btn.dataset.archiveCloudColorway);await refreshCloudSets();showArSheet('colorways');toast('رنگ‌بندی آرشیو شد.');}
+   catch(error){toast(error.message||'آرشیو رنگ‌بندی انجام نشد.');}
+  });
+ }else if(mode==='save'&&cloudMembership?.role==='company_admin'&&activeCloudSetId){
+  const set=getActiveCloudSet();title.textContent='ذخیره رسمی در '+(set?.name||'ست');
+  body.innerHTML=`<section class="cloud-save-section"><h3>چیدمان</h3><label>نام چیدمان<input id="cloudLayoutName" maxlength="70" value="${(activeCloudLayout?.name||'').replaceAll('"','&quot;')}" placeholder="مثلاً چیدمان هفت‌نفره"></label><button id="saveCloudLayoutNew" class="primary">ذخیره به‌عنوان چیدمان جدید</button>${activeCloudLayout?'<button id="saveCloudLayoutUpdate">به‌روزرسانی همین چیدمان رسمی</button>':''}</section><section class="cloud-save-section"><h3>رنگ‌بندی</h3><label>نام رنگ‌بندی<input id="cloudColorwayName" maxlength="70" value="${(activeCloudColorway?.name||'').replaceAll('"','&quot;')}" placeholder="مثلاً آبی نفتی"></label><button id="saveCloudColorway" class="primary">ذخیره رنگ‌بندی فعلی</button></section><small class="sheet-tip">ذخیره فقط با فشردن دکمه انجام می‌شود. جابه‌جایی و تغییر رنگ به‌تنهایی هیچ نسخه رسمی جدیدی نمی‌سازد.</small>`;
+  const saveLayout=async overwrite=>{
+   const name=$('#cloudLayoutName').value.trim();if(!name){toast('نام چیدمان را وارد کن.');return;}
+   try{const saved=await saveOfficialLayout({setId:activeCloudSetId,layoutId:overwrite?activeCloudLayout?.id:null,name,room:space,templateKind:layout,capacity:peopleCount,sceneState:studio.exportState()});activeCloudLayout=saved;await refreshCloudSets();closeArSheet();toast('چیدمان رسمی ذخیره شد.');}
+   catch(error){toast(error.message||'ذخیره چیدمان انجام نشد.');}
+  };
+  $('#saveCloudLayoutNew').onclick=()=>saveLayout(false);
+  if($('#saveCloudLayoutUpdate'))$('#saveCloudLayoutUpdate').onclick=()=>saveLayout(true);
+  $('#saveCloudColorway').onclick=async()=>{
+   const name=$('#cloudColorwayName').value.trim();if(!name){toast('نام رنگ‌بندی را وارد کن.');return;}
+   try{const saved=await saveOfficialColorway({setId:activeCloudSetId,colorwayId:activeCloudColorway?.id||null,name,materialMap:currentMaterialMap()});activeCloudColorway=saved;await refreshCloudSets();closeArSheet();toast('رنگ‌بندی رسمی ذخیره شد.');}
+   catch(error){toast(error.message||'ذخیره رنگ‌بندی انجام نشد.');}
+  };
  }else if(mode==='save'||mode==='saved'){
    title.textContent=mode==='save'?'ذخیره چیدمان':'چیدمان‌های ذخیره‌شده';
    const saved=listCustomLayouts().filter(x=>x.room===space);
@@ -429,8 +607,13 @@ function updateLampPowerControl(){
 $('#quickPower').onclick=()=>{if(!studio?.selected||!isLamp(studio.selected.userData.index))return;const on=!studio.selected.userData.lampOn;if(studio.setLampOn(on))updateLampPowerControl();};
 $('#quickDelete').onclick=()=>{studio?.remove();};
 $('#arListTool').onclick=()=>showArSheet('objects');
-$('#arBottomSave').onclick=()=>showArSheet('save');
-$('#arBottomOpen').onclick=()=>showArSheet('saved');
+$('#arBottomSave').onclick=()=>{if(cloudMembership?.role!=='company_admin'||!activeCloudSetId){toast('ذخیره رسمی فقط برای مدیر شرکت و داخل یک ست فعال است.');return;}showArSheet('save');};
+$('#arBottomOpen').onclick=()=>showArSheet(activeCloudSetId?'cloud-layouts':'saved');
+$('#arColorwayTool').onclick=()=>showArSheet('colorways');
+$('#arShareSession').onclick=beginLiveShare;
+$('#liveShareClose').onclick=()=>$('#liveShareDialog').close();
+$('#liveShareCopy').onclick=async()=>{try{await navigator.clipboard.writeText(activeLiveSession?.url||$('#liveShareUrl').textContent);toast('لینک نمایش کپی شد.');}catch{toast('کپی خودکار ممکن نیست؛ لینک را دستی انتخاب کن.');}};
+$('#liveShareStop').onclick=()=>endLiveShare(false);
 $('#arSettingsTool').onclick=()=>showArSheet('settings');
 $('#arPhotoTool').onclick=()=>setPhotoMode(true);
 $('#arRulerTool').onclick=()=>{
@@ -465,7 +648,7 @@ function handleARReport(report){
  $('#confirmFloor').textContent=report.hit?'تثبیت کف و ورود به چیدمان':'در حال شناسایی کف…';
  $('#arEditControls').hidden=true;
  $('#arSettings').hidden=!(report.placed&&arSheetMode==='settings');
- $('#arDock').hidden=!report.placed;$('#arMiniMap').hidden=!report.placed;$('#arBottomActions').hidden=!report.placed;if(report.placed){minimap.render();if(!calibrationPrompted){calibrationPrompted=true;$('#abCalibrationSheet').hidden=false;}}else $('#abInline').hidden=true;
+ $('#arDock').hidden=!report.placed;$('#arMiniMap').hidden=!report.placed;$('#arBottomActions').hidden=!report.placed;updateCloudControls();if(report.placed){minimap.render();if(!calibrationPrompted){calibrationPrompted=true;$('#abCalibrationSheet').hidden=false;}}else $('#abInline').hidden=true;
  $('#arDock').classList.toggle('ready',report.placed);
  const wideSelect=$('#wideViewMode');wideSelect.disabled=!report.placed||!studio?.hasOverlay;
  $('#wideNatural').disabled=wideSelect.disabled;
@@ -664,8 +847,8 @@ function toggleChidoMenu(){
 $('#overlay').addEventListener('beforexrselect',event=>event.preventDefault());
 $('#homeAR').onclick=toggleChidoMenu;
 $('#chidoMenuContinue').onclick=closeChidoMenu;
-$('#chidoMenuSaved').onclick=()=>{closeChidoMenu();if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}showArSheet('saved');};
-$('#chidoMenuSave').onclick=()=>{closeChidoMenu();if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}showArSheet('save');};
+$('#chidoMenuSaved').onclick=()=>{closeChidoMenu();if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}showArSheet(activeCloudSetId?'cloud-layouts':'saved');};
+$('#chidoMenuSave').onclick=()=>{closeChidoMenu();if(cloudMembership?.role!=='company_admin'||!activeCloudSetId){toast('ذخیره رسمی فقط برای مدیر شرکت و داخل یک ست فعال است.');return;}if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}showArSheet('save');};
 $('#chidoMenuBlank').onclick=()=>{
  if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}
  const button=$('#chidoMenuBlank');

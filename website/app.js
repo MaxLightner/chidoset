@@ -2,6 +2,7 @@ import { CHIDO_CONFIG, SAMPLE_PRODUCTS } from './config.js';
 import { mountHero, createProductImages, mountViewer, startAR } from './scene.js';
 
 const $ = selector => document.querySelector(selector);
+document.querySelector('[data-open-app]')?.setAttribute('href', CHIDO_CONFIG.applicationUrl);
 const $$ = selector => Array.from(document.querySelectorAll(selector));
 const money = number => Number(number).toLocaleString('fa-IR') + ' تومان';
 const clamp01 = number => Math.max(0, Math.min(1, number));
@@ -288,6 +289,7 @@ function renderLegal(which) {
 function route() {
   closeModal();
   const path = location.hash.replace(/^#\/?/, '').split('?')[0] || '';
+  if (path === 'signup') { location.replace(CHIDO_CONFIG.workspaceUrl); return; }
   const page = path.startsWith('shop') ? 'shop' : path.startsWith('dashboard') ? 'dashboard' : path.startsWith('signup') ? 'signup' : ['terms','privacy'].includes(path) ? 'legal' : 'home';
   $$('.page').forEach(el => { el.hidden = el.id !== `${page}-page`; el.classList.toggle('active-page', !el.hidden); });
   $$('.desktop-nav a').forEach(a => a.classList.toggle('active', a.dataset.nav === page || (page === 'legal' && a.dataset.nav === 'terms')));
@@ -316,7 +318,7 @@ document.addEventListener('click', async event => {
   const actionNode = event.target.closest('[data-action]');
   if (!actionNode) return;
   const action = actionNode.dataset.action, id = actionNode.dataset.id;
-  if (action === 'login') return openLogin();
+  if (action === 'login') { location.assign(CHIDO_CONFIG.workspaceUrl); return; }
   if (action === 'demo-login') { closeModal(); location.hash = '#/dashboard'; toast('در حال مشاهده داشبورد نمونه هستید؛ هیچ حساب واقعی ایجاد نشده است.'); return; }
   if (action === 'not-connected') return toast('این امکان پس از اتصال بک‌اند و فضای ذخیره‌سازی فعال خواهد شد.');
   if (action === 'dash-tab') { dashboardTab = actionNode.dataset.tab; renderDashboard(); return; }

@@ -1,7 +1,12 @@
-// All infrastructure-specific values live here. The preview intentionally has
-// no live account, payment, SMS, storage, or database integration.
+// Marketing/storefront demo data stays separate from the real company workspace.
+// Workspace and application links share the backend configured in ../backend-config.js.
+const applicationRoot = globalThis.location?.hostname.endsWith('.chatgpt.site')
+  ? 'https://maxlightner.github.io/tolica-ar/'
+  : new URL('../', import.meta.url).href;
 export const CHIDO_CONFIG = Object.freeze({
   mode: 'frontend-demo',
+  workspaceUrl: new URL('portal.html#company-access', applicationRoot).href,
+  applicationUrl: new URL('index.html', applicationRoot).href,
   domain: 'chidoset.ir',
   endpoints: {
     api: '',

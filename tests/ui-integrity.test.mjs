@@ -59,7 +59,7 @@ test('category tabs replace the separate layout page and AR begins from the card
  const html=read('index.html'),app=read('app.js'),spatial=read('spatial.js');
  for(const id of ['arArchitectureTool','arCalibrationTool','abCalibrationSheet','arRulerTool','arSettingsTool'])assert.match(html,new RegExp('id="'+id+'"'));
  assert.doesNotMatch(html,/id="arMoveLayoutTool"/);
- assert.ok(app.includes("const variants=layoutOptions(space),saved=listCustomLayouts().filter(record=>record.room===space)"));
+ assert.ok(app.includes("const variants=layoutOptions(space),saved=cloudMembership?.role==='branch'?[]:listCustomLayouts().filter(record=>record.room===space)"));
  assert.ok(app.includes("document.querySelectorAll('[data-layout]')"));
  assert.ok(app.includes("openLayoutForScanning(btn.dataset.layout)"));
  assert.ok(app.includes("pendingARSession=requestARSession("));

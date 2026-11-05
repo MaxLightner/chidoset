@@ -141,7 +141,7 @@ void main(){
  setMeasureHandler(fn){this.onMeasure=fn;}
  setDebugVisible(value){this.debugView.setVisible(value);}
  debugExport(){return this.debugView.exportLog();}
- resize(){if(this.session)return;const w=this.host.clientWidth,h=this.host.clientHeight;this.camera.aspect=w/Math.max(h,1);this.camera.updateProjectionMatrix();this.renderer.setSize(w,h);}
+ resize(){if(this.session)return;const w=this.host.clientWidth,h=this.host.clientHeight;this.camera.aspect=w/Math.max(h,1);this.camera.updateProjectionMatrix();if(this.externalCameraState)this.applyExternalCameraState(this.externalCameraState);this.renderer.setSize(w,h);}
  makeLabel(text){const canvas=document.createElement('canvas');let context=canvas.getContext('2d');context.font='42px Tahoma, sans-serif';canvas.width=Math.ceil(Math.max(90,context.measureText(text).width+44));canvas.height=100;context=canvas.getContext('2d');context.fillStyle='#fff9e9ee';context.beginPath();context.roundRect(2,2,canvas.width-4,96,16);context.fill();context.font='42px Tahoma, sans-serif';context.textAlign='center';context.textBaseline='middle';context.fillStyle='#423c31';context.fillText(text,canvas.width/2,50);const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:false}));sprite.scale.set(canvas.width/500,.2,1);sprite.renderOrder=8;sprite.userData.text=text;return sprite;}
  setLabel(sprite,text){if(sprite.userData.text===text)return;const previous=sprite.material.map;const replacement=this.makeLabel(text);sprite.material.map=replacement.material.map;sprite.material.needsUpdate=true;sprite.userData.text=text;previous.dispose();replacement.material.dispose();}
  makeHandle(name,color){const mesh=new THREE.Mesh(new THREE.SphereGeometry(.055,20,16),new THREE.MeshBasicMaterial({color,depthTest:false}));mesh.renderOrder=6;mesh.userData.handle=name;const label=this.makeLabel(name);label.scale.set(.27,.085,1);label.position.y=.19;mesh.add(label);return mesh;}
@@ -436,6 +436,43 @@ void main(){
  cushionPreset:m.userData.cushionPreset||'none',fabric:m.userData.fabric||null}))};}
  restoreState(state){this.model.restore(state.spatial);this.architecture?.restore(state.architecture||{floor:[],walls:[],windows:[]});if(this.whiteFloor)this.whiteFloor.visible=!!state.whiteFloor&&!this.architecture?.data.floor.length;for(const x of state.items){const mesh=this.add(x.index,x.position?new THREE.Vector3(...x.position):undefined,{size:[22,23,24].includes(x.index)?undefined:x.size,seats:x.seats,silentSelect:true,cushionPreset:x.cushionPreset,lampOn:x.lampOn,fabric:x.fabric});mesh.userData.id=x.id;mesh.position.fromArray(x.position);if([22,23,24].includes(x.index))mesh.position.y=CATALOG[x.index].size[1]/2;mesh.rotation.y=x.rotation;mesh.material.color.set(x.color);mesh.userData.attachment=x.attachment||null;mesh.userData.capacity=x.capacity||null;mesh.userData.seats=x.seats||mesh.userData.seats;mesh.userData.tableId=x.tableId||null;mesh.userData.hidden=!!x.hidden;mesh.visible=!x.hidden;if(x.rugStyle)applyRugStyle(mesh,x.rugStyle);if(x.artImage)this.setWallArtImage(x.artImage,mesh);if(isLamp(mesh.userData.index))this.initializeLamp(mesh,x.lampOn===true);}this.serial=Math.max(0,...state.items.map(x=>x.id));this.measureTool.setCorrection(this.model.correction);this.refreshAttachments();this.syncSpatial();this.select(this.items[0]||null);}
  attachInput(target,opts){target.addEventListener('pointerdown',e=>this.down(e,target),opts);target.addEventListener('pointermove',e=>this.drag(e,target),opts);target.addEventListener('pointerup',e=>this.up(e,target),opts);target.addEventListener('pointercancel',()=>this.cancelGesture(),opts);target.addEventListener('lostpointercapture',e=>{if(this.points.has(e.pointerId))this.up(e,target);},opts);}
+
+ exportLiveState(){
+  this.floorFrame.updateMatrixWorld(true);
+  return {...this.exportState(),floorPose:this.floorFrame.matrixWorld.toArray()};
+ }
+ restoreLiveState(state){
+  this.restoreState(state);
+  if(Array.isArray(state.floorPose)&&state.floorPose.length===16&&state.floorPose.every(Number.isFinite)){
+   new THREE.Matrix4().fromArray(state.floorPose).decompose(this.floorFrame.position,this.floorFrame.quaternion,this.floorFrame.scale);
+   this.floorFrame.updateMatrixWorld(true);
+  }
+ }
+ cameraSnapshot(){
+  const camera=this.activeCamera();camera.updateMatrixWorld(true);
+  const position=camera.getWorldPosition(new THREE.Vector3());
+  const quaternion=camera.getWorldQuaternion(new THREE.Quaternion());
+  const rect=this.host.getBoundingClientRect();
+  const projectionMatrix=camera.projectionMatrix.toArray();
+  // XR cameras may keep the default fov/aspect properties. Their matrix is authoritative.
+  const aspect=Math.abs(projectionMatrix[5]/projectionMatrix[0]);
+  return {position:position.toArray(),quaternion:quaternion.toArray(),projectionMatrix,fov:camera.fov||48,zoom:camera.zoom||1,near:camera.near||.03,far:camera.far||40,aspect:Number.isFinite(aspect)?aspect:(rect.width/Math.max(1,rect.height)),wideMode:this.wideMode||'ar',timestamp:Date.now()};
+ }
+ applyExternalCameraState(state){
+  if(!state||!Array.isArray(state.position)||state.position.length!==3||!state.position.every(Number.isFinite)||!Array.isArray(state.quaternion)||state.quaternion.length!==4||!state.quaternion.every(Number.isFinite))return false;
+  this.externalCameraState=state;
+  this.camera.position.fromArray(state.position);this.camera.quaternion.fromArray(state.quaternion);
+  this.camera.fov=Number(state.fov)||48;this.camera.zoom=Number(state.zoom)||1;
+  this.camera.near=Number(state.near)||.03;this.camera.far=Number(state.far)||40;
+  const aspect=Number(state.aspect);if(Number.isFinite(aspect)&&aspect>.1&&aspect<10)this.camera.aspect=aspect;
+  this.camera.updateProjectionMatrix();
+  if(Array.isArray(state.projectionMatrix)&&state.projectionMatrix.length===16&&state.projectionMatrix.every(Number.isFinite)){
+   this.camera.projectionMatrix.fromArray(state.projectionMatrix);
+   this.camera.projectionMatrixInverse.copy(this.camera.projectionMatrix).invert();
+  }
+  this.camera.updateMatrixWorld(true);return true;
+ }
+
  activeCamera(){if(this.wideView?.active)return this.wideView.camera;if(this.session)return this.renderer.xr.getCamera().cameras[0]||this.renderer.xr.getCamera();return this.camera;}
  setRay(e,target){const r=target.getBoundingClientRect();this.pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);this.floorFrame.updateMatrixWorld(true);this.ray.setFromCamera(this.pointer,this.activeCamera());}
  pointOnFloor(e,target){this.setRay(e,target);return this.ray.ray.intersectPlane(this.model.plane,new THREE.Vector3());}
@@ -717,6 +754,7 @@ safeObjectMotion(mesh,desired){
    if(time-this.lastSelectionUI>65){this.onSelectionScreen?.(this.selectionScreenPosition());this.onABPosition?.(this.rulerScreenPosition());this.lastSelectionUI=time;}
   }
   this.scaleLabels();this.renderer.render(this.scene,this.camera);
+  try{this.onFrame?.(time,frame);}catch(error){console.warn('Chido live frame callback failed',error);}
   if(this.wideView?.active&&this.tracking){
    try{this.wideView.draw();}catch(error){
     this.setWideView('ar');this.onWideViewError?.('رندر Wide View روی این مرورگر ممکن نشد: '+(error?.message||error));
