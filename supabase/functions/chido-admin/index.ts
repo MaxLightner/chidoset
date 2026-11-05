@@ -82,6 +82,7 @@ Deno.serve(async req=>{
   if(req.method==='POST'&&path.endsWith('/bootstrap'))return await bootstrap(req);
   const user=await owner(req);
   if(req.method==='GET'&&path.endsWith('/snapshot'))return respond({user:{id:user.id,email:user.email},data:await snapshot(),server_time:new Date().toISOString()});
+  if(req.method==='GET'&&path.endsWith('/metrics')){const id=new URL(req.url).searchParams.get('company_id');if(id&&!/^[0-9a-f-]{36}$/.test(id))return respond({error:'شناسه معتبر نیست.'},400);return respond({data:checked(await admin.rpc('chido_usage_summary',{p_company:id||null}))});}
   if(req.method==='POST'&&path.endsWith('/write'))return await write(req,user);
   if(req.method==='POST'&&path.endsWith('/workspace'))return await workspace(req,user);
   return respond({error:'مسیر درخواست معتبر نیست.'},404);

@@ -1,3 +1,4 @@
+import {configureTelemetry} from './telemetry.js';
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.119.0';
 import {SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY} from './backend-config.js';
 export const centralAuth=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'chido-central-auth-v1'}});
@@ -9,3 +10,7 @@ export async function centralRequest(path,body){
  return data;
 }
 export const writeCentral=(action,data)=>centralRequest('/write',{action,data});
+
+function telemetrySession(session){configureTelemetry(session?{userId:session.user.id,token:session.access_token,url:SUPABASE_URL+'/functions/v1/chido-metrics',key:SUPABASE_PUBLISHABLE_KEY,client:'central'}:null);}
+centralAuth.auth.onAuthStateChange((_event,session)=>telemetrySession(session));
+void centralAuth.auth.getSession().then(({data})=>telemetrySession(data.session));

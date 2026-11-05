@@ -1,5 +1,5 @@
-import { Studio } from './scene.js?v=0.11.0';
-import { supabase, authenticateGuest, guestStatus } from './chido-cloud.js?v=0.11.0';
+import { Studio } from './scene.js?v=0.12.0';
+import { supabase, authenticateGuest, guestStatus } from './chido-cloud.js?v=0.12.0';
 
 const $ = selector => document.querySelector(selector);
 const token = new URLSearchParams(location.search).get('token');

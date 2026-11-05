@@ -5,7 +5,7 @@ const applicationRoot = globalThis.location?.hostname.endsWith('.chatgpt.site')
   : new URL('../', import.meta.url).href;
 export const CHIDO_CONFIG = Object.freeze({
   mode: 'frontend-demo',
-  workspaceUrl: new URL('portal.html#company-access', applicationRoot).href,
+  workspaceUrl: new URL('company.html#company-access', applicationRoot).href,
   centralUrl: new URL('central.html', applicationRoot).href,
   applicationUrl: new URL('index.html', applicationRoot).href,
   domain: 'chidoset.ir',

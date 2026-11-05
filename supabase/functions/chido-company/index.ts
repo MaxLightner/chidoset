@@ -12,47 +12,70 @@ async function member(req:Request){
  if(!token)throw {status:401,message:'ابتدا وارد حساب مجموعه شو.'};
  const {data,error}=await admin.auth.getUser(token);if(error||!data.user)throw {status:401,message:'نشست ورود معتبر نیست. دوباره وارد شو.'};
  const m=checked(await admin.from('company_memberships').select('*').eq('user_id',data.user.id).eq('status','active').in('role',WEB_ROLES).maybeSingle());
- if(!m)throw {status:403,message:'این حساب به فضای وب مجموعه دسترسی ندارد. از حساب مدیر یا کارشناس مجموعه استفاده کن.'};
+ if(!m)throw {status:403,message:'این حساب به فضای وب مجموعه دسترسی ندارد. از حساب مدیر مجموعه استفاده کن.'};
  return {...m,user:data.user};
 }
 async function snapshot(m:any){
  const company=checked(await admin.from('companies').select('*').eq('id',m.company_id).single());
  const result:any={company,membership:{id:m.id,company_id:m.company_id,user_id:m.user_id,role:m.role,display_name:m.display_name,email:m.user.email},enabled:checked(await admin.rpc('chido_activation_company_enabled',{p_company_id:m.company_id}))};
- const tables=['branches','branch_devices','company_memberships','activation_codes','subscriptions','sets','company_media','company_requests','support_tickets','company_messages','company_user_invites','company_notifications','activity_events'];
- const fields:any={activation_codes:'id,company_id,branch_id,role,expires_at,redeemed_at,revoked_at,created_at',company_user_invites:'id,display_name,email,role,expires_at,redeemed_at,revoked_at,created_at'};
+ const tables=['branches','branch_devices','company_memberships','activation_codes','subscriptions','sets','company_media','company_requests','support_tickets','company_messages','showroom_accounts','company_notifications','activity_events'];
+ const fields:any={activation_codes:'id,company_id,branch_id,role,expires_at,redeemed_at,revoked_at,created_at'};
  await Promise.all(tables.map(async table=>{
-  if((table==='company_memberships'||table==='company_user_invites'||table==='activation_codes'||table==='branch_devices')&&m.role!=='company_admin'){result[table]=[];return;}
+  if((table==='company_memberships'||table==='activation_codes'||table==='branch_devices')&&m.role!=='company_admin'){result[table]=[];return;}
   let query:any=admin.from(table).select(table==='sets'?'id,company_id,name,description,status,set_products(product_id,sort_order,products(id,catalog_index,name,thumbnail_path,active)),layouts(id,name,room,status,updated_at),colorways(id,name,status,updated_at)':fields[table]||'*');
   if(table==='branch_devices'){const branches=checked(await admin.from('branches').select('id').eq('company_id',m.company_id));query=query.in('branch_id',branches.map((b:any)=>b.id));}
   else query=query.eq('company_id',m.company_id);
   if(table==='activity_events')query=query.order('created_at',{ascending:false}).limit(60);else query=query.limit(1000);
   result[table]=checked(await query);
  }));
- for(const item of result.company_memberships){const auth=await admin.auth.admin.getUserById(item.user_id);item.email=auth.data.user?.email||'';}
  const media=result.company_media||[];if(media.length){const signed=checked(await admin.storage.from('company-media').createSignedUrls(media.map((p:any)=>p.object_path),900));for(const p of media)p.url=signed.find((s:any)=>s.path===p.object_path)?.signedUrl||'';}
  const notifications=result.company_notifications||[];result.notification_reads=notifications.length?checked(await admin.from('company_notification_reads').select('notification_id').eq('user_id',m.user_id).in('notification_id',notifications.map((n:any)=>n.id))):[];
  return result;
 }
-async function acceptInvite(req:Request){
- const body=await req.json();const email=typeof body.email==='string'?body.email.trim().toLowerCase():'';const code=typeof body.code==='string'?body.code.trim().toUpperCase():'';
- if(code.length<30||code.length>100||!/^\S+@\S+\.\S+$/.test(email)||typeof body.password!=='string'||body.password.length<12||body.password.length>128)return response({error:'کد دعوت، ایمیل و رمز حداقل ۱۲ کاراکتری را بررسی کن.'},400);
- const digest=await hash(code);const invitation=checked(await admin.from('company_user_invites').select('id,role,expires_at,redeemed_at,revoked_at').eq('code_hash',digest).eq('email',email).maybeSingle());
- if(!invitation||invitation.redeemed_at||invitation.revoked_at||Date.parse(invitation.expires_at)<=Date.now())return response({error:'ایمیل با دعوت مطابقت ندارد یا دعوت معتبر نیست.'},400);
+async function showroomLogin(req:Request){
+ const b=await req.json();const name=typeof b.username==='string'?b.username.trim().toLowerCase():'';
+ if(!/^[a-z0-9][a-z0-9._-]{2,49}$/.test(name)||typeof b.password!=='string'||b.password.length>128)return response({error:'نام کاربری یا رمز درست نیست.'},401);
+ const account=checked(await admin.from('showroom_accounts').select('*').eq('login_name',name).maybeSingle());
+ if(!account)return response({error:'نام کاربری یا رمز درست نیست.'},401);
+ const limit=checked(await admin.from('showroom_login_limits').select('*').eq('login_name',name).maybeSingle());
+ if(limit&&limit.failures>=8&&Date.parse(limit.window_started_at)>Date.now()-900000)return response({error:'تلاش‌های ناموفق زیاد بوده است. ۱۵ دقیقه بعد دوباره تلاش کن.'},429);
+ const auth=await admin.auth.admin.getUserById(account.user_id);const email=auth.data.user?.email;
  const client=createClient(url,anon,{auth:{persistSession:false,autoRefreshToken:false}});
- const login=await client.auth.signInWithPassword({email,password:body.password});let user=login.data.user;let created=false;
- if(!user){const result=await admin.auth.admin.createUser({email,password:body.password,email_confirm:true});if(result.error||!result.data.user)return response({error:'اگر این ایمیل حساب دارد، رمز همان حساب را وارد کن؛ در غیر این صورت شرایط رمز را بررسی کن.'},400);user=result.data.user;created=true;}
- const result=await admin.rpc('chido_accept_company_invite',{p_hash:digest,p_user:user.id,p_email:user.email});
- if(result.error){if(created)await admin.auth.admin.deleteUser(user.id);return response({error:'پذیرش دعوت انجام نشد. اعتبار دعوت و عضویت قبلی این ایمیل را بررسی کن.'},400);}
- return response({ok:true,role:invitation.role});
+ const signed=email?await client.auth.signInWithPassword({email,password:b.password}):null;
+ if(!signed?.data.session){await admin.rpc('chido_showroom_login_failed',{p_name:name});return response({error:'نام کاربری یا رمز درست نیست.'},401);}
+ const member=checked(await admin.from('company_memberships').select('status,branch_id').eq('user_id',account.user_id).eq('company_id',account.company_id).maybeSingle());
+ const branch=checked(await admin.from('branches').select('status').eq('id',account.branch_id).eq('company_id',account.company_id).maybeSingle());
+ const device=checked(await admin.from('branch_devices').select('revoked_at').eq('user_id',account.user_id).maybeSingle());
+ const enabled=checked(await admin.rpc('chido_activation_company_enabled',{p_company_id:account.company_id}));
+ if(account.status!=='active'||member?.status!=='active'||member.branch_id!==account.branch_id||branch?.status!=='active'||!device||device.revoked_at||!enabled){await client.auth.signOut();return response({error:'دسترسی این کاربر، نمایشگاه یا اشتراک فعال نیست. با مدیر مجموعه هماهنگ کن.'},403);}
+ await admin.from('showroom_login_limits').delete().eq('login_name',name);
+ await admin.from('showroom_accounts').update({last_login_at:new Date().toISOString()}).eq('id',account.id);
+ await admin.from('branch_devices').update({last_seen_at:new Date().toISOString()}).eq('user_id',account.user_id);
+ await admin.from('activity_events').insert({company_id:account.company_id,branch_id:account.branch_id,user_id:account.user_id,event_type:'showroom_login',payload:{}});
+ return response({session:{access_token:signed.data.session.access_token,refresh_token:signed.data.session.refresh_token}});
 }
 async function write(req:Request,m:any){
  const body=await req.json();let data:any;try{data=validateWorkspace(body.action,body.data);}catch(e){return response({error:e.message},400);}
+ if(body.action==='showroom.create'||body.action==='showroom.update'){
+  const branch=checked(await admin.from('branches').select('id').eq('id',data.branch_id).eq('company_id',m.company_id).maybeSingle());
+  if(!branch)return response({error:'این نمایشگاه متعلق به مجموعه نیست.'},403);
+  const existing=data.id?checked(await admin.from('showroom_accounts').select('id,user_id').eq('id',data.id).eq('company_id',m.company_id).maybeSingle()):null;
+  if(body.action==='showroom.update'&&!existing)return response({error:'کاربر پیدا نشد.'},404);
+  const password=data.password;delete data.password;let userId=existing?.user_id;let created=false;
+  if(body.action==='showroom.create'){
+   const result=await admin.auth.admin.createUser({email:'showroom-'+crypto.randomUUID()+'@device.chido.invalid',password,email_confirm:true,app_metadata:{role:'branch',company_id:m.company_id,branch_id:data.branch_id}});
+   if(result.error||!result.data.user)return response({error:'ساخت کاربر انجام نشد. شرایط رمز را بررسی کن.'},400);userId=result.data.user.id;created=true;
+  }
+  const result=await admin.rpc('chido_company_write',{p_actor:m.user_id,p_company:m.company_id,p_action:created?'showroom.register':'showroom.update',p_data:{...data,user_id:userId},p_central:false});
+  if(result.error){if(created)await admin.auth.admin.deleteUser(userId);return response({error:result.error.code==='23505'?'این نام کاربری قبلاً انتخاب شده است. نام دیگری وارد کن.':'ذخیره کاربر انجام نشد. وضعیت نمایشگاه و اشتراک را بررسی کن.'},400);}
+  if(!created&&password){const changed=await admin.auth.admin.updateUserById(userId,{password});if(changed.error)return response({error:'اطلاعات کاربر ذخیره شد، اما تغییر رمز انجام نشد. دوباره رمز را ثبت کن.'},400);}
+  return response(result.data);
+ }
  let code:string|null=null;
- if(body.action==='code.issue'||body.action==='invite.issue'){
-  code=(body.action==='code.issue'?'CHIDO-BRANCH-':'CHIDO-USER-')+crypto.randomUUID().replaceAll('-','').toUpperCase();data.code_hash=await hash(code);data.expires_at=new Date(Date.now()+data.days*86400000).toISOString();delete data.days;
+ if(body.action==='code.issue'){
+  code='CHIDO-BRANCH-'+crypto.randomUUID().replaceAll('-','').toUpperCase();data.code_hash=await hash(code);data.expires_at=new Date(Date.now()+data.days*86400000).toISOString();delete data.days;
  }
  if(body.action==='media.register'){
-  if(m.role==='company_viewer')return response({error:'این حساب فقط اجازه مشاهده دارد.'},403);
   if(!data.object_path.startsWith(m.company_id+'/'+m.user_id+'/'))return response({error:'فایل متعلق به این حساب نیست.'},403);
   const existing=checked(await admin.from('company_media').select('id').eq('object_path',data.object_path).eq('company_id',m.company_id).maybeSingle());if(existing)return response(existing);
   const split=data.object_path.lastIndexOf('/');const files=checked(await admin.storage.from('company-media').list(data.object_path.slice(0,split),{search:data.object_path.slice(split+1)}));const file=files.find((f:any)=>f.name===data.object_path.slice(split+1));
@@ -65,7 +88,7 @@ async function write(req:Request,m:any){
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response('ok',{headers:cors});const path=new URL(req.url).pathname.replace(/\/+$/,'');
  try{
-  if(req.method==='POST'&&path.endsWith('/accept-invite'))return await acceptInvite(req);
+  if(req.method==='POST'&&path.endsWith('/showroom/login'))return await showroomLogin(req);
   const m=await member(req);
   if(req.method==='GET'&&path.endsWith('/snapshot'))return response({data:await snapshot(m),server_time:new Date().toISOString()});
   if(req.method==='POST'&&path.endsWith('/write'))return await write(req,m);

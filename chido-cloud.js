@@ -1,3 +1,4 @@
+import {configureTelemetry} from './telemetry.js';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.119.0';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, CHIDO_API_URL } from './backend-config.js';
 import {registerCloudProducts,getCloudProduct} from './cloud-product-registry.js';
@@ -45,6 +46,13 @@ export async function signIn(email, password) {
   const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
   if (error) throw error;
   return getMembership();
+}
+
+export async function signInShowroom(username,password){
+ const response=await fetch(SUPABASE_URL+'/functions/v1/chido-company/showroom/login',{method:'POST',headers:{apikey:SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},body:JSON.stringify({username,password})});
+ const result=await response.json().catch(()=>({}));if(!response.ok||!result.session)throw Error(result.error||'ورود نمایشگاه انجام نشد.');
+ const {error}=await supabase.auth.setSession(result.session);if(error)throw error;
+ const membership=await getMembership();if(!membership||membership.role!=='branch'){await supabase.auth.signOut();throw Error('دسترسی نمایشگاه فعال نیست.');}return membership;
 }
 
 export async function signOut() {
@@ -365,3 +373,7 @@ export async function archiveOfficialColorway(colorwayId) {
   await logActivity(membership, 'official_colorway_archived', { set_id: data.set_id, colorway_id: data.id });
   return data;
 }
+
+function telemetrySession(session){configureTelemetry(session?{userId:session.user.id,token:session.access_token,url:SUPABASE_URL+'/functions/v1/chido-metrics',key:SUPABASE_PUBLISHABLE_KEY,client:(location.pathname.endsWith('/guest.html')?'guest':location.pathname.endsWith('/company-studio.html')?'studio':location.pathname.endsWith('/company.html')?'company':'app')}:null);}
+supabase.auth.onAuthStateChange((_event,session)=>telemetrySession(session));
+void supabase.auth.getSession().then(({data})=>telemetrySession(data.session));
