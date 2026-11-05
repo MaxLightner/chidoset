@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import {createClient} from 'npm:@supabase/supabase-js@2.119.0';
 import {validateWrite,validateGlb} from './central-domain.mjs';
+import {validateWorkspace} from './workspace-domain.mjs';
 const url=Deno.env.get('SUPABASE_URL')!;
 const admin=createClient(url,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Content-Type':'application/json; charset=utf-8'};
@@ -33,14 +34,26 @@ async function bootstrap(req:Request){
  }catch(error){await admin.auth.admin.deleteUser(user.id);throw error;}
 }
 async function snapshot(){
- const names=['companies','branches','company_memberships','branch_devices','activation_codes','products','sets','set_products','layouts','colorways','subscriptions','company_access_requests','layout_requests','live_sessions','activity_events','platform_audit_events'];
+ const names=['companies','branches','company_memberships','branch_devices','activation_codes','products','sets','set_products','layouts','colorways','subscriptions','company_access_requests','layout_requests','live_sessions','activity_events','platform_audit_events','company_requests','support_tickets','company_messages','company_media'];
  const columns:Record<string,string>={activation_codes:'id,company_id,branch_id,role,expires_at,redeemed_at,revoked_at,created_at',live_sessions:'id,company_id,branch_id,host_user_id,expires_at,revoked_at,created_at',layouts:'id,set_id,name,room,capacity,status,updated_at',colorways:'id,set_id,name,status,updated_at'};
  const result:Record<string,unknown>={};
  await Promise.all(names.map(async name=>{let query=admin.from(name).select(columns[name]||'*');if(name==='activity_events'||name==='platform_audit_events')query=query.order('created_at',{ascending:false}).limit(150);else query=query.limit(1000);result[name]=checked(await query);}));
  // Resolve private preview files without exposing bucket listing permissions.
  const products=result.products as any[];const paths=products.map(p=>p.thumbnail_path).filter(p=>p?.startsWith('storage://chido-assets/')).map(p=>p.slice('storage://chido-assets/'.length));
  if(paths.length){const signed=checked(await admin.storage.from('chido-assets').createSignedUrls(paths,3600));for(const p of products){const item=signed.find((s:any)=>'storage://chido-assets/'+s.path===p.thumbnail_path);if(item)p.preview_url=item.signedUrl;}}
+ const media=result.company_media as any[];
+ if(media.length){const signed=checked(await admin.storage.from('company-media').createSignedUrls(media.map(p=>p.object_path),900));for(const p of media)p.url=signed.find((s:any)=>s.path===p.object_path)?.signedUrl||'';}
  return result;
+}
+async function workspace(req:Request,user:any){
+ const body=await req.json();if(!['request.status','ticket.status','message.send'].includes(body.action))return respond({error:'این عملیات پشتیبانی مجاز نیست.'},400);
+ let input:any;try{input=validateWorkspace(body.action,body.data);}catch(e){return respond({error:e.message},400);}
+ const kind=body.action==='message.send'?input.parent_kind:body.action==='request.status'?'request':'ticket';const id=body.action==='message.send'?input.parent_id:input.id;
+ const record=checked(await admin.from(kind==='request'?'company_requests':'support_tickets').select('company_id').eq('id',id).maybeSingle());
+ if(!record)return respond({error:'درخواست یا تیکت پیدا نشد.'},404);
+ const result=await admin.rpc('chido_company_write',{p_actor:user.id,p_company:record.company_id,p_action:body.action,p_data:input,p_central:true});
+ if(result.error)return respond({error:'ثبت پاسخ یا وضعیت انجام نشد. دوباره تلاش کن.'},400);
+ return respond(result.data);
 }
 async function write(req:Request,user:any){
  const body=await req.json();let data;try{data=validateWrite(body.action,body.data);}catch(error){return respond({error:error.message},400);}
@@ -70,6 +83,7 @@ Deno.serve(async req=>{
   const user=await owner(req);
   if(req.method==='GET'&&path.endsWith('/snapshot'))return respond({user:{id:user.id,email:user.email},data:await snapshot(),server_time:new Date().toISOString()});
   if(req.method==='POST'&&path.endsWith('/write'))return await write(req,user);
+  if(req.method==='POST'&&path.endsWith('/workspace'))return await workspace(req,user);
   return respond({error:'مسیر درخواست معتبر نیست.'},404);
  }catch(error){console.error('chido-admin',error.code||error.status||'error');return respond({error:error.status?error.message:'سرویس موقتاً در دسترس نیست. دوباره تلاش کن.'},error.status||500);}
 });

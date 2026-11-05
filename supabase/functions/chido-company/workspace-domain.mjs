@@ -1,0 +1,28 @@
+export const WEB_ROLES=['company_admin','company_staff','company_viewer'];
+export const REQUEST_STATES=['submitted','reviewing','in_progress','needs_info','completed','cancelled'];
+export const TICKET_STATES=['open','in_progress','waiting_customer','resolved','closed'];
+const uuid=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+function id(v,optional=false){if(optional&&!v)return null;if(!uuid(v))throw Error('شناسه معتبر نیست.');return v;}
+function str(v,min=1,max=160){if(typeof v!=='string'||v.trim().length<min||v.trim().length>max)throw Error('طول یکی از فیلدها معتبر نیست.');return v.trim();}
+function pick(v,list){if(!list.includes(v))throw Error('گزینه انتخاب‌شده معتبر نیست.');return v;}
+function integer(v,min,max){v=Number(v);if(!Number.isInteger(v)||v<min||v>max)throw Error('عدد خارج از محدوده است.');return v;}
+function media(v=[]){if(!Array.isArray(v)||v.length>8||new Set(v).size!==v.length)throw Error('حداکثر ۸ عکس متفاوت انتخاب کن.');return v.map(x=>id(x));}
+export function validateWorkspace(action,input){
+ if(!input||typeof input!=='object'||Array.isArray(input))throw Error('اطلاعات فرم معتبر نیست.');
+ const base={id:id(input.id,true)};
+ switch(action){
+ case 'media.register':{const object_path=str(input.object_path,1,260);if(!/^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp)$/.test(object_path))throw Error('مسیر عکس معتبر نیست.');return {object_path,filename:str(input.filename,1,180),mime_type:pick(input.mime_type,['image/jpeg','image/png','image/webp']),bytes:integer(input.bytes,1,8388608),caption:str(input.caption||'',0,400)};}
+ case 'media.archive':case 'code.revoke':case 'invite.revoke':case 'device.revoke':case 'notification.read':case 'layout.archive':case 'colorway.archive':return {id:id(input.id)};
+ case 'request.create':{let dimensions_cm=null;if(input.dimensions_cm){if(!Array.isArray(input.dimensions_cm)||input.dimensions_cm.length!==3||!input.dimensions_cm.every(n=>typeof n==='number'&&Number.isFinite(n)&&n>=.5&&n<=2000))throw Error('عرض، ارتفاع و عمق را بین نیم تا ۲۰۰۰ سانتی‌متر وارد کن.');dimensions_cm=input.dimensions_cm;}return {kind:pick(input.kind,['model','layout','colorway','general']),title:str(input.title,3,160),description:str(input.description,5,6000),product_name:str(input.product_name||'',0,160),dimensions_cm,media_ids:media(input.media_ids),set_id:id(input.set_id,true),priority:pick(input.priority||'normal',['normal','high'])};}
+ case 'ticket.create':return {title:str(input.title,3,160),category:pick(input.category,['technical','account','billing','models','other']),priority:pick(input.priority||'normal',['normal','high']),body:str(input.body,5,6000),media_ids:media(input.media_ids)};
+ case 'message.send':return {parent_id:id(input.parent_id),parent_kind:pick(input.parent_kind,['request','ticket']),body:str(input.body,1,6000),media_ids:media(input.media_ids)};
+ case 'request.status':return {id:id(input.id),status:pick(input.status,REQUEST_STATES)};
+ case 'ticket.status':return {id:id(input.id),status:pick(input.status,TICKET_STATES)};
+ case 'branch.save':{const slug=str(input.slug,2,100);if(!/^[a-z0-9][a-z0-9-]+$/.test(slug))throw Error('شناسه انگلیسی فقط شامل حروف کوچک، عدد و خط تیره است.');return {...base,name:str(input.name),slug,status:pick(input.status,['active','suspended'])};}
+ case 'code.issue':return {branch_id:id(input.branch_id),days:integer(input.days,1,30)};
+ case 'invite.issue':{const email=str(input.email,5,254).toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('ایمیل معتبر وارد کن.');return {display_name:str(input.display_name,2,120),email,role:pick(input.role,WEB_ROLES),days:integer(input.days||7,1,14)};}
+ case 'member.update':return {id:id(input.id),display_name:str(input.display_name||'',0,120),role:pick(input.role,WEB_ROLES),status:pick(input.status,['active','suspended'])};
+ case 'profile.save':return {name:str(input.name),profile:{phone:str(input.profile?.phone||'',0,30),address:str(input.profile?.address||'',0,500),contact_name:str(input.profile?.contact_name||'',0,120)}};
+ default:throw Error('عملیات شناخته‌شده نیست.');
+ }
+}
