@@ -23,4 +23,3 @@ User resumed the paused work. The company workspace is implemented with three pr
 ## Remaining manual acceptance
 
 User-requested physical AR checks on a supported phone/tablet remain the final acceptance step. No claim is made about real-device tracking accuracy, production load or provider bandwidth measurement. Marketing commerce/OTP/payment demos remain separate from the real company workspace.
-

@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.menu-api]
 verify_jwt = true
+
+[functions.chido-metrics]
+verify_jwt = false
