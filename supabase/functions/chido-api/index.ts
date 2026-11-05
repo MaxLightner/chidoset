@@ -41,7 +41,7 @@ async function redeemActivationCode(codeValue: string, expectedRole?: string) {
   const codeHash = await sha256(code);
   const { data, error } = await admin
     .from("activation_codes")
-    .select("id,company_id,branch_id,role,expires_at,redeemed_at")
+    .select("id,company_id,branch_id,role,expires_at,redeemed_at,revoked_at")
     .eq("code_hash", codeHash)
     .maybeSingle();
 
@@ -49,15 +49,16 @@ async function redeemActivationCode(codeValue: string, expectedRole?: string) {
     console.error('Activation lookup failed', error.code);
     return { error: "سرویس فعال‌سازی موقتاً در دسترس نیست.", status: 503 };
   }
-  if (!data || data.redeemed_at || new Date(data.expires_at).getTime() <= Date.now()) {
+  if (!data || data.redeemed_at || data.revoked_at || new Date(data.expires_at).getTime() <= Date.now()) {
     return { error: "کد نامعتبر، منقضی یا قبلاً استفاده شده است.", status: 404 };
   }
 
   if (expectedRole && data.role !== expectedRole) {
     return { error: "این کد مربوط به نوع ورود انتخاب‌شده نیست.", status: 400 };
   }
-  const { data: company } = await admin.from('companies').select('status').eq('id', data.company_id).maybeSingle();
-  if (company?.status !== 'active') return { error: "دسترسی این شرکت فعال نیست.", status: 403 };
+  const { data: enabled, error: accessError } = await admin.rpc('chido_activation_company_enabled', { p_company_id: data.company_id });
+  if (accessError) return { error: "بررسی دسترسی شرکت انجام نشد.", status: 503 };
+  if (!enabled) return { error: "دسترسی شرکت یا اشتراک آن فعال نیست.", status: 403 };
   if (data.role === 'branch') {
     const { data: branch } = await admin.from('branches').select('status').eq('id', data.branch_id).eq('company_id', data.company_id).maybeSingle();
     if (branch?.status !== 'active') return { error: "دسترسی این شعبه فعال نیست.", status: 403 };
@@ -68,6 +69,7 @@ async function redeemActivationCode(codeValue: string, expectedRole?: string) {
     .update({ redeemed_at: new Date().toISOString() })
     .eq("id", data.id)
     .is("redeemed_at", null)
+    .is("revoked_at", null)
     .gt("expires_at", new Date().toISOString())
     .select("id,company_id,branch_id,role")
     .maybeSingle();

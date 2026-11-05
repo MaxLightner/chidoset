@@ -4,13 +4,14 @@ import {CAMERA_RATIOS,CAMERA_PHOTO_KIND,isCameraPhoto,effectiveCameraRatio} from
 import {RUG_STYLES,rugPreviewDataUrl} from './rug-textures.js?v=0.5.4';
 import {allowedCapacities,layoutOptions,buildLayout,layoutSummary,layoutPreviewSvg} from './layout-templates.js?v=0.5.4';
 import {readDraft,saveDraft,clearDraft,listCustomLayouts,saveCustomLayout,overwriteCustomLayout,removeCustomLayout} from './layout-storage.js?v=0.5.4';
-import {ASSET_CATEGORIES,RUG_SIZE_PRESETS,isLamp,isSofa,isTable,isWallArt,variantsFor,categoryForIndex} from './asset-metadata.js?v=0.7.0';
+import {ASSET_CATEGORIES,RUG_SIZE_PRESETS,isLamp,isSofa,isTable,isWallArt,variantsFor,categoryForIndex} from './asset-metadata.js?v=0.11.0';
 import {savedPlanSvg} from './saved-plan.js?v=0.8.0';
 import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-materials.js';
 import {LiveMiniMap} from './minimap.js?v=0.5.4';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
-import {SOFA_FABRICS} from './imported-models.js?v=0.7.0';
-import {supabase,activateBranch,signIn,getMembership,loadCompanySets,saveOfficialLayout,saveOfficialColorway,createLiveSession,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.10.0';
+import {SOFA_FABRICS} from './imported-models.js?v=0.11.0';
+import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList} from './cloud-product-registry.js';
+import {supabase,activateBranch,signIn,getMembership,loadCompanySets,saveOfficialLayout,saveOfficialColorway,createLiveSession,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.11.0';
 const $=s=>document.querySelector(s),app=$('#app'),fa=n=>n.toLocaleString('fa-IR');
 let studio,Scene,palette,space='پذیرایی',layout='conversation',supported=false,routeVersion=0,photoURLs=[],savedItems=[],arReport=null,sceneMemory=null,arStarting=false,lastXRErrorReport='',activeSavedLayoutId=null;
 const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio);
@@ -89,7 +90,7 @@ function heading(step,title,sub,back){return `<div class="page-heading"><div><sp
 async function full(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(!document.documentElement.requestFullscreen){toast('مرورگر شما تمام‌صفحه را پشتیبانی نمی‌کند.');return;}try{await document.documentElement.requestFullscreen();}catch{toast('ورود به تمام‌صفحه ممکن نشد؛ می‌توانی ادامه بدهی.');}}
 $('#fullscreen').onclick=full;document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'خروج از تمام‌صفحه ↙':'تمام‌صفحه ⛶');
 async function support(){try{supported=!!(isSecureContext&&navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar'));}catch{supported=false;}return supported;}
-async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.10.0');Scene=m.Studio;palette=m.palette;}}
+async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.11.0');Scene=m.Studio;palette=m.palette;}}
 let draftTimer=null;
 function currentSceneRecord(){
  if(!studio)return null;
@@ -214,7 +215,7 @@ async function render(){const version=++routeVersion;const route=location.hash.s
   <div class="launch-actions"><button id="startAR" class="primary" disabled>در حال بررسی واقعیت افزوده…</button><div class="launch-alternatives"><a href="#spaces">تغییر چیدمان</a><button id="preview3D">پیش‌نمایش سه‌بعدی</button></div></div>
  </section>`;
  try{
-  await loadScene();if(version!==routeVersion)return;
+  await refreshCloudSets();await loadScene();if(version!==routeVersion)return;
   $('#launchProgress').value=1;$('#launchStage').textContent='موتور سه‌بعدی آماده شد؛ در حال ساخت ابزارها…';
   studio=new Scene($('#viewport'),updateObjects);
   $('#launchProgress').value=2;$('#launchStage').textContent='ابزارها و صحنه آماده‌اند؛ در انتظار دوربین و نشست AR…';
@@ -341,6 +342,7 @@ async function beginLiveShare(){
  if(activeLiveSession){$('#liveShareDialog')?.showModal();return;}
  const button=$('#arShareSession');if(button)button.disabled=true;
  try{
+  await refreshCloudSets();
   activeLiveSession=await createLiveSession({sceneState:studio.exportLiveState(),cameraState:studio.cameraSnapshot()});
   studio.onFrame=liveCameraFrame;
   $('#liveShareUrl').textContent=activeLiveSession.url;
@@ -381,16 +383,17 @@ function showArSheet(mode){
   title.textContent=replacing?'تعویض مدل با حفظ جایگاه':'انتخاب مدل برای نشانگر +';
   if(!replacing)studio.setPlacementEnabled(true);
   const activeSet=getActiveCloudSet(),allowedProducts=activeSet?new Set(activeSet.products.map(item=>item.catalog_index)):null;
+  const categories=ASSET_CATEGORIES.map(c=>({...c,indexes:[...new Set([...c.indexes.filter(i=>!getCloudProductInfo(i)?.metadata.category||getCloudProductInfo(i).metadata.category===c.id),...cloudProductInfoList().filter(p=>(p.catalog_index<32||getCloudProduct(p.catalog_index))&&p.metadata.category===c.id).map(p=>p.catalog_index)])]}));
   const groups=replacing&&selected?
-   ASSET_CATEGORIES.map(c=>({...c,indexes:variantsFor(selected.userData.index).filter(i=>c.indexes.includes(i)&&(!allowedProducts||allowedProducts.has(i)))})).filter(c=>c.indexes.length):
-   ASSET_CATEGORIES.map(c=>({...c,indexes:c.indexes.filter(i=>i!==5&&(!allowedProducts||allowedProducts.has(i)))})).filter(c=>c.indexes.length);
+   categories.map(c=>({...c,indexes:variantsFor(selected.userData.index).filter(i=>c.indexes.includes(i)&&(!allowedProducts||allowedProducts.has(i)))})).filter(c=>c.indexes.length):
+   categories.map(c=>({...c,indexes:c.indexes.filter(i=>i!==5&&(!allowedProducts||allowedProducts.has(i)))})).filter(c=>c.indexes.length);
   body.innerHTML=`<div class="ar-category-tabs">${groups.map((c,i)=>`<button data-category="${c.id}" class="${i===0?'selected':''}">${c.label}</button>`).join('')}</div>
    <div class="ar-object-grid" id="categoryObjects"></div>
    <small class="sheet-tip">${replacing?'جایگاه و رنگ مدل تا حد ممکن حفظ می‌شود.':'نشانگر + روی کف، محل مدل جدید را نشان می‌دهد؛ قبل از انتخاب مدل دوربین را به جای دلخواه بگیر.'}</small>
    ${groups.some(c=>c.id==='wall-art')?'<small class="sheet-tip">تابلوها فعلاً روی یک صفحه عمودی مجازی در موقعیت تقریبی قرار می‌گیرند؛ تشخیص خودکار دیوار واقعی نیاز به WebXR Plane Detection دارد.</small>':''}`;
   function populate(category){
    const group=groups.find(c=>c.id===category)||groups[0];if(!group)return;
-   const holder=body.querySelector('#categoryObjects');holder.innerHTML=group.indexes.map(i=>`<button data-add-object="${i}" class="catalog-tile"><span class="catalog-preview"><img src="assets/chido/thumbs/${i}.jpg?v=0.7.0" width="192" height="192" loading="lazy" decoding="async" alt="پیش‌نمایش مدل روی پس‌زمینه سفید"></span><span>${catalogImages[i]?.[0]||'مدل'}</span></button>`).join('');
+   const holder=body.querySelector('#categoryObjects');holder.innerHTML=group.indexes.map(i=>{const cloud=getCloudProduct(i)||getCloudProductInfo(i),name=(cloud?.name||catalogImages[i]?.[0]||'مدل').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));return `<button data-add-object="${i}" class="catalog-tile"><span class="catalog-preview">${cloud&&i>=32&&!cloud.thumbnail_url?objectIcon(0):`<img src="${cloud?.thumbnail_url||`assets/chido/thumbs/${i}.jpg?v=0.7.0`}" width="192" height="192" loading="lazy" decoding="async" alt="پیش‌نمایش مدل روی پس‌زمینه سفید">`}</span><span>${name}</span></button>`;}).join('');
    body.querySelectorAll('[data-category]').forEach(btn=>btn.classList.toggle('selected',btn.dataset.category===group.id));
    holder.querySelectorAll('[data-add-object]').forEach(btn=>btn.onclick=()=>{
     if(studio.items.length>=24&&!replacing){toast('به محدودیت ۲۴ آبجکت رسیدی.');return;}

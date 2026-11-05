@@ -1,4 +1,4 @@
-import { CHIDO_CONFIG, SAMPLE_PRODUCTS } from './config.js';
+import { CHIDO_CONFIG, SAMPLE_PRODUCTS } from './config.js?v=0.11.0';
 import { mountHero, createProductImages, mountViewer, startAR } from './scene.js';
 
 const $ = selector => document.querySelector(selector);
@@ -290,7 +290,8 @@ function route() {
   closeModal();
   const path = location.hash.replace(/^#\/?/, '').split('?')[0] || '';
   if (path === 'signup') { location.replace(CHIDO_CONFIG.workspaceUrl); return; }
-  const page = path.startsWith('shop') ? 'shop' : path.startsWith('dashboard') ? 'dashboard' : path.startsWith('signup') ? 'signup' : ['terms','privacy'].includes(path) ? 'legal' : 'home';
+  if (path === 'dashboard') { location.replace(CHIDO_CONFIG.centralUrl); return; }
+  const page = path.startsWith('shop') ? 'shop' : path.startsWith('demo-dashboard') ? 'dashboard' : path.startsWith('signup') ? 'signup' : ['terms','privacy'].includes(path) ? 'legal' : 'home';
   $$('.page').forEach(el => { el.hidden = el.id !== `${page}-page`; el.classList.toggle('active-page', !el.hidden); });
   $$('.desktop-nav a').forEach(a => a.classList.toggle('active', a.dataset.nav === page || (page === 'legal' && a.dataset.nav === 'terms')));
   $('#mobile-nav').hidden = true;
@@ -319,7 +320,7 @@ document.addEventListener('click', async event => {
   if (!actionNode) return;
   const action = actionNode.dataset.action, id = actionNode.dataset.id;
   if (action === 'login') { location.assign(CHIDO_CONFIG.workspaceUrl); return; }
-  if (action === 'demo-login') { closeModal(); location.hash = '#/dashboard'; toast('در حال مشاهده داشبورد نمونه هستید؛ هیچ حساب واقعی ایجاد نشده است.'); return; }
+  if (action === 'demo-login') { closeModal(); location.hash = '#/demo-dashboard'; toast('در حال مشاهده داشبورد نمونه هستید؛ هیچ حساب واقعی ایجاد نشده است.'); return; }
   if (action === 'not-connected') return toast('این امکان پس از اتصال بک‌اند و فضای ذخیره‌سازی فعال خواهد شد.');
   if (action === 'dash-tab') { dashboardTab = actionNode.dataset.tab; renderDashboard(); return; }
   if (action === 'viewer') return openViewer(id);
@@ -348,7 +349,7 @@ document.addEventListener('submit', event => {
 });
 
 $('#shop-search').addEventListener('input', e => { searchText = e.target.value.trim(); renderProducts(); });
-$('#demo-dashboard').addEventListener('click', () => { location.hash = '#/dashboard'; toast('داشبورد نمونه، بدون ورود واقعی'); });
+$('#demo-dashboard').addEventListener('click', () => { location.hash = '#/demo-dashboard'; toast('داشبورد نمونه، بدون ورود واقعی'); });
 window.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
 async function showAR(id) {

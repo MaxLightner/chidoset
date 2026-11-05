@@ -1,4 +1,4 @@
-import {supabase,activateCompanyAdmin,signIn,signOut,getMembership,getCompanyDashboard,requestCompanyAccess,logActivity} from './chido-cloud.js?v=0.10.0';
+import {supabase,activateCompanyAdmin,signIn,signOut,getMembership,getCompanyDashboard,requestCompanyAccess,logActivity} from './chido-cloud.js?v=0.11.0';
 
 const $=selector=>document.querySelector(selector);
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));

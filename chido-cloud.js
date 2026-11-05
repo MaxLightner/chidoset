@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.119.0';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, CHIDO_API_URL } from './backend-config.js';
+import {registerCloudProducts,getCloudProduct} from './cloud-product-registry.js';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
@@ -68,14 +69,23 @@ export async function getMembership() {
 export async function loadCompanySets(companyId) {
   const { data, error } = await supabase
     .from('sets')
-    .select('id,name,description,created_at,set_products(sort_order,products(id,catalog_index,name,asset_path,thumbnail_path)),layouts(id,name,room,template_kind,capacity,scene_state,status),colorways(id,name,material_map,status)')
+    .select('id,name,description,created_at,set_products(sort_order,products(id,catalog_index,name,asset_path,thumbnail_path,size_m,metadata,active)),layouts(id,name,room,template_kind,capacity,scene_state,status),colorways(id,name,material_map,status)')
     .eq('company_id', companyId)
     .eq('status', 'published')
     .order('created_at', { ascending: true });
   if (error) throw error;
+  const allProducts=(data||[]).flatMap(s=>(s.set_products||[]).map(x=>x.products).filter(p=>p?.active));
+  const prefix='storage://chido-assets/';
+  const paths=[...new Set(allProducts.flatMap(p=>[p.asset_path,p.thumbnail_path]).filter(p=>p?.startsWith(prefix)).map(p=>p.slice(prefix.length)))];
+  let signed=[];
+  if(paths.length){const result=await supabase.storage.from('chido-assets').createSignedUrls(paths,3600);if(result.error)throw result.error;signed=result.data||[];}
+  const signedUrl=p=>signed.find(x=>prefix+x.path===p)?.signedUrl||'';
+  for(const p of allProducts){p.asset_url=signedUrl(p.asset_path);p.thumbnail_url=signedUrl(p.thumbnail_path);p.signed_at=Date.now();}
+  registerCloudProducts(allProducts);
+  for(const s of data||[])for(const layout of s.layouts||[])if(layout.scene_state?.cloudProducts)layout.scene_state.cloudProducts=layout.scene_state.cloudProducts.map(p=>getCloudProduct(p.catalog_index)||p);
   return (data || []).map(set => ({
     ...set,
-    products: (set.set_products || []).map(item => item.products).filter(Boolean).sort((a, b) => {
+    products: (set.set_products || []).map(item => item.products).filter(p=>p?.active).sort((a, b) => {
       const left = set.set_products.find(x => x.products?.id === a.id)?.sort_order ?? 0;
       const right = set.set_products.find(x => x.products?.id === b.id)?.sort_order ?? 0;
       return left - right;

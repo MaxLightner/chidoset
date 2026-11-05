@@ -3,5 +3,8 @@ project_id = "zeeztpblibcqtxompvxa"
 [functions.chido-api]
 verify_jwt = false
 
+[functions.chido-admin]
+verify_jwt = false
+
 [functions.menu-api]
 verify_jwt = true

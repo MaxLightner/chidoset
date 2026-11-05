@@ -1,4 +1,5 @@
 import {CATALOG} from './spatial.js?v=0.6.0';
+import {getCloudProduct,cloudProductList} from './cloud-product-registry.js';
 const categoryByIndex=index=>[0,1,3,22,23,24].includes(index)?'seating':[2,12,13,25,26,27].includes(index)?'low-tables':[10,11].includes(index)?'dining':index===9?'workspace':index===8?'bedroom':[7,31].includes(index)?'rugs':index>=16&&index<=21?'wall-art':'decor';
 export const RUG_SIZE_PRESETS=Object.freeze([
  {id:'170x240',label:'۱.۷ × ۲.۴ متر',size:[2.4,.015,1.7]},
@@ -17,9 +18,9 @@ export const ASSET_CATEGORIES=Object.freeze([
  {id:'rugs',label:'فرش',indexes:[7,31]},
  {id:'wall-art',label:'تابلو و دیوارکوب',indexes:[16,17,18,19,20,21]}
 ]);
-export function assetMetadata(index,size=CATALOG[index]?.size){
+export function assetMetadata(index,size=getCloudProduct(index)?.size_m||CATALOG[index]?.size){
  if(!size)throw RangeError('Unknown asset');
- const category=categoryByIndex(index);
+ const category=getCloudProduct(index)?.metadata.category||categoryByIndex(index);
  const tables=[2,9,10,12,13,25,26,27],sofas=[0,1,3];
  const surfaces=tables.includes(index)?[{name:'tabletop',kind:'horizontal',height:size[1],width:size[0]*.84,depth:size[2]*.84}]:
  sofas.includes(index)?[{name:'sofa-seat',kind:'seat',height:.48,width:size[0]-.2,depth:.37,backAngle:80}]:[];
@@ -40,5 +41,5 @@ export const isRug=index=>index===7||index===31;
 export const isSofa=index=>[0,1,3].includes(index);
 export const isTable=index=>[2,9,10,12,13,25,26,27].includes(index);
 export const isWallArt=index=>index>=16&&index<=21;
-export function categoryForIndex(index){return ASSET_CATEGORIES.find(c=>c.indexes.includes(index))?.id||'decor';}
-export function variantsFor(index){const category=categoryForIndex(index);if(category==='seating')return [1,0,3,24,23,22];if(category==='low-tables')return [2,12,13,25,26,27];if(category==='dining')return index===10?[10]:[10,11];if(isLamp(index))return [6,14,15,28,29];if(isRug(index))return [7,31];if(isWallArt(index))return [16,17,18,19,20,21];return [index];}
+export function categoryForIndex(index){return getCloudProduct(index)?.metadata.category||ASSET_CATEGORIES.find(c=>c.indexes.includes(index))?.id||'decor';}
+export function variantsFor(index){const category=categoryForIndex(index);if(getCloudProduct(index))return cloudProductList().filter(p=>p.metadata.category===category).map(p=>p.catalog_index);if(category==='seating')return [1,0,3,24,23,22];if(category==='low-tables')return [2,12,13,25,26,27];if(category==='dining')return index===10?[10]:[10,11];if(isLamp(index))return [6,14,15,28,29];if(isRug(index))return [7,31];if(isWallArt(index))return [16,17,18,19,20,21];return [index];}

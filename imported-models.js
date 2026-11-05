@@ -1,5 +1,6 @@
 import * as THREE from './vendor/three.module.js';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
+import {getCloudProduct} from './cloud-product-registry.js';
 
 // All units are metres. Native Blender GLB dimensions are preserved; the
 // quarter-turn only makes the long side of a sofa/table follow local X.
@@ -70,12 +71,12 @@ export function applySofaFabric(model,id='dark',index=22){
   }
  });
 }
-export const isImportedModel=index=>Object.hasOwn(IMPORTED_MODELS,index);
+export const isImportedModel=index=>Object.hasOwn(IMPORTED_MODELS,index)||!!getCloudProduct(index);
 export const isImportedLight=index=>index===28||index===29;
 export const isImportedNoShadow=index=>[28,29,30,31].includes(index);
 const source=(file)=>{
  if(!cache.has(file)){
-  const url=new URL('./assets/chido/'+file+(['sofaA1.glb','SofaC1.glb','sofab1.glb'].includes(file)?'?v=0.6.0':''),import.meta.url).href;
+  const url=file.startsWith('https://')?file:new URL('./assets/chido/'+file+(['sofaA1.glb','SofaC1.glb','sofab1.glb'].includes(file)?'?v=0.6.0':''),import.meta.url).href;
   cache.set(file,loader.loadAsync(url).catch(error=>{cache.delete(file);throw error;}));
  }
  return cache.get(file);
@@ -132,7 +133,8 @@ function addLampLight(model,index,size){
  }
 }
 export function createImportedModel(index,size){
- const spec=IMPORTED_MODELS[index];
+ const uploaded=getCloudProduct(index);
+ const spec=uploaded?{file:uploaded.asset_url,yaw:0,kind:'uploaded'}:IMPORTED_MODELS[index];
  if(!spec)throw Error('Unknown GLB catalog index '+index);
  // Invisible 12-triangle mesh also serves as the simple collision/picking proxy.
  // A larger invisible hit target makes the slim standing lamp easy to select
@@ -151,7 +153,11 @@ export function createImportedModel(index,size){
   visual.rotation.y=spec.yaw;
   visual.updateMatrixWorld(true);
   let box=new THREE.Box3().setFromObject(visual);
-  if([28,29].includes(index)&&box.getSize(new THREE.Vector3()).y>0){
+  if(uploaded){
+   const actual=box.getSize(new THREE.Vector3());
+   visual.scale.set(size[0]/Math.max(.00001,actual.x),size[1]/Math.max(.00001,actual.y),size[2]/Math.max(.00001,actual.z));
+   visual.updateMatrixWorld(true);box=new THREE.Box3().setFromObject(visual);
+  }else if([28,29].includes(index)&&box.getSize(new THREE.Vector3()).y>0){
    const uniformScale=size[1]/box.getSize(new THREE.Vector3()).y;
    visual.scale.setScalar(uniformScale);
    visual.updateMatrixWorld(true);

@@ -1,0 +1,144 @@
+import {centralAuth,centralRequest,writeCentral} from './central-service.js';
+import {validateWrite,validateGlb,CATEGORIES,builtInCategory} from './central-domain.mjs';
+const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fa=v=>Number(v||0).toLocaleString('fa-IR');
+const date=v=>v?new Date(v).toLocaleDateString('fa-IR'):'—';
+const labels={active:'فعال',pending:'در انتظار',suspended:'تعلیق',published:'منتشرشده',draft:'پیش‌نویس',archived:'آرشیو',trial:'آزمایشی',past_due:'معوق',expired:'پایان‌یافته',cancelled:'لغوشده',approved:'تأییدشده',contacted:'تماس گرفته‌شده',declined:'ردشده',completed:'انجام‌شده',company_admin:'مدیر شرکت',branch:'شعبه'};
+const categoryLabels={'seating':'مبل و نشیمن','low-tables':'میز جلو مبلی','dining':'ناهارخوری','workspace':'میز کار','bedroom':'اتاق خواب','decor':'دکور و چراغ','rugs':'فرش','wall-art':'تابلو'};
+const nav=[['overview','نمای کلی','M3 10l9-7 9 7M5 9v12h5v-7h4v7h5V9'],['companies','شرکت‌ها','M4 21V3h12v18M16 9h4v12M8 7h4M8 11h4M8 15h4'],['branches','شعبه‌ها','M3 10h18l-2-6H5l-2 6ZM5 11v10h14V11M9 21v-7h6v7'],['access','دسترسی‌ها','M8 11a4 4 0 1 1 8 0M5 11h14v10H5V11ZM12 15v3'],['products','کتابخانه محصولات','m3 7 9-4 9 4-9 4-9-4ZM3 7v10l9 4 9-4V7M12 11v10'],['sets','ست‌ها و انتشار','M3 3h7v7H3ZM14 3h7v7h-7ZM3 14h7v7H3ZM14 14h7v7h-7Z'],['subscriptions','اشتراک‌ها','M4 5h16v16H4ZM4 10h16M8 3v4M16 3v4M8 14h3M8 17h6'],['requests','درخواست‌ها','M4 4h16v13H8l-4 4V4ZM8 8h8M8 12h5'],['activity','فعالیت و سلامت','M3 12h4l3-8 4 16 3-8h4']];
+let data={},selectedCompany='',search='',section='overview',latency=0,editing=null,uploadState={},previewCleanup=null;
+const titleMap=Object.fromEntries(nav.map(n=>[n[0],n[1]]));
+const company=id=>data.companies?.find(x=>x.id===id)?.name||'—';
+const branch=id=>data.branches?.find(x=>x.id===id)?.name||'—';
+const find=(name,id)=>data[name]?.find(x=>x.id===id);
+const status=s=>`<span class="status ${['suspended','expired','cancelled','declined','archived'].includes(s)?'off':['pending','trial','past_due','draft'].includes(s)?'warn':''}">${esc(labels[s]||s)}</span>`;
+const action=(kind,id,label,danger=false)=>`<button data-action="${kind}" data-id="${esc(id)}" class="${danger?'danger':''}">${label}</button>`;
+const empty=(title,text)=>`<div class="empty"><h3>${esc(title)}</h3><p>${esc(text)}</p></div>`;
+function table(headers,rows){return rows.length?`<div class="table-wrap"><table><thead><tr>${headers.map(h=>`<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(cell=>`<td>${cell}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:empty('هنوز رکوردی وجود ندارد','با افزودن اطلاعات یا تغییر فیلتر، این بخش تکمیل می‌شود.');}
+function rows(name,companyField=true){return (data[name]||[]).filter(x=>(!companyField||!selectedCompany||x.company_id===selectedCompany)&&(!search||JSON.stringify(x).toLowerCase().includes(search.toLowerCase())||company(x.company_id).includes(search)));}
+function companyRows(){return rows('companies',false).filter(c=>!selectedCompany||c.id===selectedCompany);}
+function eventLabel(action){return {'company.save':'اطلاعات شرکت ذخیره شد','branch.save':'اطلاعات شعبه ذخیره شد','product.save':'کتابخانه محصول به‌روز شد','set.save':'ترکیب ست ذخیره شد','code.issue':'کد دسترسی صادر شد','code.revoke':'کد دسترسی لغو شد','subscription.save':'اشتراک به‌روز شد','device.revoke':'دسترسی دستگاه لغو شد','member.status':'وضعیت حساب تغییر کرد','access.status':'درخواست شرکت بررسی شد','layout-request.status':'درخواست چیدمان بررسی شد','session.revoke':'نمایش زنده پایان یافت','platform.activate':'مدیر مرکزی فعال شد','app_opened':'اپلیکیشن باز شد','company_admin_web_login':'مدیر شرکت وارد شد','official_layout_created':'چیدمان رسمی ذخیره شد','official_colorway_created':'رنگ‌بندی ذخیره شد','live_session_started':'نمایش زنده شروع شد','branch_device_activated':'دستگاه شعبه فعال شد','company_admin_activated':'مدیر شرکت فعال شد'}[action]||action;}
+function recentEvents(){return [...rows('platform_audit_events'),...rows('activity_events')].sort((a,b)=>b.created_at.localeCompare(a.created_at));}
+function eventsHtml(events,limit=7){return events.length?events.slice(0,limit).map(e=>`<div class="activity-row"><span class="activity-icon">·</span><div><strong>${esc(eventLabel(e.action||e.event_type))}</strong><small>${esc(company(e.company_id))} · ${date(e.created_at)}، ${new Date(e.created_at).toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'})}</small></div></div>`).join(''):'<p>فعالیتی برای این انتخاب ثبت نشده است.</p>';}
+function overview(){
+ const companies=companyRows(),branches=rows('branches'),sets=rows('sets'),events=recentEvents();
+ const kpis=[['شرکت‌های فعال',companies.filter(c=>c.status==='active').length,'از '+fa(companies.length)+' شرکت'],['شعبه‌ها',branches.length,fa(branches.filter(b=>b.status==='active').length)+' شعبه فعال'],['کتابخانه محصولات',data.products?.length||0,'مدل‌های مستقل قابل استفاده در ست‌ها'],['ست‌های منتشرشده',sets.filter(s=>s.status==='published').length,'از '+fa(sets.length)+' ست']];
+ const chart=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);return {d,count:events.filter(e=>new Date(e.created_at).toDateString()===d.toDateString()).length};});const max=Math.max(1,...chart.map(x=>x.count));
+ const waiting=rows('company_access_requests').filter(x=>x.status==='pending').length+rows('layout_requests').filter(x=>x.status==='pending').length;
+ const live=rows('live_sessions').filter(s=>!s.revoked_at&&Date.parse(s.expires_at)>Date.now()).length;
+ return `<div class="kpis">${kpis.map(([label,value,note],i)=>`<article class="kpi ${i===0?'featured':''}"><p>${label}</p><strong>${fa(value)}</strong><small>${note}</small></article>`).join('')}</div><div class="split"><section class="section-card"><header><div><h3>جریان کار این هفته</h3><p>فعالیت‌های ثبت‌شده اخیر، به تفکیک روز</p></div></header><div class="chart" role="img" aria-label="فعالیت روزانه: ${chart.map(c=>date(c.d)+': '+fa(c.count)).join('، ')}">${chart.map(c=>`<div class="chart-column"><b>${fa(c.count)}</b><i style="height:${Math.max(3,c.count/max*110)}px"></i><span>${c.d.toLocaleDateString('fa-IR',{weekday:'short'})}</span></div>`).join('')}</div></section><section class="section-card"><header><h3>نیاز به رسیدگی</h3></header><a class="insight" href="#requests"><span>درخواست‌های در انتظار</span><strong>${fa(waiting)}</strong></a><a class="insight" href="#subscriptions"><span>اشتراک‌های پایان‌یافته یا معوق</span><strong>${fa(rows('subscriptions').filter(s=>['expired','past_due'].includes(s.status)||Date.parse(s.ends_at)<Date.now()).length)}</strong></a><a class="insight" href="#activity"><span>نمایش‌های زنده فعال</span><strong>${fa(live)}</strong></a></section></div><section class="section-card"><header><h3>آخرین اتفاق‌ها</h3><a class="muted-link" href="#activity">مشاهده فعالیت‌ها</a></header>${eventsHtml(events)}</section>`;
+}
+function render(){
+ section=titleMap[location.hash.slice(1)]?location.hash.slice(1):'overview';
+ $('#pageTitle').textContent=titleMap[section];$('#pageCaption').textContent=selectedCompany?company(selectedCompany):'تمام نمایشگاه‌ها، در یک نگاه';
+ $('#navigation').innerHTML=nav.map(([id,label,svg])=>`<a class="nav-item ${section===id?'active':''}" ${section===id?'aria-current="page"':''} href="#${id}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${svg}"/></svg>${label}</a>`).join('');
+ const creates={companies:['شرکت جدید','company'],branches:['شعبه جدید','branch'],access:['صدور کد دسترسی','code'],products:['افزودن محصول','product'],sets:['ست جدید','set'],subscriptions:['ثبت اشتراک','subscription']};
+ $('#createButton').hidden=!creates[section];if(creates[section]){$('#createButton').textContent=creates[section][0];$('#createButton').dataset.kind=creates[section][1];}
+ let html='';
+ if(section==='overview')html=overview();
+ if(section==='companies')html=table(['شرکت','شعبه‌ها','سقف چیدمان / رنگ‌بندی','وضعیت',''],companyRows().map(c=>[`<strong>${esc(c.name)}</strong><small dir="ltr">${esc(c.slug)}</small>`,fa(data.branches.filter(b=>b.company_id===c.id).length),fa(c.max_layouts_per_set)+' / '+fa(c.max_colorways_per_set),status(c.status),action('edit-company',c.id,'ویرایش')]));
+ if(section==='branches')html=table(['شعبه','شرکت','دستگاه فعال','وضعیت',''],rows('branches').map(b=>[`<strong>${esc(b.name)}</strong><small dir="ltr">${esc(b.slug)}</small>`,esc(company(b.company_id)),fa(data.branch_devices.filter(d=>d.branch_id===b.id&&!d.revoked_at).length),status(b.status),action('edit-branch',b.id,'ویرایش')]));
+ if(section==='access'){
+  html='<section class="section-card"><header><div><h3>کدهای دعوت و فعال‌سازی</h3><p>متن کد فقط هنگام صدور نمایش داده می‌شود.</p></div></header>'+table(['شرکت / شعبه','نوع دسترسی','انقضا','وضعیت',''],rows('activation_codes').sort((a,b)=>b.created_at.localeCompare(a.created_at)).map(c=>[`${esc(company(c.company_id))}<small>${esc(branch(c.branch_id))}</small>`,esc(labels[c.role]),date(c.expires_at),status(c.revoked_at?'cancelled':c.redeemed_at?'completed':Date.parse(c.expires_at)<Date.now()?'expired':'pending'),!c.revoked_at&&!c.redeemed_at&&Date.parse(c.expires_at)>Date.now()?action('code.revoke',c.id,'لغو کد',true):'—']))+'</section>';
+  html+='<section class="section-card"><header><h3>حساب‌های شرکت‌ها</h3></header>'+table(['شرکت / شعبه','نقش','وضعیت',''],rows('company_memberships').map(m=>[`${esc(company(m.company_id))}<small>${esc(branch(m.branch_id))}</small>`,esc(labels[m.role]),status(m.status),action('member-status',m.id,m.status==='active'?'تعلیق دسترسی':'فعال‌کردن')]))+'</section>';
+  html+='<section class="section-card"><header><h3>دستگاه‌های نمایشگاه</h3></header>'+table(['دستگاه','شعبه','آخرین اتصال','وضعیت',''],rows('branch_devices',false).filter(d=>!selectedCompany||find('branches',d.branch_id)?.company_id===selectedCompany).map(d=>[esc(d.device_label),esc(branch(d.branch_id)),date(d.last_seen_at),status(d.revoked_at?'cancelled':'active'),!d.revoked_at?action('device.revoke',d.id,'لغو دستگاه',true):'—']))+'</section>';
+ }
+ if(section==='products')html=`<p class="form-help" style="margin-bottom:16px">مدل‌های کتابخانه مستقل‌اند؛ برای نمایش در شرکت، آن‌ها را به یک ست منتشرشده اضافه کن.</p>`+table(['محصول','ابعاد، سانتی‌متر','دسته','وضعیت',''],rows('products',false).sort((a,b)=>a.catalog_index-b.catalog_index).map(p=>{const thumb=p.preview_url||p.thumbnail_path?.startsWith('assets/')?p.preview_url||p.thumbnail_path:'';return [`<div class="product-name">${thumb?`<img class="thumb" src="${esc(thumb)}" alt="" loading="lazy">`:'<span class="product-placeholder">◈</span>'}<div><strong>${esc(p.name)}</strong><small dir="ltr">${esc(p.slug)}</small></div></div>`,p.size_m.map(x=>fa(Math.round(x*10000)/100)).join(' × '),esc(categoryLabels[p.metadata?.category||builtInCategory(p.catalog_index)]||'محصول پایه'),status(p.active?'active':'archived'),action('edit-product',p.id,'ویرایش')];}));
+ if(section==='sets')html=table(['ست','شرکت','محصول / چیدمان / رنگ‌بندی','وضعیت',''],rows('sets').map(s=>[`<strong>${esc(s.name)}</strong><small>${esc(s.description)}</small>`,esc(company(s.company_id)),[data.set_products.filter(x=>x.set_id===s.id).length,data.layouts.filter(x=>x.set_id===s.id&&x.status!=='archived').length,data.colorways.filter(x=>x.set_id===s.id&&x.status!=='archived').length].map(fa).join(' / '),status(s.status),action('edit-set',s.id,'ویرایش ترکیب')]));
+ if(section==='subscriptions')html='<p class="form-help" style="margin-bottom:16px">اشتراک و تمدید را ثبت کن. پرداخت اینترنتی در این پنل فعال نیست.</p>'+table(['شرکت','پلن','شروع / پایان','وضعیت',''],rows('subscriptions').map(s=>[esc(company(s.company_id)),esc(s.plan_code),`${date(s.starts_at)}<small>${date(s.ends_at)}</small>`,status(s.status),action('edit-subscription',s.id,'ویرایش')]));
+ if(section==='requests'){
+  html='<section class="section-card"><header><h3>درخواست شرکت جدید</h3></header>'+table(['متقاضی','شرکت','راه ارتباطی','توضیح','وضعیت',''],rows('company_access_requests',false).map(r=>[esc(r.contact_name),esc(r.company_name),`${esc(r.phone)}<small dir="ltr">${esc(r.email)}</small>`,`<span title="${esc(r.message)}">${esc(r.message.slice(0,60))}</span>`,status(r.status),action('edit-access-request',r.id,'بررسی')]))+'</section>';
+  html+='<section class="section-card"><header><h3>درخواست چیدمان شعبه</h3></header>'+table(['شرکت / شعبه','درخواست','وضعیت',''],rows('layout_requests').map(r=>[`${esc(company(r.company_id))}<small>${esc(branch(r.branch_id))}</small>`,esc(r.description),status(r.status),action('edit-layout-request',r.id,'بررسی')]))+'</section>';
+ }
+ if(section==='activity'){
+  html=`<div class="kpis"><article class="kpi featured"><p>وضعیت اتصال</p><strong>متصل</strong><small>آخرین دریافت موفق از سامانه</small></article><article class="kpi"><p>زمان دریافت اطلاعات</p><strong>${fa(latency)}</strong><small>میلی‌ثانیه، از همین مرورگر</small></article><article class="kpi"><p>نمایش زنده فعال</p><strong>${fa(rows('live_sessions').filter(s=>!s.revoked_at&&Date.parse(s.expires_at)>Date.now()).length)}</strong><small>نشست‌های معتبر فعلی</small></article><article class="kpi"><p>دستگاه‌های ثبت‌شده</p><strong>${fa(data.branch_devices.length)}</strong><small>همه دستگاه‌های نمایشگاه</small></article></div>`;
+  html+='<section class="section-card"><header><h3>نشست‌های نمایش زنده</h3></header>'+table(['شرکت / شعبه','ایجاد / پایان اعتبار','وضعیت',''],rows('live_sessions').map(s=>[`${esc(company(s.company_id))}<small>${esc(branch(s.branch_id))}</small>`,`${date(s.created_at)}<small>${date(s.expires_at)}</small>`,status(s.revoked_at?'cancelled':Date.parse(s.expires_at)<Date.now()?'expired':'active'),!s.revoked_at&&Date.parse(s.expires_at)>Date.now()?action('session.revoke',s.id,'پایان نمایش',true):'—']))+'</section>';
+  html+='<section class="section-card"><header><div><h3>تاریخچه فعالیت</h3><p>تا ۱۵۰ رویداد اخیر از هر نوع؛ تمام تغییرات مدیریتی روی سرور ثبت می‌شوند.</p></div></header>'+eventsHtml(recentEvents(),300)+'</section>';
+ }
+ $('#content').innerHTML=html;
+}
+async function load(){
+ const started=performance.now();$('#content').setAttribute('aria-busy','true');$('#refresh').disabled=true;
+ try{const result=await centralRequest('/snapshot');data=result.data;latency=Math.round(performance.now()-started);$('#adminEmail').textContent=result.user.email;$('#auth').hidden=true;$('#workspace').hidden=false;
+  const previous=$('#companyFilter').value;$('#companyFilter').innerHTML='<option value="">همه شرکت‌ها</option>'+data.companies.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');$('#companyFilter').value=previous;selectedCompany=$('#companyFilter').value;
+  $('#connectionLabel').textContent='سامانه متصل است';$('#updatedAt').textContent='آخرین دریافت: '+new Date(result.server_time).toLocaleTimeString('fa-IR');render();
+ }finally{$('#content').setAttribute('aria-busy','false');$('#refresh').disabled=false;}
+}
+function field(name,label,value='',type='text',options=''){return `<label>${label}<input name="${name}" value="${esc(value)}" type="${type}" ${options}></label>`;}
+function select(name,label,values,current){return `<label>${label}<select name="${name}">${values.map(([value,label])=>`<option value="${esc(value)}" ${value===current?'selected':''}>${esc(label)}</option>`).join('')}</select></label>`;}
+const statuses=(name,values,current)=>select(name,'وضعیت',values.map(s=>[s,labels[s]]),current);
+const companyField=current=>select('company_id','شرکت',data.companies.map(c=>[c.id,c.name]),current||selectedCompany||data.companies[0]?.id);
+const standardForm=body=>`<form id="recordForm"><div class="form-grid">${body}</div><div class="form-actions"><button class="secondary" type="button" data-close>انصراف</button><button class="primary" type="submit">ذخیره تغییرات</button></div></form>`;
+function openEditor(kind,record=null){
+ previewCleanup?.();previewCleanup=null;uploadState={};editing={kind,record};const c=record||{};let body='',title='';
+ if(kind==='company'){title=c.id?'ویرایش شرکت':'شرکت جدید';body=field('name','نام شرکت',c.name,'text','required maxlength="160"')+field('slug','شناسه انگلیسی',c.slug,'text','required dir="ltr" pattern="[a-z0-9][a-z0-9-]+"')+statuses('status',['pending','active','suspended'],c.status||'active')+field('max_layouts_per_set','سقف چیدمان برای هر ست',c.max_layouts_per_set||3,'number','min="1" max="50" required')+field('max_colorways_per_set','سقف رنگ‌بندی برای هر ست',c.max_colorways_per_set||5,'number','min="1" max="50" required');}
+ if(kind==='branch'){title=c.id?'ویرایش شعبه':'شعبه جدید';body=companyField(c.company_id)+field('name','نام شعبه',c.name,'text','required maxlength="160"')+field('slug','شناسه انگلیسی شعبه',c.slug,'text','required dir="ltr"')+statuses('status',['active','suspended'],c.status||'active');}
+ if(kind==='code'){title='صدور کد دسترسی';body=companyField()+select('role','نوع کد',[['company_admin','دعوت مدیر شرکت'],['branch','فعال‌سازی دستگاه شعبه']],'company_admin')+select('branch_id','شعبه',data.branches.filter(b=>b.company_id===(selectedCompany||data.companies[0]?.id)&&b.status==='active').map(b=>[b.id,b.name]),'')+field('days','اعتبار کد، روز',7,'number','min="1" max="30" required')+'<p class="form-help full">کد یک‌بارمصرف است. کد مصرف‌شده را نمی‌توان دوباره مشاهده کرد؛ برای دستگاه جدید کد تازه صادر کن.</p>';}
+ if(kind==='subscription'){title=c.id?'ویرایش اشتراک':'اشتراک جدید';body=companyField(c.company_id)+field('plan_code','نام پلن انگلیسی',c.plan_code||'pilot','text','required dir="ltr"')+statuses('status',['trial','active','past_due','expired','cancelled'],c.status||'trial')+field('starts_at','شروع',c.starts_at?.slice(0,10)||new Date().toISOString().slice(0,10),'date','required')+field('ends_at','پایان',c.ends_at?.slice(0,10)||new Date(Date.now()+30*86400000).toISOString().slice(0,10),'date','required')+`<label class="full">یادداشت تمدید یا پرداخت<textarea name="billing_notes" rows="3" maxlength="1000">${esc(c.billing_notes)}</textarea></label>`;}
+ if(kind==='product'){
+  title=c.id?'ویرایش محصول':'محصول جدید';const builtIn=c.id&&c.catalog_index<32;
+  body=field('name','نام محصول',c.name,'text','required maxlength="160"')+field('slug','شناسه انگلیسی',c.slug,'text','required dir="ltr"')+select('category','دسته',CATEGORIES.map(id=>[id,categoryLabels[id]]),c.metadata?.category||builtInCategory(c.catalog_index))+select('active','وضعیت محصول',[['true','فعال'],['false','آرشیو']],String(c.active??true))+
+  field('width','عرض، سانتی‌متر',(c.size_m?.[0]||1)*100,'number',`required min="0.5" max="2000" step="0.01" ${builtIn?'readonly':''}`)+field('height','ارتفاع، سانتی‌متر',(c.size_m?.[1]||1)*100,'number',`required min="0.5" max="2000" step="0.01" ${builtIn?'readonly':''}`)+field('depth','عمق، سانتی‌متر',(c.size_m?.[2]||1)*100,'number',`required min="0.5" max="2000" step="0.01" ${builtIn?'readonly':''}`)+
+  (builtIn?'<p class="form-help full">هندسه و ابعاد مدل‌های پایه حفظ می‌شوند. برای هندسه جدید، محصول جداگانه اضافه کن.</p>':'<label class="full">فایل مدل GLB، حداکثر ۳۲ مگابایت<input name="modelFile" type="file" accept=".glb" '+(!c.id?'required':'')+'></label><div id="modelPreview" class="file-preview full" hidden></div>')+
+  '<label class="full">تصویر محصول، حداکثر ۲ مگابایت<input name="imageFile" type="file" accept="image/png,image/jpeg,image/webp"></label>'+`<label class="full">یادداشت محصول<textarea name="notes" maxlength="1000" rows="2">${esc(c.metadata?.notes)}</textarea></label>`;
+ }
+ if(kind==='set'){title=c.id?'ویرایش و انتشار ست':'ست جدید';const selected=new Set(data.set_products.filter(p=>p.set_id===c.id).map(p=>p.product_id));body=companyField(c.company_id)+field('name','نام ست',c.name,'text','required maxlength="160"')+statuses('status',['draft','published','archived'],c.status||'draft')+`<label class="full">توضیحات<textarea name="description" maxlength="1000">${esc(c.description)}</textarea></label><div class="full"><h3>محصولات این ست</h3><p class="form-help">برای انتشار، دست‌کم یک محصول فعال انتخاب کن.</p><div class="product-picker">${data.products.map(p=>`<label><input type="checkbox" name="product_ids" value="${esc(p.id)}" ${selected.has(p.id)?'checked':''}>${esc(p.name)}${p.active?'':' (آرشیو)'}</label>`).join('')}</div></div>`;}
+ if(kind==='access-request'||kind==='layout-request'){title='بررسی درخواست';const access=kind==='access-request';body=`<div class="full"><p>${esc(access?c.company_name+' — '+c.contact_name:c.description)}</p><p>${esc(c.message||'')}</p></div>`+statuses('status',access?['pending','contacted','approved','declined']:['pending','approved','declined','completed'],c.status);}
+ $('#editorTitle').textContent=title;$('#editorBody').innerHTML=standardForm(body);$('#editorStatus').textContent='';$('#editor').showModal();
+ if(kind==='branch'||kind==='subscription'||kind==='set')if(c.id)$('#recordForm [name=company_id]').disabled=true;
+ if(kind==='code'){
+  const role=$('#recordForm [name=role]'),branchSelect=$('#recordForm [name=branch_id]'),companySelect=$('#recordForm [name=company_id]');
+  const change=()=>{branchSelect.innerHTML=data.branches.filter(b=>b.company_id===companySelect.value&&b.status==='active').map(b=>`<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');branchSelect.disabled=role.value!=='branch';branchSelect.required=role.value==='branch';};companySelect.onchange=change;role.onchange=change;change();
+ }
+ $('#recordForm [name=modelFile]')?.addEventListener('change',async e=>{
+  try{const file=e.target.files[0];if(!file)return;validateGlb(await file.arrayBuffer());previewCleanup?.();const module=await import('./central-preview.js');$('#modelPreview').hidden=false;previewCleanup=await module.previewModel($('#modelPreview'),file);$('#editorStatus').textContent='مدل بارگذاری شد؛ ابعاد واقعی محصول را بررسی کن.';$('#editorStatus').classList.add('success');}catch(error){$('#editorStatus').textContent=error.message;$('#editorStatus').classList.remove('success');}
+ });
+}
+async function upload(file,kind){
+ if(!file?.size)return null;
+ if(uploadState[kind]?.file===file)return uploadState[kind].path;
+ if(kind==='models')validateGlb(await file.arrayBuffer());
+ else if(file.size>2*1024*1024||!['image/png','image/jpeg','image/webp'].includes(file.type))throw Error('تصویر باید PNG، JPEG یا WebP و حداکثر ۲ مگابایت باشد.');
+ const ext=kind==='models'?'glb':({'image/png':'png','image/jpeg':'jpg','image/webp':'webp'}[file.type]);
+ const path=kind+'/'+crypto.randomUUID()+'.'+ext;
+ const {error}=await centralAuth.storage.from('chido-assets').upload(path,file,{contentType:kind==='models'?'model/gltf-binary':file.type,cacheControl:'3600',upsert:false});if(error)throw Error('بارگذاری فایل انجام نشد. دوباره تلاش کن.');
+ const uri='storage://chido-assets/'+path;uploadState[kind]={file,path:uri};return uri;
+}
+async function saveForm(event){
+ event.preventDefault();const form=event.target,button=form.querySelector('[type=submit]');button.disabled=true;$('#closeEditor').disabled=true;$('#editorStatus').textContent='در حال ذخیره…';$('#editorStatus').classList.remove('success');
+ try{
+  const fd=new FormData(form),values=Object.fromEntries(fd),c=editing.record||{};let action=editing.kind+'.save',record={...values,id:c.id||null};
+  if(['branch','set','subscription'].includes(editing.kind)&&c.id)record.company_id=c.company_id;
+  if(editing.kind==='code')action='code.issue';
+  if(editing.kind==='product'){record={...record,size_m:[values.width,values.height,values.depth].map(x=>Number(x)/100),active:values.active==='true',asset_path:await upload(fd.get('modelFile'),'models')||c.asset_path||'',thumbnail_path:await upload(fd.get('imageFile'),'images')||c.thumbnail_path||'',metadata:{category:values.category,notes:values.notes}};}
+  if(editing.kind==='set')record.product_ids=fd.getAll('product_ids');
+  if(editing.kind==='access-request')action='access.status';if(editing.kind==='layout-request')action='layout-request.status';
+  record=validateWrite(action,record);const result=await writeCentral(action,record);await load();
+  if(result.code){$('#editorTitle').textContent='کد دسترسی آماده است';$('#editorBody').innerHTML=`<p>کد را برای ${record.role==='branch'?'فعال‌سازی دستگاه شعبه':'ساخت حساب مدیر شرکت'} استفاده کن.</p><div class="code-value" id="issuedCode">${esc(result.code)}</div><p class="notice">این کد فقط همین‌بار نمایش داده می‌شود. اعتبار تا ${date(result.expires_at)} است.</p><div class="form-actions"><button class="secondary" data-close>بستن</button><button class="primary" id="copyCode">کپی کد</button></div>`;$('#editorStatus').textContent='';}
+  else{closeEditor();$('#workspaceStatus').textContent='تغییرات ذخیره شد.';$('#workspaceStatus').classList.add('success');}
+ }catch(error){$('#editorStatus').textContent=error.message;}finally{button.disabled=false;$('#closeEditor').disabled=false;}
+}
+function closeEditor(){previewCleanup?.();previewCleanup=null;$('#editor').close();$('#editorBody').innerHTML='';uploadState={};editing=null;}
+$('#closeEditor').onclick=closeEditor;$('#editor').addEventListener('cancel',event=>{if($('#closeEditor').disabled)event.preventDefault();else{previewCleanup?.();previewCleanup=null;}});
+$('#editor').addEventListener('submit',e=>{if(e.target.id==='recordForm')void saveForm(e);});
+$('#editor').addEventListener('click',async e=>{if(e.target.closest('[data-close]'))closeEditor();if(e.target.id==='copyCode'){try{await navigator.clipboard.writeText($('#issuedCode').textContent);$('#editorStatus').textContent='کد کپی شد.';$('#editorStatus').classList.add('success');}catch{$('#editorStatus').textContent='متن کد را انتخاب و کپی کن.';}}});
+$('#createButton').onclick=()=>openEditor($('#createButton').dataset.kind);
+$('#content').addEventListener('click',async event=>{
+ const b=event.target.closest('[data-action]');if(!b)return;const kind=b.dataset.action,id=b.dataset.id;
+ const maps={'company':'companies','branch':'branches','product':'products','set':'sets','subscription':'subscriptions','access-request':'company_access_requests','layout-request':'layout_requests'};
+ if(kind.startsWith('edit-')){const entity=kind.slice(5);openEditor(entity,find(maps[entity],id));return;}
+ let actionName=kind,values={id};
+ if(kind==='member-status'){actionName='member.status';values.status=find('company_memberships',id).status==='active'?'suspended':'active';}
+ else if(!confirm('این دسترسی یا نمایش را لغو می‌کنی؟'))return;
+ b.disabled=true;try{await writeCentral(actionName,values);await load();$('#workspaceStatus').textContent='تغییر ثبت شد.';$('#workspaceStatus').classList.add('success');}catch(error){$('#workspaceStatus').textContent=error.message;$('#workspaceStatus').classList.remove('success');}finally{b.disabled=false;}
+});
+$('#companyFilter').onchange=e=>{selectedCompany=e.target.value;render();};$('#search').oninput=e=>{search=e.target.value.trim();render();};window.addEventListener('hashchange',render);
+$('#refresh').onclick=()=>{load().catch(error=>{$('#workspaceStatus').textContent=error.message;$('#connectionLabel').textContent='دریافت اطلاعات انجام نشد';});};
+for(const [button,form] of [['loginTab','loginForm'],['inviteTab','bootstrapForm']])$('#'+button).onclick=()=>{for(const id of ['loginTab','inviteTab'])$('#'+id).setAttribute('aria-selected',String(id===button));$('#loginForm').hidden=form!=='loginForm';$('#bootstrapForm').hidden=form!=='bootstrapForm';$('#authStatus').textContent='';};
+for(const selector of ['#loginForm','#bootstrapForm'])$(selector).onsubmit=async event=>{
+ event.preventDefault();const form=event.target,button=event.submitter||form.querySelector('button'),values=Object.fromEntries(new FormData(form));button.disabled=true;$('#authStatus').textContent='در حال ورود…';
+ try{if(form.id==='bootstrapForm')await centralRequest('/bootstrap',values);const {error}=await centralAuth.auth.signInWithPassword({email:values.email.trim(),password:values.password});if(error)throw Error('ایمیل یا رمز عبور درست نیست.');await load();form.reset();}catch(error){$('#authStatus').textContent=error.message;}finally{button.disabled=false;}
+};
+$('#logout').onclick=async()=>{const {error}=await centralAuth.auth.signOut();if(error){$('#workspaceStatus').textContent='خروج انجام نشد. دوباره تلاش کن.';return;}data={};$('#workspace').hidden=true;$('#auth').hidden=false;$('#content').innerHTML='';$('#authStatus').textContent='';};
+async function start(){const {data:{session}}=await centralAuth.auth.getSession();if(session)try{await load();}catch(error){$('#authStatus').textContent=error.message;}}
+void start();

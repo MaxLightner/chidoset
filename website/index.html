@@ -26,7 +26,7 @@
     <nav class="desktop-nav" aria-label="منوی اصلی">
       <a href="#/" data-nav="home">معرفی چیدو</a>
       <a href="#/shop" data-nav="shop">فروشگاه‌ساز</a>
-      <a href="#/dashboard" data-nav="dashboard">پیش‌نمایش پنل</a>
+      <a href="#/dashboard" data-nav="dashboard">مدیریت مرکزی</a>
       <a href="#/terms" data-nav="terms">قوانین</a>
     </nav>
     <div class="header-actions">
@@ -36,7 +36,7 @@
     </div>
   </header>
   <div class="mobile-nav" id="mobile-nav" hidden>
-    <a href="#/">معرفی چیدو</a><a href="#/shop">فروشگاه‌ساز</a><a href="#/dashboard">پنل مدیریت</a><a href="#/terms">قوانین</a>
+    <a href="#/">معرفی چیدو</a><a href="#/shop">فروشگاه‌ساز</a><a href="#/dashboard">مدیریت مرکزی</a><a href="#/terms">قوانین</a>
     <button data-action="login">ورود / ثبت‌نام</button>
   </div>
 
@@ -111,8 +111,8 @@
   </main>
 
   <main id="shop-page" class="page" hidden>
-    <section class="shop-hero"><div class="shop-hero-content"><p class="eyebrow">فروشگاه‌ساز چیدو / نمونه نمایشی</p><h1>فروشگاه شما،<br /><em>به وسعت سلیقه مشتری.</em></h1><p>محصولات، جشنواره‌ها و یک تجربه خرید متفاوت؛ با نمایش سه‌بعدی و واقعیت افزوده در کنار هر محصول.</p><a href="#/dashboard" class="pill-btn primary">مدیریت فروشگاه من <span>↗</span></a></div><div class="shop-hero-art"><img data-sofa-image="1" alt="مبل نوا، نمونه سه‌بعدی" /><span class="shop-art-tag">فروشگاه نمونه / CHIDO</span></div></section>
-    <section class="campaign-panel section-sm"><div class="campaign-symbol">✦</div><div><p class="eyebrow">کمپین‌های هوشمند چیدو</p><h2>از ایده جشنواره تا انتشار محتوا</h2><p>سیستم برای شما پیشنهاد جشنواره آماده می‌کند؛ بعد از تأیید شما، بنر، کاتالوگ دیجیتال و محتوای کانال تلگرام در فرایند انتشار قرار می‌گیرند.</p><span class="small-pill">در نقشه راه توسعه</span></div><a href="#/dashboard" class="outline-pill">پیش‌نمایش پنل <span>↗</span></a></section>
+    <section class="shop-hero"><div class="shop-hero-content"><p class="eyebrow">فروشگاه‌ساز چیدو / نمونه نمایشی</p><h1>فروشگاه شما،<br /><em>به وسعت سلیقه مشتری.</em></h1><p>محصولات، جشنواره‌ها و یک تجربه خرید متفاوت؛ با نمایش سه‌بعدی و واقعیت افزوده در کنار هر محصول.</p><a href="#/demo-dashboard" class="pill-btn primary">مدیریت فروشگاه من <span>↗</span></a></div><div class="shop-hero-art"><img data-sofa-image="1" alt="مبل نوا، نمونه سه‌بعدی" /><span class="shop-art-tag">فروشگاه نمونه / CHIDO</span></div></section>
+    <section class="campaign-panel section-sm"><div class="campaign-symbol">✦</div><div><p class="eyebrow">کمپین‌های هوشمند چیدو</p><h2>از ایده جشنواره تا انتشار محتوا</h2><p>سیستم برای شما پیشنهاد جشنواره آماده می‌کند؛ بعد از تأیید شما، بنر، کاتالوگ دیجیتال و محتوای کانال تلگرام در فرایند انتشار قرار می‌گیرند.</p><span class="small-pill">در نقشه راه توسعه</span></div><a href="#/demo-dashboard" class="outline-pill">پیش‌نمایش پنل <span>↗</span></a></section>
     <section class="shop-products section"><div class="section-head inline-head"><div><p class="eyebrow">مجموعه نمونه</p><h2>انتخاب کنید،<br /><em>از نزدیک ببینید.</em></h2></div><p>کنار هر محصول، نمای سه‌بعدی و امکان مشاهده در محیط واقعی قرار دارد.</p></div><div class="shop-toolbar"><div class="category-tabs" id="shop-categories"><button class="active" data-category="همه">همه محصولات</button><button data-category="راحتی">مبل راحتی</button><button data-category="ال">مبل ال</button></div><label class="search-field"><span>⌕</span><input id="shop-search" type="search" placeholder="جستجوی محصول..." aria-label="جستجوی محصول" /></label></div><div class="products-grid" id="products-grid"></div></section>
     <section class="shop-bottom-banner"><div><h2>فروشگاه خودتان را بسازید.</h2><p>دسته‌بندی، ترتیب محصولات، موجودی و رنگ‌ها را از پنل چیدو کنترل کنید.</p></div><a href="#/signup" class="pill-btn primary">ساخت فروشگاه رایگان <span>↗</span></a></section>
   </main>
@@ -128,13 +128,13 @@
 
   <main id="legal-page" class="page legal-page" hidden><section class="legal-wrap"><a href="#/" class="back-link">→ بازگشت به سایت</a><p class="eyebrow">شفافیت، از ابتدا</p><h1 id="legal-title">قوانین استفاده</h1><div class="legal-content" id="legal-content"></div><div class="legal-alert">این متن، پیش‌نویس ساختار حقوقی محصول است و پیش از عرضه عمومی باید با اطلاعات شرکت و شرایط واقعی خدمات نهایی شود.</div></section></main>
 
-  <footer class="site-footer"><div class="footer-main"><div class="footer-brand"><span class="brand-icon"><span></span><span></span><span></span></span><strong>چیدو</strong><p>تجربه تازه انتخاب، چیدمان و فروش مبلمان.</p></div><div><strong>کاوش</strong><a href="#/">معرفی چیدو</a><a href="#/shop">فروشگاه نمونه</a><a href="#/dashboard">پنل مدیریت</a></div><div><strong>همراه شما</strong><a href="#/signup">ثبت‌نام اولیه</a><a href="#/terms">قوانین استفاده</a><a href="#/privacy">حریم خصوصی</a></div><div class="footer-contact"><strong>با ما در ارتباط باشید</strong><span>شماره رسمی پس از تأیید</span><a href="#/signup" class="text-link">درخواست مشاوره ←</a></div></div><div class="footer-bottom"><span>© ۲۰۲۶ چیدو. تمام حقوق محفوظ است.</span><span>طراحی برای خانه‌هایی که هنوز نچیده‌ایم.</span><span>CHIDOSET.IR</span></div></footer>
+  <footer class="site-footer"><div class="footer-main"><div class="footer-brand"><span class="brand-icon"><span></span><span></span><span></span></span><strong>چیدو</strong><p>تجربه تازه انتخاب، چیدمان و فروش مبلمان.</p></div><div><strong>کاوش</strong><a href="#/">معرفی چیدو</a><a href="#/shop">فروشگاه نمونه</a><a href="#/dashboard">مدیریت مرکزی</a></div><div><strong>همراه شما</strong><a href="#/signup">ثبت‌نام اولیه</a><a href="#/terms">قوانین استفاده</a><a href="#/privacy">حریم خصوصی</a></div><div class="footer-contact"><strong>با ما در ارتباط باشید</strong><span>شماره رسمی پس از تأیید</span><a href="#/signup" class="text-link">درخواست مشاوره ←</a></div></div><div class="footer-bottom"><span>© ۲۰۲۶ چیدو. تمام حقوق محفوظ است.</span><span>طراحی برای خانه‌هایی که هنوز نچیده‌ایم.</span><span>CHIDOSET.IR</span></div></footer>
 
   <div class="modal-backdrop" id="modal-backdrop" hidden><section class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button class="modal-close" id="modal-close" aria-label="بستن">×</button><div id="modal-content"></div></section></div>
 
   <div class="ar-shell" id="ar-shell" hidden><div class="ar-header"><button id="ar-exit">× خروج</button><strong>نمایش در محیط واقعی</strong><span>چیدو AR</span></div><div class="ar-message" id="ar-message">برای شناسایی کف آماده شوید.</div><div class="ar-controls"><button id="ar-rotate-left">↶ چرخش</button><div id="ar-colors" class="ar-colors"></div><button id="ar-rotate-right">چرخش ↷</button><button id="ar-reset">جابه‌جایی دوباره</button></div></div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js?v=0.11.0"></script>
 </body>
 </html>

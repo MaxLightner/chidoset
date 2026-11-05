@@ -23,7 +23,7 @@ export function unpackProject(json){
  const x=data.project;
  if(!x||typeof x!=='object'||!Array.isArray(x.scene?.items)||x.scene.items.length>64||!x.scene.spatial||typeof x.scene.spatial!=='object')throw Error('اطلاعات چیدمان ناقص است.');
  for(const item of x.scene.items){
-  if(!Number.isInteger(item.index)||item.index<0||item.index>21||!Array.isArray(item.position)||item.position.length!==3||!item.position.every(Number.isFinite))throw Error('موقعیت یک آبجکت نامعتبر است.');
+  if(!Number.isInteger(item.index)||item.index<0||item.index>99||!Array.isArray(item.position)||item.position.length!==3||!item.position.every(Number.isFinite))throw Error('موقعیت یک آبجکت نامعتبر است.');
   if(!Number.isFinite(item.rotation))throw Error('چرخش یک آبجکت نامعتبر است.');
  }
  return {name:String(x.name||'چیدمان واردشده').slice(0,70),scene:x.scene,room:x.room||'پذیرایی',layout:x.layout||'conversation',capacity:x.capacity||5,style:x.style||'مینیمال',theme:Number.isInteger(x.theme)?x.theme:0};

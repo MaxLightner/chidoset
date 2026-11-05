@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#184e45"><title>مرکز مدیریت چیدو</title><link rel="stylesheet" href="central.css?v=1"></head>
+<body>
+<a class="skip" href="#main">رفتن به محتوای اصلی</a>
+<section id="auth" class="auth-shell">
+ <div class="auth-story"><a class="wordmark" href="website/">CHIDO<span>مرکز مدیریت</span></a><div><span class="small-label">پشت صحنه یک نمایشگاه</span><h1>از یک محصول،<br>تا تمام شعبه‌ها.</h1><p>شرکت‌ها، کتابخانه و دسترسی‌ها را اینجا آماده کن؛ تجربه چیدمان در نمایشگاه ادامه پیدا می‌کند.</p><div class="story-route"><span>کتابخانه</span><i></i><span>شرکت</span><i></i><span>شعبه</span></div></div><a href="portal.html">ورود مدیر شرکت</a></div>
+ <div class="auth-form-wrap"><div class="auth-tabs" role="tablist" aria-label="نوع ورود"><button id="loginTab" role="tab" aria-selected="true" aria-controls="loginForm">ورود مدیر مرکزی</button><button id="inviteTab" role="tab" aria-selected="false" aria-controls="bootstrapForm">فعال‌سازی با دعوت</button></div>
+ <form id="loginForm"><h2>به مرکز چیدو برگرد.</h2><p>با حساب مدیریت مرکزی وارد شو.</p><label>ایمیل<input name="email" type="email" autocomplete="username" required dir="ltr"></label><label>رمز عبور<input name="password" type="password" autocomplete="current-password" required dir="ltr"></label><button class="primary" type="submit">ورود به مرکز مدیریت</button></form>
+ <form id="bootstrapForm" hidden><h2>حساب مدیریتت را بساز.</h2><p>دعوت اختصاصی مدیریت مرکزی را وارد کن.</p><label>کد دعوت<input name="code" autocomplete="one-time-code" required dir="ltr"></label><label>ایمیل<input name="email" type="email" autocomplete="email" required dir="ltr"></label><label>رمز عبور، حداقل ۱۲ کاراکتر<input name="password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required dir="ltr"></label><button class="primary" type="submit">فعال‌سازی مدیریت مرکزی</button></form>
+ <p id="authStatus" class="message" role="status" aria-live="polite"></p><a class="muted-link" href="website/">بازگشت به سایت چیدو</a></div>
+</section>
+<div id="workspace" class="workspace" hidden>
+ <aside class="sidebar"><a class="wordmark" href="central.html">CHIDO<span>مرکز مدیریت</span></a><p class="sidebar-label">فضای کار</p><nav id="navigation" aria-label="بخش‌های مدیریت"></nav><div class="sidebar-footer"><a href="website/">مشاهده سایت</a><a href="portal.html">پنل شرکت‌ها</a><button id="logout">خروج از حساب</button></div></aside>
+ <div class="work-area"><header class="topbar"><div><span class="connection-dot"></span><span id="connectionLabel">در حال اتصال…</span></div><span id="adminEmail" dir="ltr"></span><button id="refresh" class="quiet">به‌روزرسانی</button></header>
+ <main id="main" tabindex="-1"><div class="page-heading"><div><p class="small-label" id="pageCaption">مرکز چیدو</p><h1 id="pageTitle">نمای کلی</h1></div><button id="createButton" class="primary" hidden></button></div>
+ <div class="filters"><label>شرکت<select id="companyFilter"><option value="">همه شرکت‌ها</option></select></label><label class="search">جست‌وجو<input id="search" type="search" placeholder="نام، شناسه یا وضعیت…"></label></div>
+ <p id="workspaceStatus" class="message" role="status" aria-live="polite"></p><div id="content" aria-busy="false"></div>
+ </main><footer class="work-footer"><span>CHIDO · مدیریت یکپارچه نمایشگاه</span><span id="updatedAt"></span></footer></div>
+</div>
+<dialog id="editor" aria-labelledby="editorTitle"><div class="dialog-header"><div><p class="small-label">مرکز مدیریت چیدو</p><h2 id="editorTitle"></h2></div><button id="closeEditor" class="icon-button" aria-label="بستن پنجره">×</button></div><div id="editorBody"></div><p id="editorStatus" class="message" role="status" aria-live="polite"></p></dialog>
+<script type="module" src="central.js?v=1"></script>
+</body></html>
