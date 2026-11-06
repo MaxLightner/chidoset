@@ -87,3 +87,12 @@
 .portal-analytics-preview svg{display:block;width:100%;height:auto;margin:12px 0 2px}
 .portal-chart-legend{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:10px;color:var(--chido-muted)}
 .portal-chart-legend span:first-child{display:flex;align-items:center;gap:7px}.portal-chart-legend i{width:9px;height:9px;border-radius:50%;background:var(--chido-green);display:inline-block}
+
+/* A single discreet login sits over the existing Chido entry scene. */
+.chido-entry{position:relative;min-height:calc(100svh - 80px);isolation:isolate;background:#e8dfd3 url('assets/welcome.png') center 58%/auto 88% no-repeat;overflow:hidden}
+.entry-wordmark{position:absolute;top:7%;right:8%;font-size:clamp(30px,5vw,64px);font-weight:800;letter-spacing:.16em;color:#343e35}.entry-wordmark span{display:block;font-size:14px;letter-spacing:0;font-weight:400;margin-top:8px}
+.entry-login{position:absolute;bottom:32px;left:32px;width:268px;padding:20px 22px;background:rgba(255,255,252,.94);border:1px solid #fff;border-radius:14px;box-shadow:0 8px 28px #353b3010;display:grid;gap:6px;text-align:right}
+.entry-login h1{font-size:19px;margin:0 0 9px;letter-spacing:0}.entry-login label{font-size:12px;color:#5b645b}.entry-login input{box-sizing:border-box;width:100%;height:42px;padding:8px 11px;border:1px solid #d9ddd6;border-radius:8px;font:inherit;background:#fff;color:#26372e;min-width:0}.entry-login input:focus-visible{outline:2px solid #536b57;outline-offset:2px}.entry-login .primary{min-height:42px;padding:8px;margin-top:7px;border-radius:8px}.entry-login #accessMessage{font-size:12px;color:#a34e3e;margin:0;line-height:1.7}.entry-login #accessMessage:empty{display:none}
+@media(max-width:600px){.chido-entry{min-height:calc(100svh - 64px);background-position:center 25%;background-size:auto 65%}.entry-wordmark{top:5%;right:7%;font-size:33px}.entry-login{bottom:18px;left:18px;width:244px;padding:17px 19px}.entry-login h1{font-size:18px}}
+@media(orientation:landscape) and (max-height:550px){.chido-entry{min-height:calc(100svh - 55px);background-position:68% center;background-size:auto 95%}.entry-wordmark{right:6%;top:6%;font-size:28px}.entry-login{bottom:12px;left:16px;padding:12px 17px;width:248px;gap:4px}.entry-login h1{margin-bottom:3px}.entry-login input{height:36px}.entry-login .primary{min-height:36px}}
+.entry-login label,.entry-login input{margin:0}.entry-login label{line-height:1.5}.entry-login h1{line-height:1.6}

@@ -14,3 +14,6 @@ verify_jwt = true
 
 [functions.chido-metrics]
 verify_jwt = false
+
+[functions.chido-login]
+verify_jwt = false
