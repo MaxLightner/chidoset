@@ -7,4 +7,6 @@
 - Regular XR end now reconstructs the launch screen from scene memory without refetching the catalog. Home exit retains its own route. Both XR session and renderer end signals are handled. Late start completion cannot modify a replaced renderer.
 - Generated static images: five images reduced from 5,454,052 to 466,876 bytes (91.4%). Two PNG originals replaced by WebP. New gallery/company photos are normalized to WebP with a 1920px maximum side; prior saved photos remain readable.
 
-Validation: syntax checks, 157 unit/integrity checks, and `qa/navigation-session.mjs` using live demo accounts supplied through hidden stdin. Browser QA uses a simulated XR end signal with the real renderer and app cleanup. Physical tablet/ARCore session behavior still needs device testing.
+Validation: syntax checks, 159 unit/integrity checks, and `qa/navigation-session.mjs` using live demo accounts supplied through hidden stdin. Browser QA uses a simulated XR end signal with the real renderer and app cleanup. Physical tablet/ARCore session behavior still needs device testing.
+
+The website sample AR also closes its overlay and renderer on browser-driven end, including hidden sessions. Lifecycle tests cover repeated and missing end signals. Website login links and mobile navigation work independently of the 3D module.

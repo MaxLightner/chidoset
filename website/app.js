@@ -1,5 +1,5 @@
 import { CHIDO_CONFIG, SAMPLE_PRODUCTS } from './config.js?v=0.12.2';
-import { mountHero, createProductImages, mountViewer, startAR } from './scene.js';
+import { mountHero, createProductImages, mountViewer, startAR } from './scene.js?v=0.12.5';
 
 const $ = selector => document.querySelector(selector);
 document.querySelector('[data-open-app]')?.setAttribute('href', CHIDO_CONFIG.applicationUrl);
@@ -356,7 +356,7 @@ async function showAR(id) {
   const shell = $('#ar-shell'); shell.hidden = false; arProduct = p;
   $('#ar-message').textContent = 'دوربین را به سمت کف بگیرید.';
   $('#ar-colors').innerHTML = p.colors.map(c=>`<button style="background:${c}" data-color="${c}" aria-label="انتخاب رنگ"></button>`).join('');
-  arController = await startAR(shell, p.variant, p.color, text => { $('#ar-message').textContent = text; });
+  arController = await startAR(shell, p.variant, p.color, text => { $('#ar-message').textContent = text; },()=>{arController=null;shell.hidden=true;});
   if (!arController) { shell.hidden = true; openViewer(id); toast('AR روی این دستگاه در دسترس نبود؛ نمای سه‌بعدی باز شد.'); }
 }
 $('#ar-exit').addEventListener('click', async()=>{ await arController?.stop(); arController=null; $('#ar-shell').hidden=true; });

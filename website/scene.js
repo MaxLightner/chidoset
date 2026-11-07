@@ -1,3 +1,4 @@
+import {createARLifecycle} from './ar-lifecycle.js';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from './vendor/RoundedBoxGeometry.js';
 
@@ -309,7 +310,7 @@ export function mountViewer(container, variant = 0, color) {
   return { setColor: hex => tintSofa(model, hex), dispose: viewerDispose };
 }
 
-export async function startAR(container, variant, color, onStatus) {
+export async function startAR(container, variant, color, onStatus, onEnd) {
   if (!navigator.xr || !(await navigator.xr.isSessionSupported('immersive-ar'))) {
     onStatus('واقعیت افزوده در این مرورگر یا دستگاه پشتیبانی نمی‌شود؛ نمای سه‌بعدی همچنان در دسترس است.');
     return null;
@@ -333,12 +334,16 @@ export async function startAR(container, variant, color, onStatus) {
   scene.add(reticle);
   const camera = new THREE.PerspectiveCamera();
   let session, hitTestSource, referenceSpace;
+  const lifecycle=createARLifecycle(()=>{renderer.setAnimationLoop(null);try{hitTestSource?.cancel();}catch{}renderer.dispose();canvas.remove();container.hidden=true;onEnd?.();});
   try {
     session = await navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['hit-test'], optionalFeatures: ['dom-overlay'], domOverlay: { root: container } });
-    await renderer.xr.setSession(session);
+    lifecycle.attach(session);
+    await renderer.xr.setSession(session);if(lifecycle.ended)return null;
     const viewerSpace = await session.requestReferenceSpace('viewer');
+    if(lifecycle.ended)return null;
     hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
-    referenceSpace = await session.requestReferenceSpace('local');
+    if(lifecycle.ended){try{hitTestSource.cancel();}catch{}return null;}
+    referenceSpace = await session.requestReferenceSpace('local');if(lifecycle.ended)return null;
     onStatus('دوربین را به سمت کف بگیرید؛ برای قرار دادن مبل روی تصویر لمس کنید.');
     session.addEventListener('select', () => {
       if (!reticle.visible) return;
@@ -362,11 +367,11 @@ export async function startAR(container, variant, color, onStatus) {
       rotate: radians => { model.group.rotation.y += radians; },
       move: (x, z) => { model.group.position.x += x; model.group.position.z += z; },
       reset: () => { model.group.visible = false; },
-      stop: async () => { renderer.setAnimationLoop(null); hitTestSource?.cancel(); if (session && session.visibilityState !== 'hidden') await session.end().catch(() => {}); renderer.dispose(); canvas.remove(); },
+      stop: () => lifecycle.stop(),
     };
   } catch (error) {
     onStatus('اجازه دوربین یا اسکن کف صادر نشد: ' + (error?.message || 'خطای ناشناخته'));
-    renderer.dispose(); canvas.remove();
+    await lifecycle.stop().catch(()=>{});
     return null;
   }
 }
