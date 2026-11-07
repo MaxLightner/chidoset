@@ -308,8 +308,6 @@ function route() {
 }
 
 document.addEventListener('click', async event => {
-  const navToggle = event.target.closest('#menu-toggle');
-  if (navToggle) { const opened = $('#mobile-nav').hidden; $('#mobile-nav').hidden = !opened; navToggle.setAttribute('aria-expanded', String(opened)); return; }
   const close = event.target.closest('#modal-close');
   if (close || event.target === $('#modal-backdrop')) { closeModal(); return; }
   const categoryButton = event.target.closest('[data-category]');
