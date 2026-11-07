@@ -6,6 +6,7 @@ import {createDecor} from './decor.js?v=0.5.4';
 import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.13.0';
 import {applyRugStyle} from './rug-textures.js?v=0.5.4';
 import {MeasureTool} from './measure-tool.js?v=0.5.4';
+import {endXRSession} from './xr-end.js';
 import {requestARSession,xrError} from './xr.js?v=0.5.4';
 import {WideViewRenderer,WIDE_VIEW_FOV} from './wide-view.js?v=0.7.1';
 import {SpatialState,CATALOG,pairAngle,wrappedAngle} from './spatial.js?v=0.8.0';
@@ -622,7 +623,7 @@ safeObjectMotion(mesh,desired){
   try{await this.renderer.xr.setSession(session);this.cameraBinding=null;
     if(session.enabledFeatures?.includes('camera-access')&&globalThis.XRWebGLBinding){try{this.cameraBinding=new XRWebGLBinding(session,this.renderer.getContext());}catch(error){console.warn('Camera binding unavailable',error?.name||error);}}
     stage='hit-test';await this.beginScan();this.hasOverlay=!!session.domOverlayState;this.effects.start(session,options);session.addEventListener('select',e=>{if(this.hasOverlay||!this.tracking||this.photoMode)return;if(!this.placed&&this.scanner.ready)this.confirmFloor();else this.selectAR(e);});return {hasOverlay:this.hasOverlay};}
-  catch(error){try{await session.end();}catch{}throw xrError(error,stage);}
+  catch(error){try{await endXRSession(session);}catch{}throw xrError(error,stage);}
  }
  async beginScan(){const session=this.session;if(!session)return;if(this.wideMode!=='ar'){this.setWideView('ar');this.onWideViewReset?.();}this.whiteFloor.visible=false;this.dropAnchor();const generation=this.anchorGeneration;this.hitSource?.cancel();this.hitSource=null;for(const s of this.extraHitSources)try{s.cancel();}catch{}this.extraHitSources=[];this.revealStart=null;this.scanMarkers.visible=true;this.floorNet.material.uniforms.reveal.value=.65;this.floorNet.material.uniforms.pulse.value=1;this.scanCrosses.forEach(m=>m.visible=false);this.model.locked=false;if(this.measureTool)this.measureTool.group.visible=false;this.scanner.reset();this.root.visible=false;this.ruler.visible=false;this.floorNet.visible=false;this.floorNet.material.uniforms.opacity.value=.85;this.cancelGesture();this.status('کف را پیدا کن؛ سطح پایین‌تر معمولاً کف است. سپس «تثبیت کف» را بزن.');const viewer=await session.requestReferenceSpace('viewer');const source=await session.requestHitTestSource({space:viewer,entityTypes:['plane']});if(this.session!==session||this.anchorGeneration!==generation){source.cancel();return;}this.hitSource=source;
   // Request auxiliary directions around the center; unsupported devices retain the central reticle.
