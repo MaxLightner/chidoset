@@ -41,12 +41,15 @@ export function configureSofaTexture(texture,file,repeat=4){
 function loadFabric(file,repeat=4){
  const key=file+':'+repeat;
  if(!fabricCache.has(key)){
-  const texture=textureLoader.load(new URL('./assets/chido/'+file+'?v=0.6.0',import.meta.url).href);
+  let resolve,reject;const ready=new Promise((ok,fail)=>{resolve=ok;reject=fail;});ready.catch(()=>{});
+  const texture=textureLoader.load(new URL('./assets/chido/'+file+'?v=0.13.0',import.meta.url).href,resolve,undefined,error=>{fabricCache.delete(key);reject(error);});
+  texture.userData.ready=ready;
   configureSofaTexture(texture,file,repeat);
   fabricCache.set(key,texture);
  }
  return fabricCache.get(key);
 }
+export function preloadSofaTextures(index,id='dark'){if(!SOFA_AO[index])return Promise.resolve();const fabric=SOFA_FABRICS.find(f=>f.id===id)||SOFA_FABRICS[0];return Promise.all([loadFabric(fabric.file).userData.ready,loadFabric(SOFA_AO[index],1).userData.ready]);}
 export function applySofaFabric(model,id='dark',index=22){
  const fabric=SOFA_FABRICS.find(x=>x.id===id)||SOFA_FABRICS[0];
  model.userData.fabric=fabric.id;
@@ -132,7 +135,7 @@ function addLampLight(model,index,size){
   });
  }
 }
-export function createImportedModel(index,size){
+export function createImportedModel(index,size,fabric='dark'){
  const uploaded=getCloudProduct(index);
  const spec=uploaded?{file:uploaded.asset_url,yaw:0,kind:'uploaded'}:IMPORTED_MODELS[index];
  if(!spec)throw Error('Unknown GLB catalog index '+index);
@@ -146,7 +149,7 @@ export function createImportedModel(index,size){
  proxy.userData.imported=true;
  proxy.userData.collisionProxy=proxy;
  proxy.userData.assetSource=spec.file;
- proxy.userData.loadPromise=source(spec.file).then(gltf=>{
+ proxy.userData.loadPromise=Promise.all([source(spec.file),SOFA_AO[index]?preloadSofaTextures(index,fabric):null]).then(([gltf])=>{
   if(proxy.userData.disposed)return;
   const visual=gltf.scene.clone(true);
   configureMeshes(visual,index);
@@ -176,7 +179,7 @@ export function createImportedModel(index,size){
  }).catch(error=>{
   if(proxy.userData.disposed)return;
   proxy.userData.loadError=String(error?.message||error);
-  proxy.material.opacity=.2;
+  proxy.material.opacity=0;
   proxy.material.color.set('#cf654b');
   proxy.userData.onModelError?.(error);
  });

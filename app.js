@@ -1,4 +1,5 @@
 import {rememberAccount,accountName} from './auth-storage.js';
+import {readRecovery,saveRecovery,clearRecovery,filterPublishedScene} from './app-recovery.js';
 import {accountLogin} from './account-login.js';
 import {explainXR,requestARSession} from './xr.js?v=0.5.4';
 import {photos,savePhoto,removePhoto} from './storage.js?v=0.12.2';
@@ -11,11 +12,11 @@ import {savedPlanSvg} from './saved-plan.js?v=0.8.0';
 import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-materials.js';
 import {LiveMiniMap} from './minimap.js?v=0.5.4';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
-import {SOFA_FABRICS} from './imported-models.js?v=0.12.0';
+import {SOFA_FABRICS} from './imported-models.js?v=0.13.0';
 import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList} from './cloud-product-registry.js';
 import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,saveOfficialLayout,saveOfficialColorway,createLiveSession,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.12.2';
 const $=s=>document.querySelector(s),app=$('#app'),fa=n=>n.toLocaleString('fa-IR');
-let studio,Scene,palette,space='پذیرایی',layout='conversation',supported=false,routeVersion=0,photoURLs=[],savedItems=[],arReport=null,sceneMemory=null,arStarting=false,lastXRErrorReport='',activeSavedLayoutId=null;
+let studio,Scene,palette,space='پذیرایی',layout='empty',supported=false,routeVersion=0,photoURLs=[],savedItems=[],arReport=null,sceneMemory=null,arStarting=false,lastXRErrorReport='',activeSavedLayoutId=null;
 const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio);
 let chidoMenuOpen=false;
 let pendingARSession=null,calibrationPrompted=false;
@@ -92,16 +93,15 @@ function heading(step,title,sub,back){return `<div class="page-heading"><div><sp
 async function full(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(!document.documentElement.requestFullscreen){toast('مرورگر شما تمام‌صفحه را پشتیبانی نمی‌کند.');return;}try{await document.documentElement.requestFullscreen();}catch{toast('ورود به تمام‌صفحه ممکن نشد؛ می‌توانی ادامه بدهی.');}}
 $('#fullscreen').onclick=full;document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'خروج از تمام‌صفحه ↙':'تمام‌صفحه ⛶');
 async function support(){try{supported=!!(isSecureContext&&navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar'));}catch{supported=false;}return supported;}
-async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.12.2');Scene=m.Studio;palette=m.palette;}}
+async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.13.0');Scene=m.Studio;palette=m.palette;}}
 let draftTimer=null;
 function currentSceneRecord(){
  if(!studio)return null;
- return {scene:studio.exportState(),room:space,layout,capacity:peopleCount,style:styleChoice,theme:themeIndex};
+ return {scene:studio.exportState(),setId:activeCloudSetId,room:space,layout,capacity:peopleCount,style:styleChoice,theme:themeIndex};
 }
 function persistDraft(){
  if(!studio)return;
- if(cloudMembership?.role==='branch'){clearDraft();return;}
- try{saveDraft(currentSceneRecord());}catch(error){console.warn('Draft save unavailable',error);}
+ try{saveRecovery(cloudMembership,currentSceneRecord());}catch(error){console.warn('Draft save unavailable',error);}
 }
 function scheduleDraftSave(){
  clearTimeout(draftTimer);
@@ -109,8 +109,8 @@ function scheduleDraftSave(){
 }
 function loadSceneRecord(record){
  if(!record?.scene)return;
- activeSavedLayoutId=record.id||null;
- sceneMemory=record.scene;space=record.room||'پذیرایی';layout=record.layout||'conversation';
+ activeSavedLayoutId=record.id||null;if(record.setId)activeCloudSetId=record.setId;
+ sceneMemory=record.scene;space=record.room||'پذیرایی';layout=record.layout||'empty';
  peopleCount=Number(record.capacity)||5;styleChoice=record.style||'مینیمال';themeIndex=record.theme||0;
 }
 window.addEventListener('pagehide',()=>{persistDraft();if(activeLiveSession)void stopLiveSession(activeLiveSession.id);});
@@ -128,7 +128,7 @@ function uploadControl(){return `<label class="upload">بارگذاری تصوی
 async function uploadFiles(e){const files=[...e.target.files];if(files.length>20){toast('هر بار حداکثر ۲۰ تصویر بارگذاری کن.');return;}let count=0;for(const f of files){if(!['image/png','image/jpeg','image/webp'].includes(f.type)||f.size>15*1024*1024){toast('فقط PNG، JPEG و WebP تا ۱۵ مگابایت پذیرفته می‌شود.');continue;}try{const img=await createImageBitmap(f);img.close();await savePhoto(f,'تصویر بارگذاری‌شده');count++;}catch{toast('تصویر خوانده یا ذخیره نشد؛ فضای مرورگر را بررسی کن.');}}if(count){toast(`${fa(count)} تصویر به گالری اضافه شد.`);await render();}e.target.value='';}
 function openLayoutForScanning(kind,record=null){
  if(record)loadSceneRecord(record);
- else{layout=kind;sceneMemory=null;activeSavedLayoutId=null;clearDraft();}
+ else{layout=kind;sceneMemory=null;activeSavedLayoutId=null;clearDraft();clearRecovery(cloudMembership);}
  previewEnabled=false;
  // Start immersive permission request inside the original click event.
  // Awaiting route rendering before this call loses the browser's user activation.
@@ -147,7 +147,7 @@ function updateAccountHeader(){
  $('#companyLink').hidden=member?.role!=='company_admin';
  document.body.dataset.signedIn=String(!!member);
 }
-$('#appSignOut').onclick=async()=>{if(studio?.session)return;const {error}=await supabase.auth.signOut();if(error){toast('خروج انجام نشد. دوباره تلاش کن.');return;}cloudMembership=null;membershipCheckedAt=0;appSessionLogged=false;sceneMemory=null;clearDraft();location.hash='welcome';void render();};
+$('#appSignOut').onclick=async()=>{if(studio?.session)return;const {error}=await supabase.auth.signOut();if(error){toast('خروج انجام نشد. دوباره تلاش کن.');return;}clearRecovery(cloudMembership);cloudMembership=null;membershipCheckedAt=0;appSessionLogged=false;sceneMemory=null;clearDraft();location.hash='welcome';void render();};
 async function render({reuseCatalog=false}={}){const version=++routeVersion;let route=location.hash.slice(1)||'welcome';
  if(studio?.session){if(location.hash!=='#studio')history.replaceState(null,'',location.pathname+location.search+'#studio');return;}
  if(route==='access'){route='welcome';history.replaceState(null,'',location.pathname+location.search+'#welcome');}
@@ -178,10 +178,10 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
    $('#accountLoginForm').onsubmit=async event=>{event.preventDefault();const button=event.submitter,message=$('#accessMessage');button.disabled=true;message.textContent='در حال ورود…';try{const username=$('#accountUsername').value,result=await accountLogin(username,$('#accountPassword').value);if(result.role==='central')throw Error('حساب مدیر مرکزی از «ورود به سایت» وارد می‌شود.');rememberAccount('chido-auth-v1',$('#appRemember').checked,username);const {error}=await supabase.auth.setSession(result.session);if(error)throw error;cloudMembership=await getMembership();if(!cloudMembership)throw Error('دسترسی مجموعه فعال نیست.');membershipCheckedAt=Date.now();await updateDeviceHeartbeat(cloudMembership);await render();}catch(error){if(message.isConnected)message.textContent=error.message||'ورود انجام نشد.';}finally{button.disabled=false;}};
   }else{
    $('#welcome').onclick=()=>{location.hash='spaces';};
-   const draft=cloudMembership?.role==='branch'?null:readDraft();
+   const draft=readRecovery(cloudMembership);
    $('#quickAR').hidden=!draft;
    $('#quickAR').onclick=()=>{loadSceneRecord(draft);location.hash='studio';};
-   $('#startEmpty').onclick=()=>{layout='empty';sceneMemory=null;activeSavedLayoutId=null;previewEnabled=false;clearDraft();location.hash='studio';};
+   $('#startEmpty').onclick=()=>{layout='empty';sceneMemory=null;activeSavedLayoutId=null;previewEnabled=false;clearDraft();clearRecovery(cloudMembership);location.hash='studio';};
   }
   return;
  }
@@ -226,7 +226,7 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
   return;
  }
  if(route==='layouts'){history.replaceState(null,'',location.pathname+location.search+'#spaces');return render();}
- if(route==='detail'){app.innerHTML=`<section class="page detail-page"><a class="back" href="#spaces">بازگشت ←</a><img class="detail-photo" src="assets/living.webp" alt="چیدمان مبلمان کرم در فضای نشیمن"><div class="dots"><i></i><i></i><i></i></div><h1>${layout==='social'?'چیدمان صمیمی':layout==='light'?'چیدمان سبک و روشن':'چیدمان کلاسیک ۱'}</h1><p>یک ایده برای ${space}؛ با ترکیبی از حجم‌های متنوع و رنگ‌های طبیعی.</p><p class="prototype-note">در محیط آزمایشی مبلمان کم‌پلیگان با ابعاد واقعی جایگزین مدل مبلمان می‌شوند.</p><button id="continueLayout" class="primary">ادامهٔ چیدمان و ویرایش <span>→</span></button></section>`;$('#continueLayout').onclick=()=>location.hash='studio';return;}
+ if(route==='detail'){app.innerHTML=`<section class="page detail-page"><a class="back" href="#spaces">بازگشت ←</a><img class="detail-photo" src="assets/living.webp" alt="چیدمان مبلمان کرم در فضای نشیمن"><div class="dots"><i></i><i></i><i></i></div><h1>${layout==='social'?'چیدمان صمیمی':layout==='light'?'چیدمان سبک و روشن':'چیدمان کلاسیک ۱'}</h1><p>یک ایده برای ${space}؛ با ترکیبی از حجم‌های متنوع و رنگ‌های طبیعی.</p><p class="prototype-note">در پیش‌نمایش، مدل‌های منتشرشدهٔ مجموعه بارگذاری می‌شوند.</p><button id="continueLayout" class="primary">ادامهٔ چیدمان و ویرایش <span>→</span></button></section>`;$('#continueLayout').onclick=()=>location.hash='studio';return;}
  if(route==='entry'){app.innerHTML=`<section class="page">${heading('۰۳ / ورود به تجربه','حالا در خانه‌ات ببین.','چند قدم تا امتحان کردن چیدمان فاصله داری.','layouts')}<div class="entry"><div><h2>فضای واقعی، انتخاب تازه</h2><p>در محیطی روشن، گوشی را آرام به سمت کف بگیر. پس از نمایش کف پیشنهادی، «تثبیت این کف» را بزن و خط A–B را روی یک طول معلوم بگذار.</p><div id="support" class="notice">در حال بررسی سازگاری مرورگر…</div><div class="entry-actions"><button id="enterAR" class="primary" disabled>ورود به AR ↗</button><button id="preview">محیط آزمایشی</button></div><p>نیازمند Android Chrome، گوشی سازگار با ARCore، اتصال امن و اجازهٔ دسترسی به دوربین. ورود به AR فقط با لمس دکمه انجام می‌شود.</p></div><div class="entry-illustration">${svg('phone')}</div></div><div class="notice">در مرورگرهای سازگار، کپچر داخلی چیدو تصویر دوربین واقعی و مدل‌های سه‌بعدی را مستقیماً در گالری ثبت می‌کند.</div></section>${footer()}`;$('#preview').onclick=()=>location.hash='studio';await support();if(version!==routeVersion)return;$('#support').textContent=supported?'AR در این مرورگر در دسترس است. مجوزها و ردیابی هنگام شروع بررسی می‌شوند.':'AR در این دستگاه یا مرورگر در دسترس نیست. محیط آزمایشی را باز کن، یا با Chrome روی Android سازگار امتحان کن.';$('#enterAR').disabled=!supported;$('#enterAR').onclick=()=>{location.hash='studio';toast('محیط آماده می‌شود؛ سپس «شروع AR» را بزن.');};return;}
  if(route==='studio'){app.innerHTML=`<section class="ar-launch">
  <div id="viewport" class="viewport ar-launch-stage"><div class="launch-placeholder onboarding"><div class="launch-mark">CHIDO · AR</div><div class="launch-plan">${layout==='empty'?'<span class="blank-layout-placeholder">＋ صحنه خالی</span>':planSketch(layout)}</div><h2>${layout==='empty'?'صحنه خالی برای چیدمان جدید':'سه حرکت تا دیدن چیدمان'}</h2>
@@ -243,16 +243,25 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
   $('#launchProgress').value=1;$('#launchStage').textContent='موتور سه‌بعدی آماده شد؛ در حال ساخت ابزارها…';
   studio=new Scene($('#viewport'),updateObjects);
   $('#launchProgress').value=2;$('#launchStage').textContent='ابزارها و صحنه آماده‌اند؛ در انتظار دوربین و نشست AR…';
-  if(sceneMemory)studio.restoreState(sceneMemory);else{studio.seed(layout,space,peopleCount);const colors=themes[themeIndex].colors;studio.items.forEach((m,i)=>{if(m.userData.index!==7)m.material.color.set(colors[i%colors.length]);});}
+  if(!sceneMemory){const recovered=readRecovery(cloudMembership);if(recovered)loadSceneRecord(recovered);}
+  const allowed=publishedCatalogIndexes(),safeScene=filterPublishedScene(sceneMemory,allowed);
+  if(safeScene){studio.restoreState(safeScene);if(safeScene.items.length!==sceneMemory.items.length)toast('مدل‌های قدیمی یا خارج از مجموعه از این پیش‌نمایش کنار گذاشته شدند.');}
+  else{layout='empty';studio.seed('empty',space,peopleCount);}
+  persistDraft();
   studio.onEnd=()=>{
     if(activeLiveSession)void endLiveShare(true);
     resetWideViewControls();closeChidoMenu();minimap.collapse();setPhotoMode(false);closeArSheet();
     $('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=true;
     $('#measureHint').hidden=true;$('#arMiniMap').hidden=true;$('#abInline').hidden=true;$('#arBottomActions').hidden=true;$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;$('#arSurfaceActions').hidden=true;
-    // Let Studio.endSession finish its own callbacks before disposing the 3D renderer.
+    // Finish XR callbacks before changing launch controls or navigating home.
     arStarting=false;pendingARSession=null;
     if(homeExitRequested)queueMicrotask(finishChidoHomeExit);
-    else queueMicrotask(()=>{if(location.hash==='#studio')void render({reuseCatalog:true});});
+    else queueMicrotask(()=>{
+     // Keep the same WebGL context, models and textures. Rebuilding here stalls real phones.
+     if(location.hash!=='#studio')return;
+     $('#overlay').hidden=true;$('#startAR').hidden=false;$('#startAR').disabled=false;$('#startAR').textContent='شروع دوباره AR ↗';
+     $('#launchLoading').hidden=true;$('#viewport').classList.toggle('show-preview',previewEnabled);persistDraft();
+    });
    };
   studio.onPhotoTap=()=>{};
   studio.onHint=toast;
@@ -307,6 +316,7 @@ function closeArSheet(){
  if(studio?.architecture?.mode&&!studio?.photoMode)$('#arArchitectureActions').hidden=false;
  studio?.setPlacementEnabled(false);
 }
+function publishedCatalogIndexes(){return new Set((getActiveCloudSet()?.products||cloudSets.flatMap(set=>set.products)).map(product=>product.catalog_index).filter(index=>index>=22));}
 function getActiveCloudSet(){return cloudSets.find(item=>item.id===activeCloudSetId)||null;}
 function updateCloudControls(){
  const hasSet=!!activeCloudSetId,manager=cloudMembership?.role==='company_admin';
@@ -408,7 +418,7 @@ function showArSheet(mode){
   const replacing=mode==='replace';
   title.textContent=replacing?'تعویض مدل با حفظ جایگاه':'انتخاب مدل برای نشانگر +';
   if(!replacing)studio.setPlacementEnabled(true);
-  const activeSet=getActiveCloudSet(),allowedProducts=activeSet?new Set(activeSet.products.map(item=>item.catalog_index)):null;
+  const activeSet=getActiveCloudSet(),allowedProducts=publishedCatalogIndexes();
   const categories=ASSET_CATEGORIES.map(c=>({...c,indexes:[...new Set([...c.indexes.filter(i=>!getCloudProductInfo(i)?.metadata.category||getCloudProductInfo(i).metadata.category===c.id),...cloudProductInfoList().filter(p=>(p.catalog_index<32||getCloudProduct(p.catalog_index))&&p.metadata.category===c.id).map(p=>p.catalog_index)])]}));
   const groups=replacing&&selected?
    categories.map(c=>({...c,indexes:variantsFor(selected.userData.index).filter(i=>c.indexes.includes(i)&&(!allowedProducts||allowedProducts.has(i)))})).filter(c=>c.indexes.length):
@@ -423,7 +433,7 @@ function showArSheet(mode){
    body.querySelectorAll('[data-category]').forEach(btn=>btn.classList.toggle('selected',btn.dataset.category===group.id));
    holder.querySelectorAll('[data-add-object]').forEach(btn=>btn.onclick=()=>{
     if(studio.items.length>=24&&!replacing){toast('به محدودیت ۲۴ آبجکت رسیدی.');return;}
-    const i=Number(btn.dataset.addObject),mesh=replacing?studio.replaceSelected(i):studio.addAtMarker(i);
+    const i=Number(btn.dataset.addObject);if(!publishedCatalogIndexes().has(i))return;const mesh=replacing?studio.replaceSelected(i):studio.addAtMarker(i);
     if(!mesh){toast('فضای کافی برای این مدل نیست؛ ابتدا آبجکت‌ها را جابه‌جا کن.');return;}
     closeArSheet();toast('«'+(catalogImages[i]?.[0]||'مدل')+'» انتخاب شد.');
    });
@@ -512,8 +522,8 @@ function showArSheet(mode){
   body.querySelectorAll('[data-open-cloud-layout]').forEach(btn=>btn.onclick=()=>{
    const record=set.layouts.find(item=>item.id===btn.dataset.openCloudLayout);if(!record)return;
    activeCloudLayout=record;space=record.room||space;peopleCount=Number(record.capacity)||5;layout=record.template_kind||'empty';
-   if(record.scene_state){studio.clear();studio.restoreState(record.scene_state);sceneMemory=record.scene_state;}
-   else{studio.clear();studio.seed(record.template_kind||'conversation',space,peopleCount);}
+   if(record.scene_state){studio.clear();sceneMemory=filterPublishedScene(record.scene_state,publishedCatalogIndexes());if(sceneMemory)studio.restoreState(sceneMemory);}
+   else{studio.clear();studio.seed('empty',space,peopleCount);}
    minimap.render();closeArSheet();toast('چیدمان رسمی باز شد.');
   });
   body.querySelectorAll('[data-archive-cloud-layout]').forEach(btn=>btn.onclick=async()=>{
@@ -560,7 +570,7 @@ function showArSheet(mode){
    if($('#overwriteArrangement'))$('#overwriteArrangement').onclick=()=>doSave(true);
    body.querySelectorAll('[data-open-ar-layout]').forEach(btn=>btn.onclick=()=>{
      const data=listCustomLayouts().find(x=>x.id===btn.dataset.openArLayout);
-     if(!data)return;loadSceneRecord(data);studio.clear();studio.restoreState(data.scene);minimap.render();closeArSheet();toast('چیدمان در محیط AR باز شد.');
+     if(!data)return;loadSceneRecord(data);sceneMemory=filterPublishedScene(data.scene,publishedCatalogIndexes());studio.clear();if(sceneMemory)studio.restoreState(sceneMemory);minimap.render();closeArSheet();toast('چیدمان در محیط AR باز شد.');
    });
    body.querySelectorAll('[data-remove-ar-layout]').forEach(btn=>btn.onclick=()=>{
      if(activeSavedLayoutId===btn.dataset.removeArLayout)activeSavedLayoutId=null;
@@ -884,7 +894,7 @@ $('#chidoMenuBlank').onclick=()=>{
  if(studio.items.length&&button.dataset.confirm!=='yes'){
   button.dataset.confirm='yes';button.textContent='تأیید پاک کردن چیدمان و شروع صحنه خالی';return;
  }
- layout='empty';activeSavedLayoutId=null;sceneMemory=null;clearDraft();studio.clear();
+ layout='empty';activeSavedLayoutId=null;sceneMemory=null;clearDraft();clearRecovery(cloudMembership);studio.clear();
  closeChidoMenu();minimap.render();toast('صحنه خالی آماده است؛ مبلمان جدید اضافه کن.');
 };
 function finishChidoHomeExit(){
@@ -895,7 +905,7 @@ function finishChidoHomeExit(){
  $('#overlay').hidden=true;
  // No page reload, no new browser tab, no browser history navigation inside immersive mode.
  history.replaceState(null,'',location.pathname+location.search+'#welcome');
- void render().catch(error=>{
+ void render({reuseCatalog:true}).catch(error=>{
   console.error('CHIDO home render failed',error);
   $('#app').innerHTML='<section class="page"><h1>چیدو</h1><p>نمای اصلی بارگذاری نشد.</p><button type="button" id="retryChidoHome">بازکردن صفحه اصلی</button></section>';
   $('#retryChidoHome').onclick=()=>render();
@@ -940,7 +950,7 @@ $('#chidoMenuHome').onclick=async()=>{
 };$('#resetAR').onclick=async()=>{try{$('#whiteFloorDialog').hidden=true;$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;studio?.architecture?.setMode(null);calibrationPrompted=false;await studio?.beginScan();$('#arSettings').open=false;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arSettings').hidden=true;}catch(error){toast('اسکن دوباره اجرا نشد.');}};$('#confirmFloor').onclick=()=>{if(studio?.confirmFloor()){calibrationPrompted=true;$('#abCalibrationSheet').hidden=false;}};$('#rescanFloor').onclick=async()=>{try{$('#whiteFloorDialog').hidden=true;await studio?.beginScan();$('#arSettings').open=false;}catch(error){toast('اسکن دوباره راه‌اندازی نشد؛ از AR خارج شو و دوباره وارد شو.');}};
 $('#whiteFloorYes').onclick=()=>{studio?.setWhiteFloor(true);$('#whiteFloorDialog').hidden=true;};
 $('#whiteFloorNo').onclick=()=>{studio?.setWhiteFloor(false);$('#whiteFloorDialog').hidden=true;};
-$('#rotateAR').onclick=()=>{if(studio?.selected)studio.rotate();};$('#deleteAR').onclick=()=>studio?.remove();$('#colorAR').onclick=()=>{if(studio?.selected){const current='#'+studio.selected.material.color.getHexString();studio.color(palette[(palette.indexOf(current)+1)%palette.length]);}};$('#addAR').onclick=()=>{if(studio.items.length>=16){toast('حد آزمون این نسخه ۱۶ قطعه است.');return;}studio.add(Number($('#arProduct').value));};$('#closePhoto').onclick=()=>$('#photoHelp').close();
+$('#rotateAR').onclick=()=>{if(studio?.selected)studio.rotate();};$('#deleteAR').onclick=()=>studio?.remove();$('#colorAR').onclick=()=>{if(studio?.selected){const current='#'+studio.selected.material.color.getHexString();studio.color(palette[(palette.indexOf(current)+1)%palette.length]);}};$('#addAR').onclick=()=>{if(studio.items.length>=16){toast('حد آزمون این نسخه ۱۶ قطعه است.');return;}const index=Number($('#arProduct').value);if(publishedCatalogIndexes().has(index))studio.add(index);};$('#closePhoto').onclick=()=>$('#photoHelp').close();
 async function updateCount(){try{$('#galleryCount').textContent=fa((await photos()).length);}catch{$('#galleryCount').textContent='—';}}
 async function showModes(){$('#modeSheet').showModal();await support();$('#modeSupport').textContent=supported?'AR در مرورگر شما در دسترس است؛ مجوز دوربین هنگام شروع پرسیده می‌شود.':'AR در این دستگاه در دسترس نیست؛ مدل ساده را امتحان کنید.';$('#chooseAR').disabled=!supported;}
 $('#closeMode').onclick=()=>$('#modeSheet').close();$('#chooseSimple').onclick=()=>{$('#modeSheet').close();location.hash='studio';};$('#chooseAR').onclick=()=>{$('#modeSheet').close();location.hash='studio';toast('برای ورود به دوربین، «شروع AR» را بزنید.');};

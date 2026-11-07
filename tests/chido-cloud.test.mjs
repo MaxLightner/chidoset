@@ -31,10 +31,10 @@ test('the host shares scene and camera state, not a screen or camera stream',()=
  assert.doesNotMatch(cloud,/getUserMedia|MediaRecorder|RTCPeerConnection/);
 });
 
-test('branch users cannot persist drafts or save official layouts',()=>{
+test('branch recovery is temporary and only managers can save official layouts',()=>{
  const app=read('app.js');
- assert.match(app,/cloudMembership\?\.role==='branch'\)\{clearDraft\(\);return;/);
- assert.match(app,/cloudMembership\?\.role==='branch'\?null:readDraft\(\)/);
+ assert.match(read('app-recovery.js'),/member\.role==='branch'\?globalThis\.sessionStorage:globalThis\.localStorage/);
+ assert.match(app,/saveRecovery\(cloudMembership,currentSceneRecord\(\)\)/);
  assert.match(app,/cloudMembership\?\.role!=='company_admin'\|\|!activeCloudSetId/);
  assert.match(app,/saveOfficialLayout/);
 });

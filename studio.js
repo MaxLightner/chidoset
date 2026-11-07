@@ -3,14 +3,15 @@ import {getCloudProduct,getCloudProductInfo,registerCloudProducts,cloudProductLi
 import {ArchitectureLayer} from './architecture.js?v=0.9.0';
 import {createFurniture,furnitureHit} from './furniture.js?v=0.5.4';
 import {createDecor} from './decor.js?v=0.5.4';
-import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.11.0';
+import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.13.0';
 import {applyRugStyle} from './rug-textures.js?v=0.5.4';
 import {MeasureTool} from './measure-tool.js?v=0.5.4';
 import {requestARSession,xrError} from './xr.js?v=0.5.4';
 import {WideViewRenderer,WIDE_VIEW_FOV} from './wide-view.js?v=0.7.1';
 import {SpatialState,CATALOG,pairAngle,wrappedAngle} from './spatial.js?v=0.8.0';
 import {FloorScanner,floorCandidates} from './surfaces.js?v=0.5.4';
-import {EnvironmentEffects} from './effects.js?v=0.7.2';
+import {createSofaShadow,modelLocalBounds,isSofaShadowProduct} from './sofa-shadow.js';
+import {EnvironmentEffects} from './effects.js?v=0.13.0';
 import {AnchorStabilizer,transformPoint} from './anchor-rig.js?v=0.5.4';
 import {ARDebugView} from './ar-debug.js?v=0.5.4';
 import {buildLayout} from './layout-templates.js?v=0.5.4';
@@ -155,7 +156,7 @@ void main(){
    this.rulerTicks.geometry.dispose();this.rulerTicks.geometry=new THREE.BufferGeometry().setFromPoints(pts);}
    this.updateArtFloorHandle();this.floorFrame.updateMatrixWorld(true);if(!this.lastLiveMapUpdate||performance.now()-this.lastLiveMapUpdate>65){this.lastLiveMapUpdate=performance.now();this.onLiveChange?.();}
  }
- add(index=this.serial%4,position,options={}){const cloud=getCloudProduct(index);if(index>=32&&!cloud)throw Error('مدل این محصول در دسترس نیست؛ کتابخانه شرکت را دوباره دریافت کن.');if(!cloud)index=((index%CATALOG.length)+CATALOG.length)%CATALOG.length;const baseProduct=cloud?{name:cloud.name,size:cloud.size_m,price:0}:{...CATALOG[index],name:getCloudProductInfo(index)?.name||CATALOG[index].name},product=options.size?{...baseProduct,size:options.size}:baseProduct,id=++this.serial,[w,h,d]=product.size;const color=palette[index]||'#c6b7a3';const mesh=isImportedModel(index)?createImportedModel(index,product.size):index<4?createFurniture(index,product.size,color,options.seats):createDecor(index,product.size,color);
+ add(index=this.serial%4,position,options={}){const cloud=getCloudProduct(index);if(index>=32&&!cloud)throw Error('مدل این محصول در دسترس نیست؛ کتابخانه شرکت را دوباره دریافت کن.');if(!cloud)index=((index%CATALOG.length)+CATALOG.length)%CATALOG.length;const baseProduct=cloud?{name:cloud.name,size:cloud.size_m,price:0}:{...CATALOG[index],name:getCloudProductInfo(index)?.name||CATALOG[index].name},product=options.size?{...baseProduct,size:options.size}:baseProduct,id=++this.serial,[w,h,d]=product.size;const color=palette[index]||'#c6b7a3';const mesh=isImportedModel(index)?createImportedModel(index,product.size,options.fabric||'dark'):index<4?createFurniture(index,product.size,color,options.seats):createDecor(index,product.size,color);
   const edges=new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry),new THREE.LineBasicMaterial({color:0x9f927f,transparent:true,opacity:.15,depthWrite:false}));mesh.add(edges);
   const dimensions=`${product.name} · ${product.size.map(v=>fa(v*100)).join(' × ')} cm`;const label=this.makeLabel(dimensions);label.position.y=h/2+.18;label.scale.set(1.5,.22,1);mesh.add(label);
   mesh.userData={...mesh.userData,id,index,height:h,price:product.price,product,edges,label,fabric:options.fabric||'dark',
@@ -165,7 +166,7 @@ void main(){
   mesh.position.y=isWallArt(index)?(position?.y>1?position.y:1.55):h/2;
   if(isSofa(index))installSofaCushions(mesh,options.cushionPreset||'none');
   // Transparent radial contact shadow: darkens the camera floor, not a black disc.
-  if(index!==7&&index!==5&&!isWallArt(index)&&!isLamp(index)&&!isImportedNoShadow(index)){this.addContactShadow(mesh,w,d,h,index===4?.20:.42);this.enableShadowCasting(mesh);}
+  if(isSofaShadowProduct(index,cloud||product)){this.addContactShadow(mesh,w,d,h,.88);}
   this.root.add(mesh);this.items.push(mesh);
   if(!position&&index===4){
    const table=this.items.find(m=>m!==mesh&&isTable(m.userData.index));
@@ -182,26 +183,15 @@ void main(){
    this.snapToSupport(mesh);
   }
    if(isImportedModel(index)){
-    mesh.userData.onModelReady=()=>{if(mesh.userData.tint)this.tintItem(mesh,mesh.userData.tint);this.enableShadowCasting(mesh);if([22,23,24].includes(index))this.setSofaFabric(mesh.userData.fabric,mesh);if(isLamp(index))this.initializeLamp(mesh,mesh.userData.lampOn);this.changed();};
+    mesh.userData.onModelReady=()=>{if(isSofaShadowProduct(index,cloud||product)){const visual=mesh.getObjectByName('imported-visual');if(visual){const box=modelLocalBounds(mesh,visual),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());if(!box.isEmpty())this.addContactShadow(mesh,size.x,size.z,-box.min.y*2,.88,{bottom:box.min.y,x:center.x,z:center.z});}}if(mesh.userData.tint)this.tintItem(mesh,mesh.userData.tint);this.enableShadowCasting(mesh);if([22,23,24].includes(index))this.setSofaFabric(mesh.userData.fabric,mesh);if(isLamp(index))this.initializeLamp(mesh,mesh.userData.lampOn);this.changed();};
     mesh.userData.onModelError=()=>this.onHint?.('بارگذاری '+product.name+' ناموفق بود؛ اتصال مدل‌های کتابخانه را بررسی کن.');
    }
   if(!options.silentSelect)this.select(mesh);this.setGuides();return mesh;
  }
- enableShadowCasting(mesh){mesh.traverse(node=>{if(node.isMesh&&node.visible&&node.material?.opacity!==0&&node.name!=='contact-shadow'&&node.name!=='contact-shadow-receiver')node.castShadow=true;});}
- addContactShadow(mesh,w,d,h,opacity){
-  // Radial darkening decal, alpha blended against the real-world passthrough
-  // (no dependency on a virtual rug existing below the object).
-  const material=new THREE.ShaderMaterial({
-   transparent:true,depthWrite:false,side:THREE.DoubleSide,
-   uniforms:{strength:{value:opacity}},
-   vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-   fragmentShader:'precision highp float;varying vec2 vUv;uniform float strength;void main(){vec2 q=(vUv-.5)*2.;float r=dot(q,q);float broad=pow(max(0.,1.-r),1.45);float contact=pow(max(0.,1.-r*2.3),2.);float a=clamp(strength*(broad*.8+contact*.2),0.,.86);gl_FragColor=vec4(.055,.048,.04,a);}'
-  });
-  const shadow=new THREE.Mesh(new THREE.PlaneGeometry(w*1.28,d*1.25),material);
-  shadow.rotation.x=-Math.PI/2;shadow.position.y=-h/2+.018;shadow.renderOrder=-1;shadow.name='contact-shadow';mesh.add(shadow);
-  // Dynamic real shadow atop the cheap fallback decal, composited over camera pixels.
-  const receiver=new THREE.Mesh(new THREE.PlaneGeometry(w*1.55,d*1.55),new THREE.ShadowMaterial({opacity:.33,transparent:true,depthWrite:false,side:THREE.DoubleSide}));
-  receiver.rotation.x=-Math.PI/2;receiver.position.y=-h/2+.012;receiver.receiveShadow=true;receiver.renderOrder=-2;receiver.name='contact-shadow-receiver';mesh.add(receiver);
+ enableShadowCasting(mesh){mesh.traverse(node=>{if(node.isMesh&&node.visible&&node.material?.opacity!==0&&node.name!=='chido-contact-shadow'&&node.name!=='contact-shadow'&&node.name!=='contact-shadow-receiver')node.castShadow=true;});}
+ addContactShadow(mesh,w,d,h,opacity,bounds={}){
+  const previous=mesh.getObjectByName('contact-shadow');if(previous){mesh.remove(previous);previous.geometry.dispose();previous.material.dispose();}
+  mesh.add(createSofaShadow(w,d,bounds.bottom??-h/2,bounds.x||0,bounds.z||0));
  }
  refreshAttachments(){for(const item of this.items){const link=item.userData.attachment;if(!link)continue;const base=this.items.find(m=>m.userData.id===link.id);if(!base){item.userData.attachment=null;this.keepOnFloor(item);continue;}const offset=new THREE.Vector3(...link.offset).applyAxisAngle(new THREE.Vector3(0,1,0),base.rotation.y);item.position.copy(base.position).add(offset);}}
  seed(kind='conversation',room='پذیرایی',people=5){
@@ -755,7 +745,7 @@ safeObjectMotion(mesh,desired){
    }
    if(time-this.lastSelectionUI>65){this.onSelectionScreen?.(this.selectionScreenPosition());this.onABPosition?.(this.rulerScreenPosition());this.lastSelectionUI=time;}
   }
-  this.scaleLabels();this.renderer.render(this.scene,this.camera);
+  this.scaleLabels();this.effects.updateCameraLight?.(this.renderer.xr.isPresenting?this.renderer.xr.getCamera():this.camera);this.renderer.render(this.scene,this.camera);
   try{this.onFrame?.(time,frame);}catch(error){console.warn('Chido live frame callback failed',error);}
   if(this.wideView?.active&&this.tracking){
    try{this.wideView.draw();}catch(error){
@@ -773,8 +763,8 @@ safeObjectMotion(mesh,desired){
    const parentScale=label.parent.getWorldScale(new THREE.Vector3()),worldHeight=2*distance*pixels/(Math.max(height,1)*camera.projectionMatrix.elements[5]);const image=label.material.map.image;label.scale.set(worldHeight*(image.width/image.height)/parentScale.x,worldHeight/parentScale.y,1);
   }
  }
- async snapshot(){if(this.session)throw Error('در AR از اسکرین‌شات گوشی استفاده کن.');const before=this.photoMode;this.setPhotoMode(true);this.renderer.render(this.scene,this.camera);try{return await new Promise((resolve,reject)=>this.renderer.domElement.toBlob(blob=>blob?resolve(blob):reject(Error('ثبت نشد')),'image/webp',.82));}finally{this.setPhotoMode(before);}}
- destroy(){this.architecture?.dispose();this.wideView?.dispose();this.wideView=null;this.resizeObserver.disconnect();this.events.abort();this.renderer.setAnimationLoop(null);this.dropAnchor();this.clear();this.disposeObject(this.ruler);this.disposeObject(this.artFloorHandle);this.scanCrosses[0]?.geometry.dispose();for(const m of this.scanCrosses)m.material.dispose();this.debugView.dispose();this.measureTool?.dispose();this.placementMarker.geometry.dispose();this.placementMarker.material.dispose();this.floorNet.geometry.dispose();this.floorNet.material.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
+ async snapshot(){if(this.session)throw Error('در AR از اسکرین‌شات گوشی استفاده کن.');const before=this.photoMode;this.setPhotoMode(true);this.effects.updateCameraLight?.(this.renderer.xr.isPresenting?this.renderer.xr.getCamera():this.camera);this.renderer.render(this.scene,this.camera);try{return await new Promise((resolve,reject)=>this.renderer.domElement.toBlob(blob=>blob?resolve(blob):reject(Error('ثبت نشد')),'image/webp',.82));}finally{this.setPhotoMode(before);}}
+ destroy(){this.effects?.dispose();this.architecture?.dispose();this.wideView?.dispose();this.wideView=null;this.resizeObserver.disconnect();this.events.abort();this.renderer.setAnimationLoop(null);this.dropAnchor();this.clear();this.disposeObject(this.ruler);this.disposeObject(this.artFloorHandle);this.scanCrosses[0]?.geometry.dispose();for(const m of this.scanCrosses)m.material.dispose();this.debugView.dispose();this.measureTool?.dispose();this.placementMarker.geometry.dispose();this.placementMarker.material.dispose();this.floorNet.geometry.dispose();this.floorNet.material.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
 }
 
 
