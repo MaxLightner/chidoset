@@ -1,6 +1,6 @@
 import {accountLogin} from './account-login.js';
 import {conversation,labels as workspaceLabels} from './workspace-ui.js';
-import {centralAuth,centralRequest,writeCentral} from './central-service.js';
+import {centralAuth,centralRequest,writeCentral} from './central-service.js?v=0.12.2';
 import {validateWrite,validateGlb,CATEGORIES,builtInCategory} from './central-domain.mjs';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fa=v=>Number(v||0).toLocaleString('fa-IR');
@@ -147,8 +147,8 @@ for(const selector of ['#loginForm','#bootstrapForm'])$(selector).onsubmit=async
  event.preventDefault();const form=event.target,button=event.submitter||form.querySelector('button'),values=Object.fromEntries(new FormData(form));button.disabled=true;$('#authStatus').textContent='در حال ورود…';
  try{if(form.id==='bootstrapForm')await centralRequest('/bootstrap',values);const login=await accountLogin(values.email,values.password);if(login.role!=='central')throw Error('این حساب دسترسی مدیر مرکزی ندارد.');const {error}=await centralAuth.auth.setSession(login.session);if(error)throw error;await load();form.reset();}catch(error){$('#authStatus').textContent=error.message;}finally{button.disabled=false;}
 };
-$('#logout').onclick=async()=>{const {error}=await centralAuth.auth.signOut();if(error){$('#workspaceStatus').textContent='خروج انجام نشد. دوباره تلاش کن.';return;}data={};$('#workspace').hidden=true;$('#auth').hidden=false;$('#content').innerHTML='';$('#authStatus').textContent='';};
-async function start(){const {data:{session}}=await centralAuth.auth.getSession();if(session)try{await load();}catch(error){$('#authStatus').textContent=error.message;}}
+$('#logout').onclick=async()=>{const {error}=await centralAuth.auth.signOut();if(error){$('#workspaceStatus').textContent='خروج انجام نشد. دوباره تلاش کن.';return;}data={};location.replace('login.html');};
+async function start(){const {data:{session}}=await centralAuth.auth.getSession();if(session)try{await load();return;}catch{location.replace('login.html?retry=1');return;}if(new URLSearchParams(location.search).has('activate')){$('#auth').hidden=false;$('#inviteTab').click();}else location.replace('login.html');}
 void start();
 
 function openCompanyThread(kind,id){

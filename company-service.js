@@ -1,4 +1,5 @@
-import {supabase,activateCompanyAdmin,requestCompanyAccess} from './chido-cloud.js?v=0.12.0';
+import {lightweightPhoto} from './image-utils.js';
+import {supabase,activateCompanyAdmin,requestCompanyAccess} from './chido-cloud.js?v=0.12.2';
 import {SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY} from './backend-config.js';
 import {validateWorkspace} from './workspace-domain.mjs';
 export const companyAuth=supabase;
@@ -12,8 +13,10 @@ export const companyWrite=(action,data)=>companyRequest('/write',{action,data:va
 export async function uploadCompanyPhotos(files,membership,onProgress=()=>{}){
  if(files.length>8)throw Error('در هر بار حداکثر ۸ عکس انتخاب کن.');
  const result=[];
- for(const file of files){
+ for(const original of files){
+  let file=original;
   if(!['image/jpeg','image/png','image/webp'].includes(file.type)||!file.size||file.size>8*1024*1024)throw Error('عکس باید JPEG، PNG یا WebP و حداکثر ۸ مگابایت باشد.');
+  file=new File([await lightweightPhoto(file)],file.name.replace(/\.[^.]+$/,'')+'.webp',{type:'image/webp'});
   const ext={'image/jpeg':'jpg','image/png':'png','image/webp':'webp'}[file.type];
   const object_path=membership.company_id+'/'+membership.user_id+'/'+crypto.randomUUID()+'.'+ext;
   const {error}=await supabase.storage.from('company-media').upload(object_path,file,{contentType:file.type,upsert:false,cacheControl:'3600'});if(error)throw Error('بارگذاری عکس انجام نشد. اتصال و دسترسی حساب را بررسی کن.');

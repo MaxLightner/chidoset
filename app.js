@@ -1,6 +1,7 @@
+import {rememberAccount,accountName} from './auth-storage.js';
 import {accountLogin} from './account-login.js';
 import {explainXR,requestARSession} from './xr.js?v=0.5.4';
-import {photos,savePhoto,removePhoto} from './storage.js';
+import {photos,savePhoto,removePhoto} from './storage.js?v=0.12.2';
 import {CAMERA_RATIOS,CAMERA_PHOTO_KIND,isCameraPhoto,effectiveCameraRatio} from './camera-capture.js?v=0.5.4';
 import {RUG_STYLES,rugPreviewDataUrl} from './rug-textures.js?v=0.5.4';
 import {allowedCapacities,layoutOptions,buildLayout,layoutSummary,layoutPreviewSvg} from './layout-templates.js?v=0.5.4';
@@ -12,7 +13,7 @@ import {LiveMiniMap} from './minimap.js?v=0.5.4';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
 import {SOFA_FABRICS} from './imported-models.js?v=0.12.0';
 import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList} from './cloud-product-registry.js';
-import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,saveOfficialLayout,saveOfficialColorway,createLiveSession,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.12.0';
+import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,saveOfficialLayout,saveOfficialColorway,createLiveSession,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.12.2';
 const $=s=>document.querySelector(s),app=$('#app'),fa=n=>n.toLocaleString('fa-IR');
 let studio,Scene,palette,space='پذیرایی',layout='conversation',supported=false,routeVersion=0,photoURLs=[],savedItems=[],arReport=null,sceneMemory=null,arStarting=false,lastXRErrorReport='',activeSavedLayoutId=null;
 const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio);
@@ -91,7 +92,7 @@ function heading(step,title,sub,back){return `<div class="page-heading"><div><sp
 async function full(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(!document.documentElement.requestFullscreen){toast('مرورگر شما تمام‌صفحه را پشتیبانی نمی‌کند.');return;}try{await document.documentElement.requestFullscreen();}catch{toast('ورود به تمام‌صفحه ممکن نشد؛ می‌توانی ادامه بدهی.');}}
 $('#fullscreen').onclick=full;document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'خروج از تمام‌صفحه ↙':'تمام‌صفحه ⛶');
 async function support(){try{supported=!!(isSecureContext&&navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar'));}catch{supported=false;}return supported;}
-async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.12.0');Scene=m.Studio;palette=m.palette;}}
+async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.12.2');Scene=m.Studio;palette=m.palette;}}
 let draftTimer=null;
 function currentSceneRecord(){
  if(!studio)return null;
@@ -136,17 +137,31 @@ function openLayoutForScanning(kind,record=null){
  pendingARSession.catch(()=>{}); // Render handles the actual rejection.
  location.hash='studio';
 }
-async function render(){const version=++routeVersion;const route=location.hash.slice(1)||'welcome';document.body.dataset.route=route;
- if(route!=='access'){
-  try{cloudMembership=await getMembership();}catch(error){console.warn('Chido account check failed',error);cloudMembership=null;}
-  if(!cloudMembership){location.hash='access';return;}
+let membershipCheckedAt=0;
+function updateAccountHeader(){
+ const identity=$('#appIdentity'),member=cloudMembership;
+ identity.hidden=!member;
+ $('#arIdentity').textContent=member?`${member.display_name||accountName('chido-auth-v1')||member.user?.email?.split('@')[0]||'کاربر'} · ${member.company?.name||'مجموعه'}`:'';
+ identity.textContent=member?`${member.display_name||accountName('chido-auth-v1')||member.user?.user_metadata?.display_name||member.user?.email?.split('@')[0]||'کاربر'} · ${member.company?.name||'مجموعه'}`:'';
+ $('#appSignOut').hidden=!member;
+ $('#companyLink').hidden=member?.role!=='company_admin';
+ document.body.dataset.signedIn=String(!!member);
+}
+$('#appSignOut').onclick=async()=>{if(studio?.session)return;const {error}=await supabase.auth.signOut();if(error){toast('خروج انجام نشد. دوباره تلاش کن.');return;}cloudMembership=null;membershipCheckedAt=0;appSessionLogged=false;sceneMemory=null;clearDraft();location.hash='welcome';void render();};
+async function render({reuseCatalog=false}={}){const version=++routeVersion;let route=location.hash.slice(1)||'welcome';
+ if(studio?.session){if(location.hash!=='#studio')history.replaceState(null,'',location.pathname+location.search+'#studio');return;}
+ if(route==='access'){route='welcome';history.replaceState(null,'',location.pathname+location.search+'#welcome');}
+ document.body.dataset.route=route;
+ if(!reuseCatalog&&(!cloudMembership||Date.now()-membershipCheckedAt>60000)){
+  try{cloudMembership=await getMembership();membershipCheckedAt=Date.now();}catch(error){console.warn('Chido account check failed',error);}
+ }
+ if(version!==routeVersion)return;
+ updateAccountHeader();
+ if(!cloudMembership&&route!=='welcome'){location.hash='welcome';return;}
+ if(cloudMembership){
   if(!appSessionLogged){appSessionLogged=true;void logActivity(cloudMembership,'app_opened',{role:cloudMembership.role});}
   if(cloudMembership.role==='branch'&&Date.now()-lastHeartbeatAt>60000){lastHeartbeatAt=Date.now();void updateDeviceHeartbeat(cloudMembership);}
- }else{
-  try{const existing=await getMembership();if(existing){cloudMembership=existing;location.hash='welcome';return;}}catch{}
-  cloudMembership=null;
  }
- if(studio?.session){if(location.hash!=='#studio')history.replaceState(null,'',location.pathname+location.search+'#studio');return;}
  closeChidoMenu();minimap.collapse();
  if(studio){
   const previous=studio;
@@ -155,15 +170,25 @@ async function render(){const version=++routeVersion;const route=location.hash.s
   try{previous.destroy();}catch(error){console.warn('Scene renderer cleanup failed',error);}
  }
  photoURLs.forEach(URL.revokeObjectURL);photoURLs=[];
- if(route==='access'){
-  app.innerHTML=`<section class="chido-entry"><div class="entry-wordmark" aria-hidden="true">CHIDO<span>خانه، به سلیقه تو</span></div><form id="accountLoginForm" class="entry-login"><h1>ورود به چیدو</h1><label for="accountUsername">نام کاربری</label><input id="accountUsername" name="username" autocomplete="username" dir="ltr" required maxlength="254"><label for="accountPassword">رمز عبور</label><input id="accountPassword" name="password" type="password" autocomplete="current-password" dir="ltr" required maxlength="128"><button class="primary" type="submit">ورود</button><p id="accessMessage" role="status" aria-live="polite"></p></form></section>`;
-  $('#accountLoginForm').onsubmit=async event=>{event.preventDefault();const button=event.submitter,message=$('#accessMessage');button.disabled=true;message.textContent='در حال ورود…';try{const result=await accountLogin($('#accountUsername').value,$('#accountPassword').value);if(result.role==='central'){const {centralAuth}=await import('./central-service.js');const {error}=await centralAuth.auth.setSession(result.session);if(error)throw error;location.href='central.html';return;}const {error}=await supabase.auth.setSession(result.session);if(error)throw error;cloudMembership=await getMembership();if(!cloudMembership)throw Error('دسترسی مجموعه فعال نیست.');await updateDeviceHeartbeat(cloudMembership);location.hash='welcome';}catch(error){message.textContent=error.message||'ورود انجام نشد.';}finally{button.disabled=false;}};
+ if(route==='welcome'){
+  app.innerHTML=`<section class="welcome-screen"><div class="welcome-title"><h1>CHIDO</h1><p>خانه را جور دیگری ببینید</p></div><img class="welcome-photo" src="assets/welcome.webp" width="853" height="1280" fetchpriority="high" alt="صندلی کرم و گلدان در فضایی آرام">${cloudMembership?`<div class="welcome-bottom"><button class="primary" id="welcome">ورود به نمایشگاه <span>→</span></button><button class="quick-ar" id="quickAR">ادامه چیدمان ↗</button><button class="quick-ar quick-empty" id="startEmpty">＋ ایجاد صحنه خالی</button></div>`:`<form id="accountLoginForm" class="entry-login"><h2>ورود به اپ چیدو</h2><label for="accountUsername">نام کاربری</label><input id="accountUsername" name="username" autocomplete="username" dir="ltr" required maxlength="254"><label for="accountPassword">رمز عبور</label><input id="accountPassword" name="password" type="password" autocomplete="current-password" dir="ltr" required maxlength="128"><label class="remember-line"><input id="appRemember" type="checkbox" checked> مرا به خاطر بسپار</label><button class="primary" type="submit">ورود به اپلیکیشن</button><p id="accessMessage" role="status" aria-live="polite"></p></form>`}</section>`;
+  if(!cloudMembership){
+   $('#accountUsername').value=accountName('chido-auth-v1');
+   $('#appRemember').checked=localStorage.getItem('chido-auth-v1-remember')!=='no';
+   $('#accountLoginForm').onsubmit=async event=>{event.preventDefault();const button=event.submitter,message=$('#accessMessage');button.disabled=true;message.textContent='در حال ورود…';try{const username=$('#accountUsername').value,result=await accountLogin(username,$('#accountPassword').value);if(result.role==='central')throw Error('حساب مدیر مرکزی از «ورود به سایت» وارد می‌شود.');rememberAccount('chido-auth-v1',$('#appRemember').checked,username);const {error}=await supabase.auth.setSession(result.session);if(error)throw error;cloudMembership=await getMembership();if(!cloudMembership)throw Error('دسترسی مجموعه فعال نیست.');membershipCheckedAt=Date.now();await updateDeviceHeartbeat(cloudMembership);await render();}catch(error){if(message.isConnected)message.textContent=error.message||'ورود انجام نشد.';}finally{button.disabled=false;}};
+  }else{
+   $('#welcome').onclick=()=>{location.hash='spaces';};
+   const draft=cloudMembership?.role==='branch'?null:readDraft();
+   $('#quickAR').hidden=!draft;
+   $('#quickAR').onclick=()=>{loadSceneRecord(draft);location.hash='studio';};
+   $('#startEmpty').onclick=()=>{layout='empty';sceneMemory=null;activeSavedLayoutId=null;previewEnabled=false;clearDraft();location.hash='studio';};
+  }
   return;
  }
- if(route==='welcome'){app.innerHTML=`<section class="welcome-screen"><div class="welcome-title"><h1>CHIDO</h1><p>خانه را جور دیگری ببینید</p></div><img class="welcome-photo" src="assets/welcome.png" alt="صندلی کرم و گلدان در فضایی آرام"><div class="welcome-bottom"><button class="primary" id="welcome">ورود به نمایشگاه <span>→</span></button><button class="quick-ar" id="quickAR">ورود سریع به AR ↗</button><button class="quick-ar quick-empty" id="startEmpty">＋ ایجاد صحنه خالی</button><span class="welcome-wordmark">CHIDO</span></div></section>`;$('#welcome').onclick=()=>{full();location.hash='spaces';};const draft=cloudMembership?.role==='branch'?null:readDraft();if(draft)$('#quickAR').textContent='ادامه چیدمان قبلی ↗';$('#quickAR').onclick=()=>{if(draft)loadSceneRecord(draft);else {layout='conversation';sceneMemory=null;}location.hash='studio';};$('#startEmpty').onclick=()=>{layout='empty';sceneMemory=null;activeSavedLayoutId=null;previewEnabled=false;clearDraft();location.hash='studio';};return;}
  if(route==='spaces'){
   const rooms=[['living','پذیرایی','برای کنار هم بودن'],['dining','ناهارخوری','دور یک میز، کنار هم'],['dining','آشپزخانه','میز غذاخوری و دورهمی'],['bedroom','اتاق خواب','گوشه‌ای برای آرامش'],['office','فضای کار','جایی برای ایده‌های تازه']];
   try{cloudSets=await loadCompanySets(cloudMembership.company_id);}catch(error){console.warn('Chido company catalog unavailable',error);cloudSets=[];toast('دریافت ست‌های رسمی شرکت انجام نشد.');}
+  if(version!==routeVersion)return;
   if(activeCloudSetId&&!cloudSets.some(item=>item.id===activeCloudSetId))activeCloudSetId=null;
   const activeSet=cloudSets.find(item=>item.id===activeCloudSetId)||null;
   const variants=layoutOptions(space),saved=cloudMembership?.role==='branch'?[]:listCustomLayouts().filter(record=>record.room===space);
@@ -201,7 +226,7 @@ async function render(){const version=++routeVersion;const route=location.hash.s
   return;
  }
  if(route==='layouts'){history.replaceState(null,'',location.pathname+location.search+'#spaces');return render();}
- if(route==='detail'){app.innerHTML=`<section class="page detail-page"><a class="back" href="#spaces">بازگشت ←</a><img class="detail-photo" src="assets/living.png" alt="چیدمان مبلمان کرم در فضای نشیمن"><div class="dots"><i></i><i></i><i></i></div><h1>${layout==='social'?'چیدمان صمیمی':layout==='light'?'چیدمان سبک و روشن':'چیدمان کلاسیک ۱'}</h1><p>یک ایده برای ${space}؛ با ترکیبی از حجم‌های متنوع و رنگ‌های طبیعی.</p><p class="prototype-note">در محیط آزمایشی مبلمان کم‌پلیگان با ابعاد واقعی جایگزین مدل مبلمان می‌شوند.</p><button id="continueLayout" class="primary">ادامهٔ چیدمان و ویرایش <span>→</span></button></section>`;$('#continueLayout').onclick=()=>location.hash='studio';return;}
+ if(route==='detail'){app.innerHTML=`<section class="page detail-page"><a class="back" href="#spaces">بازگشت ←</a><img class="detail-photo" src="assets/living.webp" alt="چیدمان مبلمان کرم در فضای نشیمن"><div class="dots"><i></i><i></i><i></i></div><h1>${layout==='social'?'چیدمان صمیمی':layout==='light'?'چیدمان سبک و روشن':'چیدمان کلاسیک ۱'}</h1><p>یک ایده برای ${space}؛ با ترکیبی از حجم‌های متنوع و رنگ‌های طبیعی.</p><p class="prototype-note">در محیط آزمایشی مبلمان کم‌پلیگان با ابعاد واقعی جایگزین مدل مبلمان می‌شوند.</p><button id="continueLayout" class="primary">ادامهٔ چیدمان و ویرایش <span>→</span></button></section>`;$('#continueLayout').onclick=()=>location.hash='studio';return;}
  if(route==='entry'){app.innerHTML=`<section class="page">${heading('۰۳ / ورود به تجربه','حالا در خانه‌ات ببین.','چند قدم تا امتحان کردن چیدمان فاصله داری.','layouts')}<div class="entry"><div><h2>فضای واقعی، انتخاب تازه</h2><p>در محیطی روشن، گوشی را آرام به سمت کف بگیر. پس از نمایش کف پیشنهادی، «تثبیت این کف» را بزن و خط A–B را روی یک طول معلوم بگذار.</p><div id="support" class="notice">در حال بررسی سازگاری مرورگر…</div><div class="entry-actions"><button id="enterAR" class="primary" disabled>ورود به AR ↗</button><button id="preview">محیط آزمایشی</button></div><p>نیازمند Android Chrome، گوشی سازگار با ARCore، اتصال امن و اجازهٔ دسترسی به دوربین. ورود به AR فقط با لمس دکمه انجام می‌شود.</p></div><div class="entry-illustration">${svg('phone')}</div></div><div class="notice">در مرورگرهای سازگار، کپچر داخلی چیدو تصویر دوربین واقعی و مدل‌های سه‌بعدی را مستقیماً در گالری ثبت می‌کند.</div></section>${footer()}`;$('#preview').onclick=()=>location.hash='studio';await support();if(version!==routeVersion)return;$('#support').textContent=supported?'AR در این مرورگر در دسترس است. مجوزها و ردیابی هنگام شروع بررسی می‌شوند.':'AR در این دستگاه یا مرورگر در دسترس نیست. محیط آزمایشی را باز کن، یا با Chrome روی Android سازگار امتحان کن.';$('#enterAR').disabled=!supported;$('#enterAR').onclick=()=>{location.hash='studio';toast('محیط آماده می‌شود؛ سپس «شروع AR» را بزن.');};return;}
  if(route==='studio'){app.innerHTML=`<section class="ar-launch">
  <div id="viewport" class="viewport ar-launch-stage"><div class="launch-placeholder onboarding"><div class="launch-mark">CHIDO · AR</div><div class="launch-plan">${layout==='empty'?'<span class="blank-layout-placeholder">＋ صحنه خالی</span>':planSketch(layout)}</div><h2>${layout==='empty'?'صحنه خالی برای چیدمان جدید':'سه حرکت تا دیدن چیدمان'}</h2>
@@ -214,7 +239,7 @@ async function render(){const version=++routeVersion;const route=location.hash.s
   <div class="launch-actions"><button id="startAR" class="primary" disabled>در حال بررسی واقعیت افزوده…</button><div class="launch-alternatives"><a href="#spaces">تغییر چیدمان</a><button id="preview3D">پیش‌نمایش سه‌بعدی</button></div></div>
  </section>`;
  try{
-  await refreshCloudSets();await loadScene();if(version!==routeVersion)return;
+  if(!reuseCatalog)await refreshCloudSets();if(version!==routeVersion)return;await loadScene();if(version!==routeVersion)return;
   $('#launchProgress').value=1;$('#launchStage').textContent='موتور سه‌بعدی آماده شد؛ در حال ساخت ابزارها…';
   studio=new Scene($('#viewport'),updateObjects);
   $('#launchProgress').value=2;$('#launchStage').textContent='ابزارها و صحنه آماده‌اند؛ در انتظار دوربین و نشست AR…';
@@ -225,7 +250,9 @@ async function render(){const version=++routeVersion;const route=location.hash.s
     $('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=true;
     $('#measureHint').hidden=true;$('#arMiniMap').hidden=true;$('#abInline').hidden=true;$('#arBottomActions').hidden=true;$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;$('#arSurfaceActions').hidden=true;
     // Let Studio.endSession finish its own callbacks before disposing the 3D renderer.
+    arStarting=false;pendingARSession=null;
     if(homeExitRequested)queueMicrotask(finishChidoHomeExit);
+    else queueMicrotask(()=>{if(location.hash==='#studio')void render({reuseCatalog:true});});
    };
   studio.onPhotoTap=()=>{};
   studio.onHint=toast;
@@ -257,7 +284,7 @@ async function render(){const version=++routeVersion;const route=location.hash.s
   $('#viewport').textContent='محیط سه‌بعدی آماده نشد: '+(error?.message||'خطای نامشخص');
   const session=pendingARSession;pendingARSession=null;
   if(session)void Promise.resolve(session).then(s=>s?.end?.()).catch(()=>{});
-  console.error(error);return;
+  console.error(error);$('#startAR').disabled=false;$('#startAR').textContent='تلاش دوباره';$('#startAR').onclick=()=>void render({reuseCatalog:true});return;
  }
  bindCalibration('ar');
  $('#preview3D').onclick=()=>{previewEnabled=!previewEnabled;$('#viewport').classList.toggle('show-preview',previewEnabled);$('#preview3D').textContent=previewEnabled?'بستن پیش‌نمایش':'پیش‌نمایش سه‌بعدی';};
@@ -267,7 +294,7 @@ async function render(){const version=++routeVersion;const route=location.hash.s
  $('#startAR').disabled=false;$('#startAR').onclick=()=>startAR(false);
  if(autoSession){pendingARSession=null;$('#startAR').hidden=true;void startAR(false,autoSession);}else{$('#launchLoading').hidden=true;}
  return;}
- if(route==='gallery'){app.innerHTML=`<section class="page">${heading('گالری شخصی','قاب‌هایی از خانهٔ تو','ایده‌هایی که دوست داری، اینجا نگه دار.','welcome')}<div class="no-print">${uploadControl()}<button class="gallery-realistic-preview" type="button" data-realistic-demo>رئالیستیک کردن عکس <small>به‌زودی</small></button></div><div class="notice">تصاویر فقط در همین مرورگر و همین نشانی، روی دستگاه تو ذخیره می‌شوند. با پاک کردن داده‌های سایت حذف می‌شوند؛ تصویرهای مهم را دانلود کن.</div><div id="images" class="images"></div></section>${footer()}`;$('#upload').onchange=uploadFiles;try{const list=(await photos()).sort((a,b)=>b.date-a.date);if(version!==routeVersion)return;if(!list.length){$('#images').className='empty-gallery';$('#images').innerHTML=`${svg('gallery')}<h2>اولین قاب، منتظر توست.</h2><p>از محیط AR کپچر داخلی بگیر یا تصویر دلخواهت را بارگذاری کن.</p><a href="#spaces" class="back">شروع یک چیدمان ←</a>`;}else for(const p of list){const url=URL.createObjectURL(p.blob);photoURLs.push(url);const el=document.createElement('article');el.className='image-card';el.innerHTML=`<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="تصویر ذخیره‌شدهٔ چیدمان"></a><p>${p.kind}<br>${new Date(p.date).toLocaleString('fa-IR')}</p><a href="${url}" download="chido-${p.id}.png">دانلود ↓</a><button type="button" class="gallery-realistic-preview" data-realistic-demo>رئالیستیک کردن <small>آزمایشی</small></button><button data-photo-delete>حذف</button>`;el.querySelector('[data-photo-delete]').onclick=async()=>{try{await removePhoto(p.id);render();}catch{toast('حذف تصویر انجام نشد.');}};$('#images').append(el);}document.querySelectorAll('[data-realistic-demo]').forEach(b=>b.onclick=()=>toast('رئالیستیک کردن تصویر فعلاً نمایشی است؛ پردازشی انجام نمی‌شود.'));}catch{$('#images').textContent='دسترسی به گالری ممکن نیست؛ ذخیره‌سازی مرورگر را فعال کن.';}updateCount();return;}
+ if(route==='gallery'){app.innerHTML=`<section class="page">${heading('گالری شخصی','قاب‌هایی از خانهٔ تو','ایده‌هایی که دوست داری، اینجا نگه دار.','welcome')}<div class="no-print">${uploadControl()}<button class="gallery-realistic-preview" type="button" data-realistic-demo>رئالیستیک کردن عکس <small>به‌زودی</small></button></div><div class="notice">تصاویر فقط در همین مرورگر و همین نشانی، روی دستگاه تو ذخیره می‌شوند. با پاک کردن داده‌های سایت حذف می‌شوند؛ تصویرهای مهم را دانلود کن.</div><div id="images" class="images"></div></section>${footer()}`;$('#upload').onchange=uploadFiles;try{const list=(await photos()).sort((a,b)=>b.date-a.date);if(version!==routeVersion)return;if(!list.length){$('#images').className='empty-gallery';$('#images').innerHTML=`${svg('gallery')}<h2>اولین قاب، منتظر توست.</h2><p>از محیط AR کپچر داخلی بگیر یا تصویر دلخواهت را بارگذاری کن.</p><a href="#spaces" class="back">شروع یک چیدمان ←</a>`;}else for(const p of list){const url=URL.createObjectURL(p.blob);photoURLs.push(url);const el=document.createElement('article');el.className='image-card';el.innerHTML=`<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="تصویر ذخیره‌شدهٔ چیدمان"></a><p>${p.kind}<br>${new Date(p.date).toLocaleString('fa-IR')}</p><a href="${url}" download="chido-${p.id}.${p.blob.type==='image/webp'?'webp':p.blob.type==='image/jpeg'?'jpg':'png'}">دانلود ↓</a><button type="button" class="gallery-realistic-preview" data-realistic-demo>رئالیستیک کردن <small>آزمایشی</small></button><button data-photo-delete>حذف</button>`;el.querySelector('[data-photo-delete]').onclick=async()=>{try{await removePhoto(p.id);render();}catch{toast('حذف تصویر انجام نشد.');}};$('#images').append(el);}document.querySelectorAll('[data-realistic-demo]').forEach(b=>b.onclick=()=>toast('رئالیستیک کردن تصویر فعلاً نمایشی است؛ پردازشی انجام نمی‌شود.'));}catch{$('#images').textContent='دسترسی به گالری ممکن نیست؛ ذخیره‌سازی مرورگر را فعال کن.';}updateCount();return;}
  if(route==='invoice'){const total=savedItems.reduce((s,m)=>s+m.price,0);app.innerHTML=`<section class="page">${heading('برآورد اولیه','پیش‌فاکتور آزمایشی','فقط برای بررسی تجربهٔ انتخاب؛ فاقد اعتبار خرید.','studio')}<div class="invoice"><div class="page-heading"><a class="brand" href="#welcome">CHIDO</a><span class="step">${new Date().toLocaleDateString('fa-IR')}<br>واحد: تومان</span></div><table><thead><tr><th>حجم نمونه</th><th>رنگ</th><th>تعداد</th><th>مبلغ فرضی</th></tr></thead><tbody>${savedItems.map(m=>`<tr><td>${m.name||'قطعه'} ${fa(m.id)}</td><td><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:${m.color}"></span></td><td>۱</td><td>${fa(m.price)}</td></tr>`).join('')||'<tr><td colspan="4">هنوز باکسی انتخاب نشده است.</td></tr>'}</tbody><tfoot><tr><td colspan="3">جمع آزمایشی</td><td>${fa(total)} تومان</td></tr></tfoot></table><p>قیمت‌ها کاملاً فرضی‌اند. مالیات، ارسال و خدمات محاسبه نشده است. این صفحه سفارش یا پرداخت ایجاد نمی‌کند.</p></div><button id="print" class="primary no-print" style="margin-top:20px">چاپ / دریافت PDF</button></section>${footer()}`;$('#print').onclick=()=>window.print();return;}
  location.hash='welcome';
 }
@@ -659,7 +686,7 @@ function handleARReport(report){
  if(!report.placed){closeArSheet();$('#measureHint').hidden=true;}
  updateMeasurements();
 }
-async function startAR(basic=false,incomingSession=null){if(!studio||studio.session||arStarting)return;arStarting=true;calibrationPrompted=false;const button=$('#startAR');button.disabled=true;$('#arError').close();try{$('#overlay').hidden=false;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=false;$('#scanProgress').value=12;$('#scanStage').textContent='راه‌اندازی AR…';$('#scanPercent').textContent='۱۲٪';closeArSheet();$('#arSettings').hidden=true;$('#arStatus').textContent='در حال شناسایی کف…';resetWideViewControls();const result=await studio.startAR(message=>$('#arStatus').textContent=message,handleARReport,basic,{light:!basic&&$('#lightEnabled').checked,depth:!basic&&$('#depthEnabled').checked},incomingSession);if(!result.hasOverlay)$('#overlay').hidden=true;$('#launchProgress').value=3;$('#launchStage').textContent='نشست AR آماده شد؛ کف را اسکن کن.';studio.setDebugVisible(debugEnabled);updateObjects();}catch(error){$('#overlay').hidden=true;$('#arDock').hidden=true;button.hidden=false;$('#launchStage').textContent='ورود به AR ناموفق بود؛ جزئیات را بررسی کن.';const failure=explainXR(error);lastXRErrorReport=JSON.stringify({version:'0.4.1',mode:basic?'basic':'full',stage:failure.stage,name:failure.name,message:failure.detail,secureContext:isSecureContext,webXR:!!navigator.xr,supportCheck:supported,userAgent:navigator.userAgent},null,2);$('#arErrorMessage').textContent=failure.message;$('#arErrorDetails').textContent=lastXRErrorReport;$('#arError').showModal();console.error(error);}finally{arStarting=false;button.disabled=false;}}
+async function startAR(basic=false,incomingSession=null){if(!studio||studio.session||arStarting)return;arStarting=true;calibrationPrompted=false;const launchingStudio=studio;const button=$('#startAR');button.disabled=true;$('#arError').close();try{$('#overlay').hidden=false;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=false;$('#scanProgress').value=12;$('#scanStage').textContent='راه‌اندازی AR…';$('#scanPercent').textContent='۱۲٪';closeArSheet();$('#arSettings').hidden=true;$('#arStatus').textContent='در حال شناسایی کف…';resetWideViewControls();const result=await launchingStudio.startAR(message=>$('#arStatus').textContent=message,handleARReport,basic,{light:!basic&&$('#lightEnabled').checked,depth:!basic&&$('#depthEnabled').checked},incomingSession);if(studio!==launchingStudio||!launchingStudio.session)return;if(!result.hasOverlay)$('#overlay').hidden=true;$('#launchProgress').value=3;$('#launchStage').textContent='نشست AR آماده شد؛ کف را اسکن کن.';studio.setDebugVisible(debugEnabled);updateObjects();}catch(error){if(studio!==launchingStudio)return;$('#overlay').hidden=true;$('#arDock').hidden=true;button.hidden=false;$('#launchStage').textContent='ورود به AR ناموفق بود؛ جزئیات را بررسی کن.';const failure=explainXR(error);lastXRErrorReport=JSON.stringify({version:'0.4.1',mode:basic?'basic':'full',stage:failure.stage,name:failure.name,message:failure.detail,secureContext:isSecureContext,webXR:!!navigator.xr,supportCheck:supported,userAgent:navigator.userAgent},null,2);$('#arErrorMessage').textContent=failure.message;$('#arErrorDetails').textContent=lastXRErrorReport;$('#arError').showModal();console.error(error);}finally{arStarting=false;button.disabled=false;}}
 function resetWideViewControls(){
  const select=$('#wideViewMode');if(select){select.value='ar';select.disabled=true;}
  const natural=$('#wideNatural');if(natural)natural.disabled=true;
@@ -793,7 +820,7 @@ async function openCameraGallery(){
    const img=document.createElement('img');img.src=cameraPhotoURL(record.blob);img.alt='عکس چیدو';
    const actions=document.createElement('div');actions.className='camera-shot-actions';
    const download=document.createElement('a');download.textContent='ذخیره در دستگاه';download.href=img.src;
-   download.download='chido-'+record.id+'.jpg';
+   download.download='chido-'+record.id+(record.blob.type==='image/webp'?'.webp':record.blob.type==='image/png'?'.png':'.jpg');
    const del=document.createElement('button');del.textContent='حذف';del.onclick=async()=>{
     if(!confirm('این عکس از گالری چیدو حذف شود؟'))return;
     await removePhoto(record.id);await updateCameraLast();await openCameraGallery();

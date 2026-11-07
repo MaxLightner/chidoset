@@ -1,3 +1,4 @@
+import {authStorage} from './auth-storage.js';
 import {configureTelemetry} from './telemetry.js';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.119.0';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, CHIDO_API_URL } from './backend-config.js';
@@ -6,6 +7,7 @@ import {registerCloudProducts,getCloudProduct} from './cloud-product-registry.js
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     persistSession: true,
+    storage: authStorage('chido-auth-v1'),
     autoRefreshToken: true,
     detectSessionInUrl: false,
     // Opening a guest link must not replace the manager/showroom session.
@@ -65,7 +67,7 @@ export async function getMembership() {
   if (userError || !userData.user) return null;
   const { data, error } = await supabase
     .from('company_memberships')
-    .select('id,company_id,branch_id,role,status,companies(name,slug,status,max_layouts_per_set,max_colorways_per_set)')
+    .select('id,company_id,branch_id,role,status,display_name,companies(name,slug,status,max_layouts_per_set,max_colorways_per_set)')
     .eq('user_id', userData.user.id)
     .eq('status', 'active')
     .maybeSingle();
