@@ -18,7 +18,7 @@ import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-
 import {LiveMiniMap} from './minimap.js?v=0.5.4';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
 import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList} from './cloud-product-registry.js';
-import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,loadDemoLibrary,saveOfficialLayout,saveOfficialColorway,createLiveSession,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.12.3';
+import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,loadDemoLibrary,saveOfficialLayout,saveOfficialColorway,createLiveSession,findActiveLiveSession,getLiveShareLink,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.12.4';
 const studioCache=new StudioCache();
 const studioOwner=()=>cloudMembership?cloudMembership.company_id+':'+cloudMembership.user.id:'';
 const $=s=>document.querySelector(s),app=$('#app'),fa=n=>n.toLocaleString('fa-IR');
@@ -35,6 +35,7 @@ const themes=[
 let themeIndex=0,styleChoice='مینیمال',previewEnabled=false,peopleCount=5;
 let cloudMembership=null,cloudSets=[],demoLibrary=[],activeCloudSetId=null,activeCloudLayout=null,activeCloudColorway=null,activeLiveSession=null;
 let liveSceneTimer=null,lastLiveCameraSent=0,liveCameraBusy=false,liveCameraQueued=null;
+let autoShareAttempted=false,liveShareStarting=false;
 let appSessionLogged=false,lastHeartbeatAt=0;
 const catalogImages=[
  ['کاناپه','<rect x="14" y="24" width="74" height="46" rx="10"/><path d="M16 38h70M32 42v25m37-25v25"/>'],
@@ -377,22 +378,32 @@ function liveCameraFrame(time){
  liveCameraBusy=true;lastLiveCameraSent=time;
  publishLiveCamera(activeLiveSession.id,state).catch(error=>console.warn('Live camera sync failed',error)).finally(()=>{liveCameraBusy=false;});
 }
-async function beginLiveShare(){
+async function beginLiveShare({silent=false}={}){
  if(!studio?.session||!studio.placed){toast('ابتدا AR را اجرا و کف را تثبیت کن.');return;}
- if(activeLiveSession){$('#liveShareDialog')?.showModal();return;}
+ if(activeLiveSession){if(!silent)await openLiveShareDialog();return;}
+ if(liveShareStarting)return;
+ liveShareStarting=true;
  const button=$('#arShareSession');if(button)button.disabled=true;
  try{
-  await refreshCloudSets();
-  activeLiveSession=await createLiveSession({sceneState:studio.exportLiveState(),cameraState:studio.cameraSnapshot()});
+  let session=await findActiveLiveSession();
+  if(!session){await refreshCloudSets();session=await createLiveSession({sceneState:studio.exportLiveState(),cameraState:studio.cameraSnapshot()});}
+  activeLiveSession=session;
   studio.onFrame=liveCameraFrame;
-  $('#liveShareUrl').textContent=activeLiveSession.url;
-  $('#liveShareQr').innerHTML='<span>در حال ساخت QR…</span>';
-  $('#liveShareDialog').showModal();
-  try{const QRCode=await import('https://esm.sh/qrcode@1.5.4');$('#liveShareQr').innerHTML=await QRCode.toString(activeLiveSession.url,{type:'svg',width:240,margin:1,errorCorrectionLevel:'M'});}
-  catch(error){console.warn('QR module unavailable',error);$('#liveShareQr').innerHTML='<span>QR در دسترس نیست؛ لینک را کپی کن.</span>';}
+  await Promise.all([publishLiveScene(session.id,studio.exportLiveState()),publishLiveCamera(session.id,studio.cameraSnapshot())]);
+  if(!silent)await openLiveShareDialog();
   await logActivity(cloudMembership,'live_session_started',{session_id:activeLiveSession.id});
  }catch(error){console.error(error);toast(error.message||'ساخت نمایش زنده انجام نشد.');}
- finally{if(button)button.disabled=false;}
+ finally{liveShareStarting=false;if(button)button.disabled=false;}
+}
+async function openLiveShareDialog(){
+ if(!activeLiveSession)return;
+ const url=activeLiveSession.url||await getLiveShareLink(activeLiveSession.id);
+ activeLiveSession.url=url;
+ $('#liveShareUrl').textContent=url;
+ $('#liveShareQr').innerHTML='<span>در حال ساخت QR…</span>';
+ if(!$('#liveShareDialog').open)$('#liveShareDialog').showModal();
+ try{const QRCode=await import('https://esm.sh/qrcode@1.5.4');$('#liveShareQr').innerHTML=await QRCode.toString(url,{type:'svg',width:240,margin:1,errorCorrectionLevel:'M'});}
+ catch(error){console.warn('QR module unavailable',error);$('#liveShareQr').innerHTML='<span>QR در دسترس نیست؛ لینک را کپی کن.</span>';}
 }
 async function endLiveShare(silent=false){
  const current=activeLiveSession;if(!current)return;
@@ -402,6 +413,7 @@ async function endLiveShare(silent=false){
   return false;
  }
  activeLiveSession=null;clearTimeout(liveSceneTimer);liveSceneTimer=null;
+ autoShareAttempted=false;
  if(studio)studio.onFrame=null;
  const dialog=$('#liveShareDialog');if(dialog?.open)dialog.close();
  if(!silent)toast('نمایش زنده پایان یافت.');
@@ -692,6 +704,10 @@ function handleARReport(report){
  $('#arEditControls').hidden=true;
  $('#arSettings').hidden=!(report.placed&&arSheetMode==='settings');
  $('#arDock').hidden=!report.placed;$('#arMiniMap').hidden=!report.placed;$('#arBottomActions').hidden=!report.placed;updateCloudControls();if(report.placed){minimap.render();if(!calibrationPrompted){calibrationPrompted=true;$('#abCalibrationSheet').hidden=false;}}else $('#abInline').hidden=true;
+ if(report.placed&&!autoShareAttempted&&cloudMembership?.role==='branch'){
+  autoShareAttempted=true;
+  void beginLiveShare({silent:true});
+ }
  $('#arDock').classList.toggle('ready',report.placed);
  const wideSelect=$('#wideViewMode');wideSelect.disabled=!report.placed||!studio?.hasOverlay;
  $('#wideNatural').disabled=wideSelect.disabled;

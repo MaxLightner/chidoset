@@ -271,6 +271,28 @@ export async function createLiveSession({ sceneState, cameraState, branchId = nu
   return { id: session.id, token: rawToken, expiresAt: session.expires_at, url: guestUrl.toString() };
 }
 
+export async function findActiveLiveSession() {
+  const membership = await getMembership();
+  if (!membership) return null;
+  const { data, error } = await supabase.from('live_sessions')
+    .select('id,expires_at,created_at')
+    .eq('host_user_id', membership.user.id)
+    .is('revoked_at', null)
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false }).limit(1).maybeSingle();
+  if (error) throw error;
+  return data ? { id: data.id, expiresAt: data.expires_at } : null;
+}
+
+export async function getLiveShareLink(sessionId) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error('برای دریافت لینک نمایش وارد حساب شو.');
+  const result = await api('/live/link', { body: { session_id: sessionId }, token: session.access_token });
+  const guestUrl = new URL('guest.html', window.location.href);
+  guestUrl.search = '?token=' + encodeURIComponent(result.token);
+  return guestUrl.toString();
+}
+
 export async function publishLiveScene(sessionId, sceneState) {
   const { error } = await supabase
     .from('live_session_scenes')

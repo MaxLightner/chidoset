@@ -59,8 +59,14 @@ function applyCamera(state) {
   if (!studio || !state) return;
   if (lastCamera && Number(state.timestamp) < Number(lastCamera.timestamp)) return;
   lastCamera = state;
+  if(state.waiting||Number(state.timestamp)===0){
+    message('در انتظار تبلت', 'فروشنده به‌زودی نمای AR را شروع می‌کند. این صفحه خودکار به نمایش زنده وصل می‌شود.');
+    setConnection('منتظر شروع AR');
+    return;
+  }
   fitHostAspect(state);
   studio.applyExternalCameraState(state);
+  message('', '', false);
 }
 
 async function finish() {
@@ -84,8 +90,7 @@ async function refresh() {
     const latest = await loadInitialState();
     applyScene(latest.scene);
     applyCamera(latest.camera);
-    setConnection('متصل به نمایش فروشنده', true);
-    message('', '', false);
+    if(!lastCamera?.waiting){setConnection('متصل به نمایش فروشنده', true);message('', '', false);}
   } catch (error) {
     setConnection('در حال تلاش برای اتصال مجدد');
     console.warn('Guest reconnect pending', error.message);
@@ -135,8 +140,7 @@ async function start() {
       }, payload => applyCamera(payload.new?.camera_state))
       .subscribe(status => {
         if (status === 'SUBSCRIBED') {
-          setConnection('متصل به نمایش فروشنده', true);
-          message('', '', false);
+          if(!lastCamera?.waiting){setConnection('متصل به نمایش فروشنده', true);message('', '', false);}
           void refresh();
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           setConnection('در حال تلاش برای اتصال مجدد');

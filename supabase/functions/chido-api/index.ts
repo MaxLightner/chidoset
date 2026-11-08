@@ -30,6 +30,45 @@ async function sha256(value: string) {
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// A recoverable invitation for an authenticated host, without storing a
+// plaintext guest bearer token or invalidating invitations already issued.
+async function signedLiveToken(sessionId: string) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(SERVICE_ROLE_KEY),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const bytes = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(sessionId)));
+  const signature = btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+  return 'live.' + sessionId + '.' + signature;
+}
+
+async function resolveGuestSession(token: string) {
+  const signed = /^live\.([0-9a-f-]{36})\.([A-Za-z0-9_-]{43})$/.exec(token);
+  if (signed) {
+    const expected = await signedLiveToken(signed[1]);
+    if (expected !== token) return null;
+    const result = await admin.from('live_sessions').select('id,company_id,branch_id,host_user_id,expires_at,revoked_at').eq('id', signed[1]).maybeSingle();
+    return result.data;
+  }
+  const tokenHash = await sha256(token);
+  const result = await admin.from('live_sessions').select('id,company_id,branch_id,host_user_id,expires_at,revoked_at').eq('guest_token_hash', tokenHash).maybeSingle();
+  return result.data;
+}
+
+async function liveLink(req: Request) {
+  const bearer = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') || '';
+  if (!bearer) return response({ error: 'ورود لازم است.' }, 401);
+  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data: user, error } = await client.auth.getUser(bearer);
+  if (error || !user.user) return response({ error: 'نشست معتبر نیست.' }, 401);
+  const body = await req.json().catch(() => ({}));
+  const sessionId = typeof body.session_id === 'string' ? body.session_id : '';
+  if (!/^[0-9a-f-]{36}$/.test(sessionId)) return response({ error: 'نشست نامعتبر است.' }, 400);
+  const { data: session } = await admin.from('live_sessions')
+    .select('id,host_user_id,expires_at,revoked_at').eq('id', sessionId).maybeSingle();
+  if (!session || session.host_user_id !== user.user.id || session.revoked_at || Date.parse(session.expires_at) <= Date.now())
+    return response({ error: 'نشست زندهٔ مجاز پیدا نشد.' }, 403);
+  return response({ token: await signedLiveToken(session.id), expires_at: session.expires_at });
+}
+
 function randomPassword() {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("") + "aA9!";
@@ -197,14 +236,8 @@ async function guestAuth(req: Request) {
   const token = typeof body.token === "string" ? body.token.trim() : "";
   if (token.length < 40 || token.length > 200) return response({ error: "لینک نمایش معتبر نیست." }, 400);
 
-  const tokenHash = await sha256(token);
-  const { data: session, error } = await admin
-    .from("live_sessions")
-    .select("id,company_id,branch_id,host_user_id,expires_at,revoked_at")
-    .eq("guest_token_hash", tokenHash)
-    .maybeSingle();
-
-  if (error || !session || session.revoked_at || new Date(session.expires_at).getTime() <= Date.now()) {
+  const session = await resolveGuestSession(token);
+  if (!session || session.revoked_at || new Date(session.expires_at).getTime() <= Date.now()) {
     return response({ error: "این نمایش زنده پایان یافته یا لینک آن معتبر نیست." }, 404);
   }
 
@@ -309,12 +342,7 @@ async function guestStatus(req: Request) {
   const url = new URL(req.url);
   const token = url.searchParams.get("token") || "";
   if (token.length < 40 || token.length > 200) return response({ active: false }, 400);
-  const tokenHash = await sha256(token);
-  const { data: session } = await admin
-    .from("live_sessions")
-    .select("id,expires_at,revoked_at")
-    .eq("guest_token_hash", tokenHash)
-    .maybeSingle();
+  const session = await resolveGuestSession(token);
   const active = !!session && !session.revoked_at && new Date(session.expires_at).getTime() > Date.now();
   if (session && !active) {
     if (!session.revoked_at) await admin.from("live_sessions").update({ revoked_at: new Date().toISOString() }).eq("id", session.id);
@@ -335,6 +363,7 @@ Deno.serve(async (req: Request) => {
     }
     if (req.method === "POST" && path.endsWith("/activate")) return await activate(req);
     if (req.method === "POST" && path.endsWith("/guest/auth")) return await guestAuth(req);
+    if (req.method === "POST" && path.endsWith("/live/link")) return await liveLink(req);
     if (req.method === "GET" && path.endsWith("/guest/status")) return await guestStatus(req);
     if (req.method === "POST" && path.endsWith("/live/revoke")) return await revokeLiveSession(req);
     return response({ error: "Route not found." }, 404);

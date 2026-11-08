@@ -3,18 +3,17 @@
 <head>
  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
  <meta name="robots" content="noindex,nofollow"><title>نمایش زنده | چیدو</title>
- <link rel="stylesheet" href="live-viewer.css?v=1">
+ <link rel="stylesheet" href="style.css?v=0.14.2"><link rel="stylesheet" href="live-viewer.css?v=2">
 </head>
 <body>
  <header class="viewer-header"><a href="website/" class="brand">CHIDO <small>نمایش زنده</small></a><div><span id="operatorName"></span><button id="signOut" type="button">خروج</button></div></header>
  <main class="viewer-shell" id="viewerShell" hidden>
-  <section class="viewer-intro"><div><p class="eyebrow">پنل عامل فروش</p><h1>نمایش زندهٔ چیدمان</h1><p>کد نمایش فروشنده را اسکن کن؛ صحنه و زاویهٔ دوربین تبلت بدون تصویر واقعی دوربین، در همین صفحه نمایش داده می‌شود.</p></div><a href="index.html#welcome">ورود به اپ AR ↗</a></section>
-  <div class="viewer-tabs" role="tablist" aria-label="حالت نمایش"><button id="scanTab" role="tab" aria-selected="true">اسکن QR کد</button><button id="watchTab" role="tab" aria-selected="false">نمایش زنده</button></div>
-  <section id="scanPanel" class="viewer-panel" role="tabpanel">
-   <div class="scan-layout"><div class="camera-box"><video id="scanVideo" playsinline muted autoplay></video><span id="cameraHint">برای اسکن، دوربین را روشن کن.</span></div><div class="scan-fields"><h2>اتصال به نمایش فروشنده</h2><p>QR ایجادشده در AR تبلت را روبه‌روی دوربین لپ‌تاپ بگیر. در صورت نداشتن دوربین، لینک نمایش را وارد کن.</p><button class="primary" id="startScan">روشن کردن دوربین و اسکن</button><button id="stopScan" hidden>توقف دوربین</button><form id="linkForm"><label for="guestLink">لینک نمایش یا کد مهمان</label><input id="guestLink" autocomplete="off" spellcheck="false" dir="ltr" placeholder="لینک نمایش زنده"><button type="submit" class="primary">نمایش در همین صفحه</button></form><p id="scanStatus" role="status"></p></div></div>
-  </section>
-  <section id="watchPanel" class="viewer-panel" role="tabpanel" hidden><div class="watch-bar"><span id="watchStatus">منتظر دریافت لینک نمایش</span><div><button id="scanAgain">اسکن کد دیگر</button><button id="closeWatch">بستن نمایش</button></div></div><div class="watch-stage" id="watchStage"><div id="emptyWatch">پس از اسکن QR، صحنهٔ سه‌بعدی فروشنده اینجا ظاهر می‌شود.</div><iframe id="guestFrame" title="نمایش سه‌بعدی زنده مهمان" allow="fullscreen" referrerpolicy="same-origin" hidden></iframe></div></section>
+  <section class="viewer-intro"><div><p class="eyebrow">پنل عامل فروش</p><h1>نمایش زندهٔ چیدو</h1><p>تصویر سه‌بعدی تبلت همین‌جا همگام می‌شود. برای مهمان‌ها از QR مقابل استفاده کن؛ برای تماشای شخصی نیازی به اسکن نیست.</p></div><a href="index.html#welcome">اپلیکیشن AR ↗</a></section>
+  <div class="broadcast-layout">
+   <section class="share-card" aria-labelledby="shareTitle"><div class="live-label"><i></i> لینک مهمان</div><h2 id="shareTitle">QR نمایش زنده</h2><p>این کد برای مشتری و بیننده است؛ حساب عامل فروش خودش مستقیم به صحنه وصل می‌شود.</p><div class="share-qr" id="shareQr" aria-label="کد QR نمایش مهمان">در حال آماده‌سازی QR…</div><div class="share-actions"><button type="button" id="copyLink">کپی لینک</button><button type="button" id="renewLink">به‌روزرسانی</button></div><p id="shareStatus" class="status-line" role="status"></p><small>لینک نشست ۴۵ دقیقه اعتبار دارد. با شروع نشست تازه، QR خودکار نوسازی می‌شود.</small></section>
+   <section class="watch-card" id="watchPanel" aria-labelledby="watchTitle"><div class="watch-head"><div><div class="live-label"><i></i> مانیتور عامل فروش</div><h2 id="watchTitle">نمایش همین‌جا</h2></div><button type="button" class="primary" id="showHere">نمایش همین‌جا ↗</button></div><div class="watch-stage"><div id="viewport" class="guest-viewport"><div id="arSurface" aria-hidden="true"></div></div><div id="waitingOverlay" class="waiting-overlay"><span>◉</span><strong>در انتظار تصویر تبلت</strong><p>در تبلت با همین حساب وارد AR شو و کف را تثبیت کن. تصویر و زاویهٔ دوربین خودکار اینجا ظاهر می‌شود.</p></div></div><footer class="watch-footer"><span id="watchStatus" role="status">در حال اتصال…</span><span>فقط نمایش · بدون کنترل</span></footer></section>
+  </div>
  </main>
  <p id="authStatus" class="auth-status" role="status">در حال بررسی دسترسی عامل فروش…</p>
- <script type="module" src="live-viewer.js?v=1"></script>
+ <script type="module" src="live-viewer.js?v=2"></script>
 </body></html>
