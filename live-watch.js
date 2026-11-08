@@ -2,7 +2,7 @@ import {supabase,withLiveTimeout} from './chido-cloud.js?v=0.16.1';
 import {requestLiveView,readLiveViewRequest,changeLiveViewRequest} from './live-approval.js?v=0.16.1';
 import {recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.16.1';
 import * as THREE from './vendor/three.module.js';
-import {LiveViewCamera} from './live-view-camera.js?v=0.16.3';
+import {LiveViewCamera} from './live-view-camera.js?v=0.16.4';
 import {approvedLiveTopic} from './live-broadcast.js?v=0.16.3';
 export class ApprovedLiveWatch{
  constructor(studio,{onState=()=>{},onCamera=()=>{}}={}){
@@ -14,8 +14,8 @@ export class ApprovedLiveWatch{
   this.emit('idle','محیط سه‌بعدی آماده است','برای ارسال درخواست، «نمایش همین‌جا» را بزن.');
  }
  emit(phase,label,message='',extra={}){const state={phase,label,message,requested:!!this.request,received:['seen','approved','rejected'].includes(this.request?.status),approved:this.request?.status==='approved',...extra},key=JSON.stringify(state);if(key!==this.lastState){if(this.lastPhase!==phase)recordRuntime('viewer-'+phase,null,'received='+state.received+' approved='+state.approved);this.lastPhase=phase;this.lastState=key;if(this.grid)this.grid.visible=!this.camera;this.onState(state);}}
- standby(){this.studio.externalCameraState=null;this.viewerCamera.pose=null;this.viewerCamera.marker.visible=false;this.viewerCamera.setMode(this.viewerCamera.mode);this.studio.resize();}
- setViewMode(mode){this.viewerCamera.setMode(mode);this.studio.resize();}
+ standby(){this.studio.externalCameraState=null;this.viewerCamera.reset();const camera=this.studio.camera;camera.position.set(5.2,4.4,6);camera.lookAt(.6,0,-.5);this.viewerCamera.setFov(this.viewerCamera.fov);this.studio.resize();}
+ setLensFov(degrees){return this.viewerCamera.setFov(degrees);}
  connectFastChannel(request){
   const topic=approvedLiveTopic(request.id,request.host_client_id);
   if(!topic||this.fastTopic===topic)return;
@@ -83,7 +83,6 @@ export class ApprovedLiveWatch{
   this.lastSceneTimestamp=Number(state.timestamp||0);this.lastKey=key;const revision=(this.sceneRevision||0)+1;this.sceneRevision=revision;
   this.studio.syncLiveState(state);this.studio.setPhotoMode(true);this.studio.scene.background?.set('#ffffff');this.loadStarted=Date.now();
   if(this.lastTransforms&&Number(this.lastTransforms.timestamp)>=Number(state.timestamp||0))this.applyTransforms(this.lastTransforms,true);
-  this.viewerCamera.fitOverview();
   void Promise.allSettled(this.studio.items.map(item=>item.userData.loadPromise).filter(Boolean)).then(()=>{if(this.sceneRevision===revision&&this.wanted)this.progress();});
   this.progress();
  }
@@ -106,7 +105,6 @@ export class ApprovedLiveWatch{
    if(Number.isFinite(item.rotation))mesh.rotation.y=item.rotation;
    if(typeof item.hidden==='boolean'){mesh.userData.hidden=item.hidden;mesh.visible=!item.hidden;}
   }
-  if(this.viewerCamera.mode==='overview'&&Date.now()-(this.lastOverviewFit||0)>450){this.lastOverviewFit=Date.now();this.viewerCamera.fitOverview();}
  }
  progress(){
   if(this.request?.status!=='approved')return;

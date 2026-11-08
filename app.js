@@ -36,7 +36,7 @@ const themes=[
 ];
 let themeIndex=0,styleChoice='مینیمال',previewEnabled=false,peopleCount=5;
 let cloudMembership=null,cloudSets=[],demoLibrary=[],activeCloudSetId=null,activeCloudLayout=null,activeCloudColorway=null,activeLiveSession=null;
-let liveSceneTimer=null,lastLiveSceneSent=0,liveSceneBusy=false,liveSceneDirty=false,lastLiveCameraSent=0,lastLiveCameraPersist=0,liveCameraBusy=false,liveCameraQueued=null;
+let liveSceneTimer=null,lastLiveSceneSent=0,liveSceneBusy=false,liveSceneDirty=false,lastLiveCameraSent=0,lastLiveTransformsSent=0,lastLiveCameraPersist=0,liveCameraBusy=false,liveCameraQueued=null;
 let autoShareAttempted=false,liveShareStarting=false;
 let liveRetryAt=0,liveReconcileBusy=false,liveSharingPaused=false;
 const liveApproval=new LiveApprovalHost({getStudio:()=>studio,publish:publishApprovedLiveScene});
@@ -386,11 +386,14 @@ function scheduleLiveScenePublish(urgent=false){
 function liveRuntimeFrame(time){void liveApproval.poll();liveCameraFrame(time);}
 function liveCameraFrame(time){
  if(!activeLiveSession||!studio?.session||!liveApproval.isAllowed(activeLiveSession.id))return;
- const dueBroadcast=time-lastLiveCameraSent>=95,duePersistence=time-lastLiveCameraPersist>=1800&&!liveCameraBusy;
- if(!dueBroadcast&&!duePersistence)return;
+ const dueBroadcast=time-lastLiveCameraSent>=65,dueTransforms=time-lastLiveTransformsSent>=130,duePersistence=time-lastLiveCameraPersist>=1800&&!liveCameraBusy;
+ if(!dueBroadcast&&!dueTransforms&&!duePersistence)return;
  const state=liveApproval.packet(studio.cameraSnapshot());if(!state)return;
  if(dueBroadcast){
   lastLiveCameraSent=time;liveApproval.broadcastPose(state);
+ }
+ if(dueTransforms){
+  lastLiveTransformsSent=time;
   liveApproval.broadcastTransforms(liveApproval.packet({timestamp:state.timestamp,items:studio.items.map(mesh=>({id:mesh.userData.id,index:mesh.userData.index,position:mesh.position.toArray(),rotation:mesh.rotation.y,hidden:!!mesh.userData.hidden}))}));
  }
  if(!duePersistence)return;
@@ -417,7 +420,7 @@ async function publishApprovedLiveScene(request){
  const packet=state=>liveApproval.packet(state);
  await Promise.all([publishLiveScene(row.id,packet({...sender.exportLiveState(),timestamp:Date.now()})),publishLiveCamera(row.id,packet(sender.cameraSnapshot()))]);
  if(!sender.session||studio!==sender)throw Error('نشست AR پایان یافته است.');
- activeLiveSession={id:row.id,expiresAt:row.expires_at};lastLiveCameraSent=0;lastLiveCameraPersist=0;liveSharingPaused=false;sender.onFrame=liveRuntimeFrame;
+ activeLiveSession={id:row.id,expiresAt:row.expires_at};lastLiveCameraSent=0;lastLiveTransformsSent=0;lastLiveCameraPersist=0;liveSharingPaused=false;sender.onFrame=liveRuntimeFrame;
  recordRuntime('live-initial-state-published',sender.renderer);
 }
 async function ensureLivePublisher(){await liveApproval.poll();}

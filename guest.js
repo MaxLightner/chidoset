@@ -1,6 +1,6 @@
 import {Studio} from './scene.js?v=0.16.2';
 import {supabase,authenticateGuest,guestStatus} from './chido-cloud.js?v=0.16.1';
-import {ApprovedLiveWatch} from './live-watch.js?v=0.16.3';
+import {ApprovedLiveWatch} from './live-watch.js?v=0.16.4';
 import {watchMarkup,renderWatchState} from './live-watch-ui.js?v=0.16.1';
 const $=selector=>document.querySelector(selector),token=new URLSearchParams(location.search).get('token');
 let studio=null,watch=null,expiresAt=0,checking=false,ended=false,timer=null,lastCamera=null;

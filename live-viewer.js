@@ -1,4 +1,4 @@
-import {ApprovedLiveWatch} from './live-watch.js?v=0.16.3';
+import {ApprovedLiveWatch} from './live-watch.js?v=0.16.4';
 import {watchMarkup,renderWatchState} from './live-watch-ui.js?v=0.16.1';
 import {Studio} from './scene.js?v=0.16.2';
 import {supabase,getMembership,findActiveLiveSession,createLiveSession,getLiveShareLink,withLiveTimeout} from './chido-cloud.js?v=0.16.1';
@@ -38,13 +38,10 @@ async function refresh(){
  finally{checking=false;}
 }
 const watchStage=$('.watch-stage'),watchParent=watchStage.parentNode,watchNext=watchStage.nextSibling;
-function changeViewMode(mode){
- watch?.setViewMode(mode);
- $('#viewOverview').setAttribute('aria-pressed',String(mode==='overview'));
- $('#viewFollow').setAttribute('aria-pressed',String(mode==='follow'));
-}
-$('#viewOverview').onclick=()=>changeViewMode('overview');
-$('#viewFollow').onclick=()=>changeViewMode('follow');
+$('#viewerFov').oninput=event=>{
+ const angle=watch?.setLensFov(event.target.value)||Number(event.target.value);
+ $('#viewerFovValue').textContent=Math.round(angle).toLocaleString('fa-IR')+'°';
+};
 $('#showHere').onclick=async()=>{wantWatch=true;const dialog=$('#watchDialog');dialog.append(watchStage);if(!dialog.open)dialog.showModal();studio?.resize();await refresh();if(active&&watch&&['ended','rejected'].includes(watch.request?.status))await watch.retry();};
 $('#closeWatch').onclick=()=>$('#watchDialog').close();
 $('#watchDialog').addEventListener('close',()=>{wantWatch=false;watch?.stop();watchParent.insertBefore(watchStage,watchNext);studio?.resize();});

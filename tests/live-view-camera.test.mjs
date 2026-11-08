@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from '../vendor/three.module.js';
-import {LiveViewCamera,sceneOverviewBounds} from '../live-view-camera.js';
+import {LiveViewCamera} from '../live-view-camera.js';
 import {approvedLiveTopic} from '../live-broadcast.js';
 import {readFileSync} from 'node:fs';
 
@@ -18,34 +18,29 @@ function fixture(){
  return {studio,add};
 }
 
-test('overview contains all furniture independent of tablet orientation and field of view',()=>{
+test('browser camera uses tablet position and rotation, but an independent wider lens',()=>{
  const {studio,add}=fixture();add(1,-4,-3);add(2,5,2);
- const bounds=sceneOverviewBounds(studio);
- assert.ok(bounds.min.x<-4&&bounds.max.x>5);
  const controller=new LiveViewCamera(studio);
- const firstPosition=studio.camera.position.clone();
  const pose={position:[0,1.55,0],quaternion:[0,1,0,0],sceneVisible:false,aspect:.52,projectionMatrix:new Array(16).fill(0)};
  assert.equal(controller.setPose(pose),true);
- assert.equal(controller.marker.visible,true);
- assert.deepEqual(controller.marker.position.toArray(),pose.position);
- assert.equal(studio.camera.fov,56);
- assert.deepEqual(studio.camera.position.toArray(),firstPosition.toArray(),'overview is independent of tablet pose');
- controller.setMode('follow');
- assert.equal(controller.marker.visible,false);
- assert.equal(studio.camera.fov,82);
  assert.deepEqual(studio.camera.position.toArray(),pose.position);
- controller.setMode('overview');
- assert.equal(controller.marker.visible,true);
- assert.equal(studio.camera.fov,56);
+ assert.deepEqual(studio.camera.quaternion.toArray(),pose.quaternion);
+ assert.equal(studio.camera.fov,92);
+ assert.equal(studio.root.visible,true);
+ assert.equal(studio.scene.children.length,1,'no third-person tablet marker');
+ assert.equal(controller.setFov(105),105);
+ assert.equal(studio.camera.fov,105);
+ assert.deepEqual(studio.camera.position.toArray(),pose.position);
  controller.dispose();
 });
 
-test('overview also includes room floor corners and tall walls',()=>{
- const {studio}=fixture();
- studio.architecture={data:{floor:[{x:-2,z:-3},{x:8,z:-3},{x:8,z:4}],walls:[{x1:-2,z1:-3,x2:8,z2:-3,height:3.2}]}};
- const bounds=sceneOverviewBounds(studio);
- assert.ok(bounds.min.x<=-2&&bounds.max.x>=8);
- assert.ok(bounds.max.y>=3.2);
+test('incoming tablet poses are interpolated instead of jumping the browser camera',()=>{
+ const {studio}=fixture(),controller=new LiveViewCamera(studio);
+ controller.setPose({position:[0,1.5,0],quaternion:[0,0,0,1]});
+ controller.setPose({position:[1,1.5,0],quaternion:[0,0,0,1]});
+ controller.tick(performance.now());
+ assert.ok(studio.camera.position.x>0&&studio.camera.position.x<1.3);
+ controller.dispose();
 });
 
 test('approval-specific broadcast topics do not use a predictable session name',()=>{
