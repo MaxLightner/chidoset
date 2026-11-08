@@ -1,6 +1,6 @@
-import {supabase,withLiveTimeout} from './chido-cloud.js?v=0.16.0';
-import {requestLiveView,readLiveViewRequest,changeLiveViewRequest} from './live-approval.js?v=0.16.0';
-import {recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.16.0';
+import {supabase,withLiveTimeout} from './chido-cloud.js?v=0.16.1';
+import {requestLiveView,readLiveViewRequest,changeLiveViewRequest} from './live-approval.js?v=0.16.1';
+import {recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.16.1';
 import * as THREE from './vendor/three.module.js';
 export class ApprovedLiveWatch{
  constructor(studio,{onState=()=>{},onCamera=()=>{}}={}){

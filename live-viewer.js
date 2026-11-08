@@ -1,7 +1,7 @@
-import {ApprovedLiveWatch} from './live-watch.js?v=0.16.0';
-import {watchMarkup,renderWatchState} from './live-watch-ui.js?v=0.16.0';
-import {Studio} from './scene.js?v=0.16.0';
-import {supabase,getMembership,findActiveLiveSession,createLiveSession,getLiveShareLink,withLiveTimeout} from './chido-cloud.js?v=0.16.0';
+import {ApprovedLiveWatch} from './live-watch.js?v=0.16.1';
+import {watchMarkup,renderWatchState} from './live-watch-ui.js?v=0.16.1';
+import {Studio} from './scene.js?v=0.16.1';
+import {supabase,getMembership,findActiveLiveSession,createLiveSession,getLiveShareLink,withLiveTimeout} from './chido-cloud.js?v=0.16.1';
 const $=selector=>document.querySelector(selector);
 let studio=null,active=null,channel=null,link='',lastScene='',lastCamera=null,checking=false,stopping=false,watch=null,member=null,wantWatch=false;
 const setStatus=value=>{$('#watchStatus').textContent=value;};

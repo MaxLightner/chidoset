@@ -268,7 +268,7 @@ export async function createLiveSession({ sceneState, cameraState, branchId = nu
 
   const guestUrl = new URL('guest.html', window.location.href);
   guestUrl.search = '?token=' + encodeURIComponent(rawToken);
-  guestUrl.searchParams.set('v','0.16.0');
+  guestUrl.searchParams.set('v','0.16.1');
   return { id: session.id, token: rawToken, expiresAt: session.expires_at, url: guestUrl.toString() };
 }
 
@@ -291,7 +291,7 @@ export async function getLiveShareLink(sessionId) {
   const result = await api('/live/link', { body: { session_id: sessionId }, token: session.access_token });
   const guestUrl = new URL('guest.html', window.location.href);
   guestUrl.search = '?token=' + encodeURIComponent(result.token);
-  guestUrl.searchParams.set('v','0.16.0');
+  guestUrl.searchParams.set('v','0.16.1');
   return guestUrl.toString();
 }
 

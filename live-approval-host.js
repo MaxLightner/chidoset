@@ -1,5 +1,5 @@
-import {pendingHostViews,changeLiveViewRequest,endHostViews} from './live-approval.js?v=0.16.0';
-import {recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.16.0';
+import {pendingHostViews,changeLiveViewRequest,endHostViews} from './live-approval.js?v=0.16.1';
+import {recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.16.1';
 export class LiveApprovalHost{
  constructor({getStudio,publish,onEnd}){
   Object.assign(this,{getStudio,publish,onEnd,clientId:crypto.randomUUID(),allowed:new Set(),busy:false,deciding:false,nextPoll:0,current:null,hadSession:false});

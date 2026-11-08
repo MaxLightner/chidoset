@@ -1,7 +1,7 @@
-import {Studio} from './scene.js?v=0.16.0';
-import {supabase,authenticateGuest,guestStatus} from './chido-cloud.js?v=0.16.0';
-import {ApprovedLiveWatch} from './live-watch.js?v=0.16.0';
-import {watchMarkup,renderWatchState} from './live-watch-ui.js?v=0.16.0';
+import {Studio} from './scene.js?v=0.16.1';
+import {supabase,authenticateGuest,guestStatus} from './chido-cloud.js?v=0.16.1';
+import {ApprovedLiveWatch} from './live-watch.js?v=0.16.1';
+import {watchMarkup,renderWatchState} from './live-watch-ui.js?v=0.16.1';
 const $=selector=>document.querySelector(selector),token=new URLSearchParams(location.search).get('token');
 let studio=null,watch=null,expiresAt=0,checking=false,ended=false,timer=null,lastCamera=null;
 $('#guestMessage').innerHTML='<div>'+watchMarkup+'</div>';
