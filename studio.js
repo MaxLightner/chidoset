@@ -6,14 +6,14 @@ import {createDecor} from './decor.js?v=0.5.4';
 import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.13.3';
 import {applyRugStyle} from './rug-textures.js?v=0.5.4';
 import {MeasureTool} from './measure-tool.js?v=0.5.4';
-import {bindXRExit} from './xr-lifecycle.js?v=0.13.5';
+import {bindXRExit} from './xr-lifecycle.js?v=0.13.6';
 import {endXRSession} from './xr-end.js';
 import {requestARSession,xrError} from './xr.js?v=0.5.4';
 import {WideViewRenderer,WIDE_VIEW_FOV} from './wide-view.js?v=0.13.3';
 import {SpatialState,CATALOG,pairAngle,wrappedAngle} from './spatial.js?v=0.8.0';
 import {FloorScanner,floorCandidates} from './surfaces.js?v=0.5.4';
 import {createSofaShadow,modelLocalBounds,isSofaShadowProduct} from './sofa-shadow.js?v=0.13.3';
-import {recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.13.5';
+import {recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.13.6';
 import {rendererPolicy} from './renderer-policy.js';
 import {EnvironmentEffects} from './effects.js?v=0.13.3';
 import {AnchorStabilizer,transformPoint} from './anchor-rig.js?v=0.5.4';
@@ -613,7 +613,7 @@ safeObjectMotion(mesh,desired){
  setGuides(){const show=!this.photoMode;if(this.placementMarker)this.placementMarker.visible=show&&this.model.locked&&this.placementEnabled;if(this.measureTool)this.measureTool.group.visible=show&&this.model.locked&&this.measureTool.active;this.updateArtFloorHandle();this.floorNet.visible=show&&(this.model.locked||this.scanner.ready);this.ruler.visible=show&&this.model.locked;for(const m of this.items){m.userData.edges.visible=show&&m===this.selected;m.userData.label.visible=show;if(m.userData.selectionHalo)m.userData.selectionHalo.visible=show&&m===this.selected;}}
  setPhotoMode(enabled){if(enabled&&this.wideMode!=='ar'){this.setWideView('ar');this.onWideViewReset?.();}this.cancelGesture();this.photoMode=enabled;this.setGuides();this.changed();}
  status(message){if(this.lastStatus!==message){this.lastStatus=message;this.onStatus?.(message);}}
- dropAnchor(){this.anchorGeneration++;for(const item of this.anchorNodes)try{item.anchor.delete();}catch{}this.anchorNodes=[];this.anchorCandidates=[];this.anchorActive=false;this.anchorRig=new AnchorStabilizer();this.needsAnchor=false;this.anchorPending=false;this.anchorState='مختصات ثابت';}
+ dropAnchor({release=true}={}){this.anchorGeneration++;if(release)for(const item of this.anchorNodes)try{item.anchor.delete();}catch{}this.anchorNodes=[];this.anchorCandidates=[];this.anchorActive=false;this.anchorRig=new AnchorStabilizer();this.needsAnchor=false;this.anchorPending=false;this.anchorState='مختصات ثابت';}
  capturePhoto(ratio='4:3'){
   if(!this.session||!this.model.locked) return Promise.reject(new InternalCaptureUnavailable('برای کپچر داخلی، ابتدا کف AR را تثبیت کن.'));
   if(!canCaptureCamera(this.session,this.cameraBinding))return Promise.reject(new InternalCaptureUnavailable('دوربین این دستگاه اجازه کپچر مستقیم داخل WebXR را نمی‌دهد. عکس خام بدون مدل ذخیره نخواهد شد.'));
@@ -632,7 +632,7 @@ safeObjectMotion(mesh,desired){
     stage='hit-test';await this.beginScan();if(this.session!==session)return {hasOverlay:false,ended:true};this.hasOverlay=!!session.domOverlayState;this.effects.start(session,options);session.addEventListener('select',e=>{if(this.hasOverlay||!this.tracking||this.photoMode)return;if(!this.placed&&this.scanner.ready)this.confirmFloor();else this.selectAR(e);});return {hasOverlay:this.hasOverlay};}
   catch(error){try{await endXRSession(session);}catch{}throw xrError(error,stage);}
  }
- async beginScan(){const session=this.session;if(!session)return;if(this.wideMode!=='ar'){this.setWideView('ar');this.onWideViewReset?.();}this.whiteFloor.visible=false;this.dropAnchor();const generation=this.anchorGeneration;this.hitSource?.cancel();this.hitSource=null;for(const s of this.extraHitSources)try{s.cancel();}catch{}this.extraHitSources=[];this.revealStart=null;this.scanMarkers.visible=true;this.floorNet.material.uniforms.reveal.value=.65;this.floorNet.material.uniforms.pulse.value=1;this.scanCrosses.forEach(m=>m.visible=false);this.model.locked=false;if(this.measureTool)this.measureTool.group.visible=false;this.scanner.reset();this.root.visible=false;this.ruler.visible=false;this.floorNet.visible=false;this.floorNet.material.uniforms.opacity.value=.85;this.cancelGesture();this.status('کف را پیدا کن؛ سطح پایین‌تر معمولاً کف است. سپس «تثبیت کف» را بزن.');const viewer=await session.requestReferenceSpace('viewer');const source=await session.requestHitTestSource({space:viewer,entityTypes:['plane']});if(this.session!==session||this.anchorGeneration!==generation){source.cancel();return;}this.hitSource=source;
+ async beginScan(){const session=this.session;if(!session)return;if(this.wideMode!=='ar'){this.setWideView('ar');this.onWideViewReset?.();}this.whiteFloor.visible=false;this.dropAnchor();const generation=this.anchorGeneration;this.hitSource?.cancel();this.hitSource=null;for(const s of this.extraHitSources)try{s.cancel();}catch{}this.extraHitSources=[];this.revealStart=null;this.scanMarkers.visible=true;this.floorNet.material.uniforms.reveal.value=.65;this.floorNet.material.uniforms.pulse.value=1;this.scanCrosses.forEach(m=>m.visible=false);this.model.locked=false;if(this.measureTool)this.measureTool.group.visible=false;this.scanner.reset();this.root.visible=false;this.ruler.visible=false;this.floorNet.visible=false;this.floorNet.material.uniforms.opacity.value=.85;this.cancelGesture();this.status('کف را پیدا کن؛ سطح پایین‌تر معمولاً کف است. سپس «تثبیت کف» را بزن.');const viewer=await session.requestReferenceSpace('viewer');const source=await session.requestHitTestSource({space:viewer,entityTypes:['plane']});if(this.session!==session||this.anchorGeneration!==generation){if(this.session===session)source.cancel();return;}this.hitSource=source;
   // Request auxiliary directions around the center; unsupported devices retain the central reticle.
   if(globalThis.XRRigidTransform){
    const offsets=[[-.24,0],[.24,0],[0,-.24],[0,.24],[-.18,-.18],[.18,-.18],[-.18,.18],[.18,.18]];
@@ -643,7 +643,7 @@ safeObjectMotion(mesh,desired){
      const transformed=await session.requestReferenceSpace('viewer');
      const raySpace=transformed.getOffsetReferenceSpace(new XRRigidTransform({}, {x:rotation.x,y:rotation.y,z:rotation.z,w:rotation.w}));
      const hit=await session.requestHitTestSource({space:raySpace,entityTypes:['plane']});
-     if(this.session!==session||this.anchorGeneration!==generation){hit.cancel();break;}
+     if(this.session!==session||this.anchorGeneration!==generation){if(this.session===session)hit.cancel();break;}
      this.extraHitSources.push(hit);
     }catch(error){console.debug('Auxiliary WebXR hit test unavailable',error?.name||error);break;}
    }
@@ -672,7 +672,7 @@ safeObjectMotion(mesh,desired){
     this.anchorPending=true;
     try{
      Promise.resolve(frame.createAnchor(new XRRigidTransform({x:next.x,y:next.y,z:next.z}),space)).then(anchor=>{
-      if(this.anchorGeneration!==generation||this.session!==session){anchor.delete();return;}
+      if(this.anchorGeneration!==generation||this.session!==session){if(this.session===session)anchor.delete();return;}
       this.anchorNodes.push({anchor,requested:next.clone(),reference:null,id:this.anchorNodes.length+1});
       this.anchorPending=false;
      },()=>{if(this.anchorGeneration===generation){this.anchorPending=false;this.anchorCandidates=this.anchorCandidates.filter(p=>p!==next);}});
@@ -714,12 +714,19 @@ safeObjectMotion(mesh,desired){
   },0);
  }
  finishSessionEnd(){if(!this.session)return;
-  recordRuntime('xr-ended',this.renderer);this.session=null;this.xrExitBinding?.dispose();this.xrExitBinding=null;
+  recordRuntime('xr-ended',this.renderer);this.session=null;
   const clean=(label,fn)=>{try{fn();}catch(error){recordRuntimeError('cleanup-error:'+label,error);console.warn('XR cleanup: '+label,error);}};
+  recordRuntime('cleanup-binding-start',this.renderer);clean('binding',()=>this.xrExitBinding?.dispose());this.xrExitBinding=null;recordRuntime('cleanup-binding-done',this.renderer);
+  recordRuntime('cleanup-photo-start',this.renderer);
   clean('photo',()=>{if(this.pendingPhoto){clearTimeout(this.pendingPhoto.timeout);this.pendingPhoto.reject(new InternalCaptureUnavailable('جلسه AR بسته شد.'));this.pendingPhoto=null;}});
+  recordRuntime('cleanup-photo-done',this.renderer);recordRuntime('cleanup-wide-start',this.renderer);
   this.cameraBinding=null;clean('wide view',()=>this.wideView?.disable());this.wideMode='ar';
-  clean('hit source',()=>this.hitSource?.cancel());for(const source of this.extraHitSources)clean('extra hit source',()=>source.cancel());this.extraHitSources=[];this.hitSource=null;
-  clean('anchors',()=>this.dropAnchor());this.needsAnchor=false;this.moveLayoutMode=false;recordRuntime('cleanup-inputs-done',this.renderer);
+  recordRuntime('cleanup-wide-done',this.renderer);
+  // The native session is already over. Forget its handles; do not call back
+  // into expired hit-test / anchor services during browser teardown.
+  this.extraHitSources=[];this.hitSource=null;
+  recordRuntime('cleanup-handles-forgotten',this.renderer);
+  clean('anchors',()=>this.dropAnchor({release:false}));this.needsAnchor=false;this.moveLayoutMode=false;recordRuntime('cleanup-inputs-done',this.renderer);
   clean('measure',()=>this.measureTool?.setActive(false));this.setPlacementEnabled(false);
   this.model.origin.set(0,0,0);this.model.anchorYaw=0;this.model.heightOffset=0;this.model.locked=true;this.tracking=true;this.root.visible=true;this.photoMode=false;this.scanMarkers.visible=false;
   clean('spatial',()=>this.syncSpatial());clean('guides',()=>this.setGuides());clean('effects',()=>this.effects.reset());
