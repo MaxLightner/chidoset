@@ -1,4 +1,4 @@
-import { Studio } from './scene.js?v=0.13.2';
+import { Studio } from './scene.js?v=0.13.3';
 import { supabase, authenticateGuest, guestStatus } from './chido-cloud.js?v=0.12.2';
 
 const $ = selector => document.querySelector(selector);

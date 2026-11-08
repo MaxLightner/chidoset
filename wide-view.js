@@ -1,3 +1,4 @@
+import {rendererPolicy} from './renderer-policy.js';
 import * as THREE from './vendor/three.module.js';
 
 // Horizontal FOV values. They describe a virtual perspective, not a phone lens.
@@ -45,13 +46,14 @@ export class WideViewRenderer{
   this.scene=scene;this.overlay=overlay;
   this.camera=new THREE.PerspectiveCamera(60,1,.03,40);
   this.renderer=new THREE.WebGLRenderer({antialias:false,alpha:false,powerPreference:'low-power'});
-  this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.25));
+  this.renderer.setPixelRatio(Math.min(1.25,rendererPolicy({coarse:!!globalThis.matchMedia?.('(pointer:coarse)').matches,pixelRatio:window.devicePixelRatio||1}).pixelRatio));
   this.renderer.setClearColor('#e9e8e2',1);
   this.canvas=this.renderer.domElement;
   this.canvas.className='wide-view-canvas';
   this.canvas.setAttribute('aria-hidden','true');
   this.canvas.hidden=true;
   overlay.insertBefore(this.canvas,overlay.querySelector('#arSurface'));
+  this.canvas.addEventListener('webglcontextrestored',()=>{this.lost=false;});
   this.mode='ar';this.natural=true;this.width=0;this.height=0;this.active=false;this.lost=false;
   this.horizontalFov=0;this.verticalFov=0;this.limited=false;
   this.canvas.addEventListener('webglcontextlost',event=>{

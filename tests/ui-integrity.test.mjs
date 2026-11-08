@@ -192,7 +192,8 @@ test('CHIDO navigation waits for WebXR end and keeps the page open',()=>{
  assert.ok(app.includes('homeExitRequested'));
  assert.ok(app.includes('queueMicrotask(finishChidoHomeExit)'));
  assert.ok(app.includes("history.replaceState(null,'',location.pathname+location.search+'#welcome')"));
- assert.ok(app.includes("try{previous.destroy();}catch(error)"));
+ assert.ok(app.includes("studioCache.park(previous,previous.ownerKey)"));
+ assert.doesNotMatch(app,/releaseAfterPaint/);
  assert.ok(app.includes("if(homeExitBusy)return"));
  assert.doesNotMatch(app,/window\.close\(|location\.reload\(/);
  assert.ok(studio.includes("if(this.session===session)this.endSession()"));

@@ -8,10 +8,3 @@ export function bindXRExit(session,driver,finish){
  session.addEventListener('end',onDeviceEnd,{once:true});driver.addEventListener('sessionend',onDriverEnd);
  return {dispose(){finished=true;dispose();}};
 }
-export function releaseAfterPaint(release){
- let done=false;
- const run=()=>{if(done)return;done=true;clearTimeout(fallback);try{release();}catch(error){console.warn('Deferred scene cleanup',error);}};
- const fallback=setTimeout(run,500);
- if(globalThis.requestAnimationFrame)requestAnimationFrame(()=>requestAnimationFrame(run));
- else setTimeout(run,0);
-}

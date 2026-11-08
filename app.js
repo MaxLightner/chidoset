@@ -1,6 +1,7 @@
 import {rememberAccount,accountName} from './auth-storage.js';
 import {readRecovery,saveRecovery,clearRecovery,filterPublishedScene} from './app-recovery.js';
-import {releaseAfterPaint} from './xr-lifecycle.js';
+import {runtimeHealth} from './runtime-health.js';
+import {StudioCache,sceneStateKey} from './studio-cache.js';
 import {endXRSession} from './xr-end.js';
 import {accountLogin} from './account-login.js';
 import {explainXR,requestARSession} from './xr.js?v=0.5.4';
@@ -14,9 +15,11 @@ import {savedPlanSvg} from './saved-plan.js?v=0.8.0';
 import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-materials.js';
 import {LiveMiniMap} from './minimap.js?v=0.5.4';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
-import {SOFA_FABRICS} from './imported-models.js?v=0.13.2';
+import {SOFA_FABRICS} from './imported-models.js?v=0.13.3';
 import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList} from './cloud-product-registry.js';
 import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,saveOfficialLayout,saveOfficialColorway,createLiveSession,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.12.2';
+const studioCache=new StudioCache();
+const studioOwner=()=>cloudMembership?cloudMembership.company_id+':'+cloudMembership.user.id:'';
 const $=s=>document.querySelector(s),app=$('#app'),fa=n=>n.toLocaleString('fa-IR');
 let studio,Scene,palette,space='پذیرایی',layout='empty',supported=false,routeVersion=0,photoURLs=[],savedItems=[],arReport=null,sceneMemory=null,arStarting=false,lastXRErrorReport='',activeSavedLayoutId=null;
 const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio);
@@ -95,14 +98,14 @@ function heading(step,title,sub,back){return `<div class="page-heading"><div><sp
 async function full(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(!document.documentElement.requestFullscreen){toast('مرورگر شما تمام‌صفحه را پشتیبانی نمی‌کند.');return;}try{await document.documentElement.requestFullscreen();}catch{toast('ورود به تمام‌صفحه ممکن نشد؛ می‌توانی ادامه بدهی.');}}
 $('#fullscreen').onclick=full;document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'خروج از تمام‌صفحه ↙':'تمام‌صفحه ⛶');
 async function support(){try{supported=!!(isSecureContext&&navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar'));}catch{supported=false;}return supported;}
-async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.13.2');Scene=m.Studio;palette=m.palette;}}
+async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.13.3');Scene=m.Studio;palette=m.palette;}}
 let draftTimer=null;
 function currentSceneRecord(){
  if(!studio)return null;
  return {scene:studio.exportState(),setId:activeCloudSetId,room:space,layout,capacity:peopleCount,style:styleChoice,theme:themeIndex};
 }
 function persistDraft(){
- if(!studio)return;
+ if(!studio||studio.ownerKey!==studioOwner())return;
  try{saveRecovery(cloudMembership,currentSceneRecord());}catch(error){console.warn('Draft save unavailable',error);}
 }
 function scheduleDraftSave(){
@@ -149,7 +152,7 @@ function updateAccountHeader(){
  $('#companyLink').hidden=member?.role!=='company_admin';
  document.body.dataset.signedIn=String(!!member);
 }
-$('#appSignOut').onclick=async()=>{if(studio?.session)return;const {error}=await supabase.auth.signOut();if(error){toast('خروج انجام نشد. دوباره تلاش کن.');return;}clearRecovery(cloudMembership);cloudMembership=null;membershipCheckedAt=0;appSessionLogged=false;sceneMemory=null;clearDraft();location.hash='welcome';void render();};
+$('#appSignOut').onclick=async()=>{if(studio?.session)return;const {error}=await supabase.auth.signOut();if(error){toast('خروج انجام نشد. دوباره تلاش کن.');return;}clearRecovery(cloudMembership);if(studio){const departing=studio;studio=null;departing.destroy();}studioCache.drop();cloudMembership=null;membershipCheckedAt=0;appSessionLogged=false;sceneMemory=null;clearDraft();location.hash='welcome';void render();};
 async function render({reuseCatalog=false}={}){const version=++routeVersion;let route=location.hash.slice(1)||'welcome';
  if(studio?.session){if(location.hash!=='#studio')history.replaceState(null,'',location.pathname+location.search+'#studio');return;}
  if(route==='access'){route='welcome';history.replaceState(null,'',location.pathname+location.search+'#welcome');}
@@ -158,6 +161,7 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
   try{cloudMembership=await getMembership();membershipCheckedAt=Date.now();}catch(error){console.warn('Chido account check failed',error);}
  }
  if(version!==routeVersion)return;
+ if(studioCache.entry&&studioCache.entry.owner!==studioOwner()){sceneMemory=null;activeCloudSetId=null;activeCloudLayout=null;activeCloudColorway=null;}
  updateAccountHeader();
  if(!cloudMembership&&route!=='welcome'){location.hash='welcome';return;}
  if(cloudMembership){
@@ -167,9 +171,9 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
  closeChidoMenu();minimap.collapse();
  if(studio){
   const previous=studio;
-  try{persistDraft();snapshotItems();sceneMemory=previous.exportState();}catch(error){console.warn('Scene snapshot before navigation',error);}
+  try{if(previous.ownerKey===studioOwner()){persistDraft();snapshotItems();sceneMemory=previous.exportState();}else{sceneMemory=null;activeCloudSetId=null;activeCloudLayout=null;activeCloudColorway=null;}}catch(error){console.warn('Scene snapshot before navigation',error);}
   studio=null;
-  try{previous.pause();}catch(error){console.warn('Scene pause failed',error);}releaseAfterPaint(()=>{try{previous.destroy();}catch(error){console.warn('Scene renderer cleanup failed',error);}});
+  studioCache.park(previous,previous.ownerKey);
  }
  photoURLs.forEach(URL.revokeObjectURL);photoURLs=[];
  if(route==='welcome'){
@@ -243,11 +247,13 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
  try{
   if(!reuseCatalog)await refreshCloudSets();if(version!==routeVersion)return;await loadScene();if(version!==routeVersion)return;
   $('#launchProgress').value=1;$('#launchStage').textContent='موتور سه‌بعدی آماده شد؛ در حال ساخت ابزارها…';
-  studio=new Scene($('#viewport'),updateObjects);
+  const parked=studioCache.take(studioOwner());
+  if(parked){studio=parked;studio.resume($('#viewport'));}else studio=new Scene($('#viewport'),updateObjects);studio.ownerKey=studioOwner();
+  $('#startAR').hidden=false;$('#startAR').disabled=true;$('#launchLoading').hidden=false;$('#viewport').classList.toggle('show-preview',previewEnabled);$('#preview3D').textContent=previewEnabled?'بستن پیش‌نمایش':'پیش‌نمایش سه‌بعدی';
   $('#launchProgress').value=2;$('#launchStage').textContent='ابزارها و صحنه آماده‌اند؛ در انتظار دوربین و نشست AR…';
   if(!sceneMemory){const recovered=readRecovery(cloudMembership);if(recovered)loadSceneRecord(recovered);}
   const allowed=publishedCatalogIndexes(),safeScene=filterPublishedScene(sceneMemory,allowed);
-  if(safeScene){studio.restoreState(safeScene);if(safeScene.items.length!==sceneMemory.items.length)toast('مدل‌های قدیمی یا خارج از مجموعه از این پیش‌نمایش کنار گذاشته شدند.');}
+  if(safeScene){if(!parked||sceneStateKey(safeScene)!==sceneStateKey(studio.exportState())){studio.clear();studio.restoreState(safeScene);}if(safeScene.items.length!==sceneMemory.items.length)toast('مدل‌های قدیمی یا خارج از مجموعه از این پیش‌نمایش کنار گذاشته شدند.');}
   else{layout='empty';studio.seed('empty',space,peopleCount);}
   persistDraft();
   studio.onEnd=()=>{
@@ -737,7 +743,7 @@ function setDebug(enabled){
 }
 function saveDebugJSON(){
  if(!studio)return;
- const data=studio.debugExport();
+ const data={...studio.debugExport(),runtime:runtimeHealth()};
  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
  const url=URL.createObjectURL(blob);
  const a=document.createElement('a');a.href=url;

@@ -19,10 +19,10 @@ test('refresh recovery rejects procedural or unpublished models and stale embedd
 });
 test('v15 rounded shadow stays transparent at all plane edges, even for a narrow sofa',()=>{
  for(const [w,d] of [[2.4,.9],[.7,.7],[4,.4]]){
-  assert.equal(roundedShadowAlpha(0,0,w,d),.88);
+  assert.equal(roundedShadowAlpha(0,0,w,d),.30);
   for(const x of [-1.2*w,1.2*w])for(const z of [-1.2*d,0,1.2*d])assert.equal(roundedShadowAlpha(x,z,w,d),0);
   for(const z of [-1.2*d,1.2*d])assert.equal(roundedShadowAlpha(0,z,w,d),0);
-  const shadow=createSofaShadow(w,d,-.5);assert.equal(shadow.geometry.parameters.width,w*2.4);assert.equal(shadow.material.depthWrite,false);assert.equal(shadow.material.toneMapped,false);assert.equal(shadow.userData.labVersion,15);
+  const shadow=createSofaShadow(w,d,-.5);assert.equal(shadow.geometry.parameters.width,w*2.4);assert.equal(shadow.material.uniforms.opacity.value,.30);assert.equal(shadow.material.depthWrite,false);assert.equal(shadow.material.toneMapped,false);assert.equal(shadow.userData.labVersion,15);
  }
 });
 test('model footprint stays local to the sofa when its parent moves and rotates',()=>{
