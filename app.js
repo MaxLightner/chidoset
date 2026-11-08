@@ -18,7 +18,7 @@ import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-
 import {LiveMiniMap} from './minimap.js?v=0.5.4';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
 import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList} from './cloud-product-registry.js';
-import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,saveOfficialLayout,saveOfficialColorway,createLiveSession,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.12.2';
+import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,loadDemoLibrary,saveOfficialLayout,saveOfficialColorway,createLiveSession,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.12.3';
 const studioCache=new StudioCache();
 const studioOwner=()=>cloudMembership?cloudMembership.company_id+':'+cloudMembership.user.id:'';
 const $=s=>document.querySelector(s),app=$('#app'),fa=n=>n.toLocaleString('fa-IR');
@@ -33,7 +33,7 @@ const themes=[
  {name:'سبز زیتونی',colors:['#909c84','#d4c6b4','#adba9d','#b6a793']}
 ];
 let themeIndex=0,styleChoice='مینیمال',previewEnabled=false,peopleCount=5;
-let cloudMembership=null,cloudSets=[],activeCloudSetId=null,activeCloudLayout=null,activeCloudColorway=null,activeLiveSession=null;
+let cloudMembership=null,cloudSets=[],demoLibrary=[],activeCloudSetId=null,activeCloudLayout=null,activeCloudColorway=null,activeLiveSession=null;
 let liveSceneTimer=null,lastLiveCameraSent=0,liveCameraBusy=false,liveCameraQueued=null;
 let appSessionLogged=false,lastHeartbeatAt=0;
 const catalogImages=[
@@ -196,7 +196,7 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
  }
  if(route==='spaces'){
   const rooms=[['living','پذیرایی','برای کنار هم بودن'],['dining','ناهارخوری','دور یک میز، کنار هم'],['dining','آشپزخانه','میز غذاخوری و دورهمی'],['bedroom','اتاق خواب','گوشه‌ای برای آرامش'],['office','فضای کار','جایی برای ایده‌های تازه']];
-  try{cloudSets=await loadCompanySets(cloudMembership.company_id);}catch(error){console.warn('Chido company catalog unavailable',error);cloudSets=[];toast('دریافت ست‌های رسمی شرکت انجام نشد.');}
+  try{cloudSets=await loadCompanySets(cloudMembership.company_id);demoLibrary=await loadDemoLibrary(cloudMembership);}catch(error){console.warn('Chido company catalog unavailable',error);cloudSets=[];demoLibrary=[];toast('دریافت کتابخانه مدل‌ها انجام نشد.');}
   if(version!==routeVersion)return;
   if(activeCloudSetId&&!cloudSets.some(item=>item.id===activeCloudSetId))activeCloudSetId=null;
   const activeSet=cloudSets.find(item=>item.id===activeCloudSetId)||null;
@@ -330,7 +330,8 @@ function closeArSheet(){
  if(studio?.architecture?.mode&&!studio?.photoMode)$('#arArchitectureActions').hidden=false;
  studio?.setPlacementEnabled(false);
 }
-function publishedCatalogIndexes(){return new Set((getActiveCloudSet()?.products||cloudSets.flatMap(set=>set.products)).map(product=>product.catalog_index).filter(index=>index>=22));}
+// A preset set is an initial layout, never a permission boundary for the catalog.
+function publishedCatalogIndexes(){return new Set([...cloudSets.flatMap(set=>set.products),...demoLibrary].map(product=>product.catalog_index));}
 function getActiveCloudSet(){return cloudSets.find(item=>item.id===activeCloudSetId)||null;}
 function updateCloudControls(){
  const hasSet=!!activeCloudSetId,manager=cloudMembership?.role==='company_admin';
@@ -409,6 +410,7 @@ async function endLiveShare(silent=false){
 async function refreshCloudSets(){
  if(!cloudMembership)return;
  cloudSets=await loadCompanySets(cloudMembership.company_id);
+ demoLibrary=await loadDemoLibrary(cloudMembership);
  const set=getActiveCloudSet();if(set){activeCloudLayout=set.layouts.find(x=>x.id===activeCloudLayout?.id)||activeCloudLayout;activeCloudColorway=set.colorways.find(x=>x.id===activeCloudColorway?.id)||activeCloudColorway;}
 }
 function showArSheet(mode){
@@ -432,7 +434,7 @@ function showArSheet(mode){
    ${groups.some(c=>c.id==='wall-art')?'<small class="sheet-tip">تابلوها فعلاً روی یک صفحه عمودی مجازی در موقعیت تقریبی قرار می‌گیرند؛ تشخیص خودکار دیوار واقعی نیاز به WebXR Plane Detection دارد.</small>':''}`;
   function populate(category){
    const group=groups.find(c=>c.id===category)||groups[0];if(!group)return;
-   const holder=body.querySelector('#categoryObjects');holder.innerHTML=group.indexes.map(i=>{const cloud=getCloudProduct(i)||getCloudProductInfo(i),name=(cloud?.name||catalogImages[i]?.[0]||'مدل').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));return `<button data-add-object="${i}" class="catalog-tile"><span class="catalog-preview">${cloud&&i>=32&&!cloud.thumbnail_url?objectIcon(0):`<img src="${cloud?.thumbnail_url||`assets/chido/thumbs/${i}.jpg?v=0.7.0`}" width="192" height="192" loading="lazy" decoding="async" alt="پیش‌نمایش مدل روی پس‌زمینه سفید">`}</span><span>${name}</span></button>`;}).join('');
+   const holder=body.querySelector('#categoryObjects');holder.innerHTML=group.indexes.map(i=>{const cloud=getCloudProduct(i)||getCloudProductInfo(i),name=(cloud?.name||catalogImages[i]?.[0]||'مدل').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));return `<button data-add-object="${i}" class="catalog-tile"><span class="catalog-preview">${cloud&&i>=32&&!cloud.thumbnail_url?'<span class="catalog-no-preview">◈<small>بدون تصویر</small></span>':`<img src="${cloud?.thumbnail_url||`assets/chido/thumbs/${i}.jpg?v=0.7.0`}" width="192" height="192" loading="lazy" decoding="async" alt="پیش‌نمایش ${name}">`}</span><span class="catalog-name">${name}</span></button>`;}).join('');
    body.querySelectorAll('[data-category]').forEach(btn=>btn.classList.toggle('selected',btn.dataset.category===group.id));
    holder.querySelectorAll('[data-add-object]').forEach(btn=>btn.onclick=()=>{
     if(studio.items.length>=24&&!replacing){toast('به محدودیت ۲۴ آبجکت رسیدی.');return;}

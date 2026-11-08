@@ -510,6 +510,9 @@ header .quiet{font-size:14px!important;min-width:60px}
 }
 .catalog-preview{display:block;width:100%;aspect-ratio:1;background:#fff;border-radius:9px;overflow:hidden;padding:3px}
 .catalog-preview img{width:100%;height:100%;object-fit:contain;display:block}
+.catalog-no-preview{display:flex!important;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#96877a;font-size:30px!important;gap:1px}
+.catalog-no-preview small{font-size:10px;font-weight:400}
+.catalog-tile .catalog-name{display:block;width:100%;text-align:center;line-height:1.35;overflow-wrap:anywhere;font-weight:600}
 .sofa-fabric-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
 .sofa-fabric-grid button{display:flex;flex-direction:column;gap:8px;align-items:center;padding:8px;background:#f7f5f1;border-radius:12px}
 .sofa-fabric-grid img{width:100%;aspect-ratio:1.15;object-fit:cover;border-radius:8px}

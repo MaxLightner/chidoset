@@ -105,6 +105,32 @@ export async function loadCompanySets(companyId) {
   }));
 }
 
+// The demo showroom has a shared, independently managed model library.
+// New assets become available on the next catalog refresh, without rebuilding the app.
+export async function loadDemoLibrary(membership) {
+  if (membership?.company?.slug !== 'chido-demo-20261106') return [];
+  const {data,error}=await supabase.from('products')
+    .select('id,catalog_index,name,asset_path,thumbnail_path,size_m,metadata,active')
+    .eq('active',true).order('catalog_index');
+  if(error)throw error;
+  const prefix='storage://chido-assets/';
+  const paths=[...new Set((data||[]).flatMap(p=>[p.asset_path,p.thumbnail_path])
+    .filter(p=>p?.startsWith(prefix)).map(p=>p.slice(prefix.length)))];
+  const signed=new Map();
+  if(paths.length){
+    const result=await supabase.storage.from('chido-assets').createSignedUrls(paths,3600);
+    if(result.error)throw result.error;
+    for(const row of result.data||[])if(row.signedUrl)signed.set(row.path,row.signedUrl);
+  }
+  const records=(data||[]).map(p=>({...p,
+    asset_url:p.asset_path?.startsWith(prefix)?signed.get(p.asset_path.slice(prefix.length))||'':'',
+    thumbnail_url:p.thumbnail_path?.startsWith(prefix)?signed.get(p.thumbnail_path.slice(prefix.length))||'':'',
+    signed_at:Date.now()
+  }));
+  registerCloudProducts(records);
+  return records.filter(p=>p.catalog_index<32||p.asset_url);
+}
+
 export async function saveOfficialLayout({ setId, layoutId = null, name, room, templateKind, capacity, sceneState }) {
   const membership = await getMembership();
   if (!membership || membership.role !== 'company_admin') throw new Error('ذخیره چیدمان رسمی فقط برای مدیر شرکت فعال است.');
