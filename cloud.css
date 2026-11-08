@@ -73,7 +73,7 @@
 @media(max-width:700px){.cloud-access-grid,.portal-hero,.portal-panel{grid-template-columns:1fr}.company-set-grid,.cloud-layout-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.portal-module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.portal-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.portal-shell{width:min(100% - 24px,1180px)}.portal-top{align-items:flex-start;flex-direction:column}.portal-hero{padding-top:32px}.guest-topbar{height:42px}}
 @media(max-width:420px){.company-set-grid,.cloud-layout-grid,.portal-module-grid{grid-template-columns:1fr}.live-share-dialog{padding:18px}.live-share-qr{width:220px;height:220px}}
 
-.guest-stage #viewport.guest-viewport{position:relative;flex:none;overflow:hidden;background:#eeeee3;max-width:100%;max-height:100%;min-width:0;min-height:0}
+.guest-stage #viewport.guest-viewport{position:relative;flex:1;width:100%;height:100%;overflow:hidden;background:#eeeee3;max-width:100%;max-height:100%;min-width:0;min-height:0}
 .guest-stage #viewport.guest-viewport canvas{position:absolute!important;inset:0!important;z-index:0;display:block;width:100%;height:100%;pointer-events:none}
 .guest-stage #viewport.guest-viewport #arSurface{position:absolute!important;inset:0!important;z-index:1;width:100%!important;height:100%!important;pointer-events:none!important;background:transparent!important}
 .guest-state.connected i{background:#39a56d;box-shadow:0 0 0 4px #e4f3e9}

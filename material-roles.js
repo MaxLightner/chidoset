@@ -52,7 +52,7 @@ export async function applyRoleMaterial(visual,role,style){
  const materials=targets(visual,role);if(!materials.length)return false;
  visual.userData.roleMaterialOverrides??={};visual.userData.roleMaterialOverrides[role]=true;
  if(role==='fabric')visual.userData.fabricRequest=(visual.userData.fabricRequest||0)+1;
- if(!style){for(const m of materials){const ao=m.aoMap,intensity=m.aoMapIntensity;m.copy(originals.get(m));if(!m.aoMap&&ao){m.aoMap=ao;m.aoMapIntensity=intensity;}m.needsUpdate=true;}if(request.active&&!request.active.shared)request.active.texture.dispose();request.active=null;return true;}
+ if(!style){delete visual.userData.roleMaterialOverrides[role];for(const m of materials){const ao=m.aoMap,intensity=m.aoMapIntensity;m.copy(originals.get(m));if(!m.aoMap&&ao){m.aoMap=ao;m.aoMapIntensity=intensity;}m.needsUpdate=true;}if(request.active&&!request.active.shared)request.active.texture.dispose();request.active=null;return true;}
  if(!validSource(style.source))throw Error('تصویر متریال معتبر نیست.');
  const entry=textureFor(style.source,role);request.entry=entry;
  try{await entry.ready;}catch(error){if(groups.get(role)===request)request.entry=null;throw error;}

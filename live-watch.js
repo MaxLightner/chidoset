@@ -57,17 +57,18 @@ export class ApprovedLiveWatch{
   if(key===this.lastKey){
    if(state.spatial){this.studio.model.restore(state.spatial);this.studio.syncSpatial();}
    if(Array.isArray(state.floorPose)&&state.floorPose.length===16&&state.floorPose.every(Number.isFinite)){const frame=this.studio.floorFrame;frame.matrix.fromArray(state.floorPose).decompose(frame.position,frame.quaternion,frame.scale);frame.updateMatrixWorld(true);}
+   this.studio.root.visible=true;
    return;
   }
   this.lastKey=key;const revision=(this.sceneRevision||0)+1;this.sceneRevision=revision;
-  this.studio.clear();this.studio.restoreLiveState(state);this.studio.select(null);this.studio.setPhotoMode(true);this.studio.scene.background?.set('#ffffff');this.loadStarted=Date.now();
+  this.studio.syncLiveState(state);this.studio.setPhotoMode(true);this.studio.scene.background?.set('#ffffff');this.loadStarted=Date.now();
   void Promise.allSettled(this.studio.items.map(item=>item.userData.loadPromise).filter(Boolean)).then(()=>{if(this.sceneRevision===revision&&this.wanted)this.progress();});
   this.progress();
  }
  applyCamera(state){
   if(this.request?.status!=='approved'||!state||state.publisherClientId!==this.request.host_client_id)return;
   if(this.camera&&Number(state.timestamp)<Number(this.camera.timestamp))return;
-  if(!this.studio.applyExternalCameraState(state))return;
+  if(!this.studio.applyViewerCameraState(state))return;
   this.camera=state;this.onCamera(state);this.progress();
  }
  progress(){

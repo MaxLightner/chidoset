@@ -7,15 +7,16 @@ import {dirname,join} from 'node:path';
 const root=dirname(dirname(fileURLToPath(import.meta.url)));
 const read=name=>readFileSync(join(root,name),'utf8');
 
-test('guest viewer follows the host virtual camera without requesting camera or AR access',()=>{
- const html=read('guest.html'),js=read('guest.js');
+test('guest viewer follows the host tracked pose without requesting camera or AR access',()=>{
+ const html=read('guest.html'),js=read('guest.js'),watch=read('live-watch.js');
  assert.match(html,/guest\.js/);
  assert.doesNotMatch(html,/<video\b/i);
  assert.doesNotMatch(js,/getUserMedia|requestSession\s*\(|startAR\s*\(/);
  assert.match(js,/authenticateGuest\(token\)/);
- assert.match(js,/applyExternalCameraState/);
- assert.match(js,/live_session_scenes/);
- assert.match(js,/live_session_cameras/);
+ assert.match(js,/ApprovedLiveWatch/);
+ assert.match(watch,/applyViewerCameraState/);
+ assert.match(watch,/live_session_scenes/);
+ assert.match(watch,/live_session_cameras/);
  assert.match(js,/studio\.events\?\.abort\(\)/);
 });
 

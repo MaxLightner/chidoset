@@ -1,7 +1,8 @@
 import * as THREE from './vendor/three.module.js';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
 import {getCloudProduct} from './cloud-product-registry.js';
-import {materialRole} from './material-roles.js?v=0.15.0';
+import {materialRole} from './material-roles.js?v=0.16.2';
+import {loadModelBytes} from './model-asset-cache.js?v=0.16.2';
 
 // All units are metres. Native Blender GLB dimensions are preserved; the
 // quarter-turn only makes the long side of a sofa/table follow local X.
@@ -98,7 +99,7 @@ export const isImportedNoShadow=index=>[28,29,30,31].includes(index);
 const source=(file)=>{
  if(!cache.has(file)){
   const url=file.startsWith('https://')?file:new URL('./assets/chido/'+file+(file==='SheenChair.glb'?'?v=0.14.2':['sofaA1.glb','SofaC1.glb','sofab1.glb'].includes(file)?'?v=0.15.0':''),import.meta.url).href;
-  cache.set(file,loader.loadAsync(url).catch(error=>{cache.delete(file);throw error;}));
+  cache.set(file,loadModelBytes(url).then(bytes=>loader.parseAsync(bytes,new URL('.',url).href)).catch(error=>{cache.delete(file);throw error;}));
  }
  return cache.get(file);
 };

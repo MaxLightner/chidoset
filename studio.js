@@ -1,10 +1,10 @@
 import * as THREE from './vendor/three.module.js';
-import {copyMaterialStyles,applyRoleMaterial,disposeRoleMaterials} from './material-roles.js?v=0.15.0';
+import {copyMaterialStyles,applyRoleMaterial,disposeRoleMaterials} from './material-roles.js?v=0.16.2';
 import {getCloudProduct,getCloudProductInfo,registerCloudProducts,cloudProductList} from './cloud-product-registry.js';
 import {ArchitectureLayer} from './architecture.js?v=0.9.0';
 import {createFurniture,furnitureHit} from './furniture.js?v=0.5.4';
 import {createDecor} from './decor.js?v=0.5.4';
-import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.15.0';
+import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.16.2';
 import {applyRugStyle} from './rug-textures.js?v=0.5.4';
 import {MeasureTool} from './measure-tool.js?v=0.5.4';
 import {bindXRExit} from './xr-lifecycle.js?v=0.14.0';
@@ -429,7 +429,9 @@ void main(){
   const clean=style?copyMaterialStyles({[role]:style})[role]:null;if(style&&!clean)return false;
   const applied=await applyRoleMaterial(visual,role,clean);
   if(!applied||mesh.userData.disposed)return false;
-  mesh.userData.materialStyles??={};if(clean)mesh.userData.materialStyles[role]=clean;else delete mesh.userData.materialStyles[role];this.changed();return true;
+  mesh.userData.materialStyles??={};if(clean)mesh.userData.materialStyles[role]=clean;else delete mesh.userData.materialStyles[role];
+  if(role==='fabric'&&!clean&&[22,23,24].includes(mesh.userData.index))this.setSofaFabric(mesh.userData.fabric,mesh,{preserveRoles:true});
+  this.changed();return true;
  }
  restoreMaterialStyles(mesh){for(const [role,style] of Object.entries(copyMaterialStyles(mesh.userData.materialStyles)))void this.setMaterialStyle(role,style,mesh).catch(error=>this.onHint?.(error.message||'تکسچر بارگذاری نشد.'));}
  setSofaFabric(id,mesh=this.selected,{preserveRoles=false}={}){
@@ -464,6 +466,69 @@ void main(){
    this.floorFrame.updateMatrixWorld(true);
   }
  }
+ // A read-only monitor keeps existing GLB meshes, GPU textures and animations
+ // while the sending tablet changes the layout. Rebuilding the whole Studio
+ // on each position/material update would flash models and redownload assets.
+ syncLiveState(state){
+  if(!state||!Array.isArray(state.items))return false;
+  registerCloudProducts(state.cloudProducts||[]);
+  const current=new Map(this.items.map(mesh=>[mesh.userData.id,mesh]));
+  for(const mesh of [...this.items]){
+   const incoming=state.items.find(item=>item.id===mesh.userData.id);
+   if(incoming&&!mesh.userData.loadError&&incoming.index===mesh.userData.index&&JSON.stringify(incoming.size)===JSON.stringify(mesh.userData.product.size))continue;
+   this.root.remove(mesh);this.disposeObject(mesh);this.items.splice(this.items.indexOf(mesh),1);
+   current.delete(mesh.userData.id);
+  }
+  for(const item of state.items){
+   if(!Number.isInteger(item.id)||!Number.isInteger(item.index)||!Array.isArray(item.position)||item.position.length!==3||!item.position.every(Number.isFinite))continue;
+   let mesh=current.get(item.id);
+   if(!mesh){
+    try{
+     mesh=this.add(item.index,new THREE.Vector3(...item.position),{size:[22,23,24].includes(item.index)?undefined:item.size,seats:item.seats,silentSelect:true,cushionPreset:item.cushionPreset,lampOn:item.lampOn,fabric:item.fabric,materialStyles:item.materialStyles});
+    }catch(error){this.onHint?.(error.message||'مدل جدید در دسترس نیست.');continue;}
+    mesh.userData.id=item.id;
+    current.set(item.id,mesh);
+   }else{
+    const oldStyles=copyMaterialStyles(mesh.userData.materialStyles),nextStyles=copyMaterialStyles(item.materialStyles);
+    const oldFabric=mesh.userData.fabric;
+    // An in-flight model load reads the latest styles from userData when ready.
+    if(!mesh.userData.modelLoaded&&mesh.userData.imported)mesh.userData.materialStyles=nextStyles;
+    else for(const role of new Set([...Object.keys(oldStyles),...Object.keys(nextStyles)])){
+     if(oldStyles[role]?.source===nextStyles[role]?.source)continue;
+     void this.setMaterialStyle(role,nextStyles[role]||null,mesh).catch(error=>this.onHint?.(error.message||'تکسچر دریافت نشد.'));
+    }
+    if(item.fabric&&oldFabric!==item.fabric)this.setSofaFabric(item.fabric,mesh,{preserveRoles:!!nextStyles.fabric});
+   }
+   mesh.position.fromArray(item.position);
+   if(Number.isFinite(item.rotation))mesh.rotation.y=item.rotation;
+   if(typeof item.color==='string')mesh.material.color.set(item.color);
+   if(item.tint&&item.tint!==mesh.userData.tint)this.tintItem(mesh,item.tint);
+   mesh.userData.tint=item.tint||null;
+   mesh.userData.attachment=item.attachment||null;
+   mesh.userData.capacity=item.capacity||null;
+   mesh.userData.seats=item.seats||mesh.userData.seats;
+   mesh.userData.tableId=item.tableId||null;
+   mesh.userData.hidden=!!item.hidden;mesh.visible=!item.hidden;
+   if(item.rugStyle&&item.rugStyle!==mesh.userData.rugStyle)applyRugStyle(mesh,item.rugStyle);
+   if(item.artImage&&item.artImage!==mesh.userData.artImage)this.setWallArtImage(item.artImage,mesh);
+   if(isLamp(mesh.userData.index)&&!!item.lampOn!==!!mesh.userData.lampOn)this.initializeLamp(mesh,!!item.lampOn);
+  }
+  this.items.sort((a,b)=>state.items.findIndex(item=>item.id===a.userData.id)-state.items.findIndex(item=>item.id===b.userData.id));
+  this.serial=Math.max(0,...this.items.map(mesh=>mesh.userData.id));
+  const architectureKey=JSON.stringify(state.architecture||{});
+  if(this.lastLiveArchitecture!==architectureKey){this.architecture?.restore(state.architecture||{floor:[],walls:[],windows:[]});this.lastLiveArchitecture=architectureKey;}
+  this.model.restore(state.spatial);
+  this.measureTool.setCorrection(this.model.correction);
+  this.syncSpatial();
+  if(this.whiteFloor)this.whiteFloor.visible=!!state.whiteFloor&&!this.architecture?.data.floor.length;
+  if(Array.isArray(state.floorPose)&&state.floorPose.length===16&&state.floorPose.every(Number.isFinite)){
+   new THREE.Matrix4().fromArray(state.floorPose).decompose(this.floorFrame.position,this.floorFrame.quaternion,this.floorFrame.scale);
+   this.floorFrame.updateMatrixWorld(true);
+  }
+  this.root.visible=true; // The monitor has no real-world depth/visibility mask.
+  this.select(null);this.setGuides();
+  return true;
+ }
  cameraSnapshot(){
   this.floorFrame.updateMatrixWorld(true);const camera=this.activeCamera();camera.updateMatrixWorld(true);
   const position=camera.getWorldPosition(new THREE.Vector3());
@@ -489,6 +554,24 @@ void main(){
    this.camera.projectionMatrixInverse.copy(this.camera.projectionMatrix).invert();
   }
   this.camera.updateMatrixWorld(true);return true;
+ }
+ // Unlike an AR capture, the laptop renders its own complete virtual scene.
+ // Only tracked position and rotation are shared; no XR projection, depth mask,
+ // hidden-scene bit, or tablet aspect ratio is copied to the browser.
+ applyViewerCameraState(state){
+  if(!state||!Array.isArray(state.position)||state.position.length!==3||!state.position.every(Number.isFinite)||!Array.isArray(state.quaternion)||state.quaternion.length!==4||!state.quaternion.every(Number.isFinite))return false;
+  this.externalCameraState=null;
+  if(Array.isArray(state.floorPose)&&state.floorPose.length===16&&state.floorPose.every(Number.isFinite)){
+   new THREE.Matrix4().fromArray(state.floorPose).decompose(this.floorFrame.position,this.floorFrame.quaternion,this.floorFrame.scale);
+   this.floorFrame.updateMatrixWorld(true);
+  }
+  this.camera.position.fromArray(state.position);
+  this.camera.quaternion.fromArray(state.quaternion);
+  this.camera.fov=72;this.camera.zoom=1;this.camera.near=.02;this.camera.far=100;
+  this.camera.aspect=this.host.clientWidth/Math.max(1,this.host.clientHeight);
+  this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld(true);
+  this.root.visible=true;
+  return true;
  }
 
  activeCamera(){if(this.wideView?.active)return this.wideView.camera;if(this.session)return this.renderer.xr.getCamera().cameras[0]||this.renderer.xr.getCamera();return this.camera;}
@@ -624,7 +707,7 @@ safeObjectMotion(mesh,desired){
     if([4,14,28].includes(this.selected.userData.index)){this.snapToSupport(this.selected);}else{this.keepOnFloor(this.selected);if(this.selected.userData.attachment){const link=this.selected.userData.attachment,base=this.items.find(m=>m.userData.id===link.id);if(base){const offset=this.selected.position.clone().sub(base.position).applyAxisAngle(new THREE.Vector3(0,1,0),-base.rotation.y);link.offset[0]=offset.x;link.offset[2]=offset.z;}}this.refreshAttachments();}}
   else if(g.kind==='A'){this.model.moveA(this.floorLocal(p).add(g.offset));this.syncSpatial();}
   else if(g.kind==='B'){this.model.moveB(this.floorLocal(p).add(g.offset));this.syncSpatial();}
-  this.updateArtFloorHandle();this.onLiveChange?.();
+  this.updateArtFloorHandle();this.onLiveChange?.('drag');
  }
  up(e,target){const wasMoving=['object','twist'].includes(this.gesture?.kind);this.points.delete(e.pointerId);if(this.points.size===1&&this.selected&&!this.moveLayoutMode){const remaining=[...this.points.values()][0],p=this.pointOnFloor(remaining,target);this.gesture=p&&!isWallArt(this.selected.userData.index)?{kind:'object',offset:this.selected.position.clone().sub(this.rootLocal(p))}:null;}else if(!this.points.size){if(wasMoving)this.settleObjectsAfterDrag();this.setDragOcclusion(false);this.gesture=null;this.changed();}}
  cancelGesture(){const wasMoving=['object','twist'].includes(this.gesture?.kind);this.points.clear();if(wasMoving)this.settleObjectsAfterDrag();this.setDragOcclusion(false);this.gesture=null;}

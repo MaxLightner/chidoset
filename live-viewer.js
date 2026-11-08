@@ -1,21 +1,11 @@
-import {ApprovedLiveWatch} from './live-watch.js?v=0.16.1';
+import {ApprovedLiveWatch} from './live-watch.js?v=0.16.2';
 import {watchMarkup,renderWatchState} from './live-watch-ui.js?v=0.16.1';
-import {Studio} from './scene.js?v=0.16.1';
+import {Studio} from './scene.js?v=0.16.2';
 import {supabase,getMembership,findActiveLiveSession,createLiveSession,getLiveShareLink,withLiveTimeout} from './chido-cloud.js?v=0.16.1';
 const $=selector=>document.querySelector(selector);
 let studio=null,active=null,channel=null,link='',lastScene='',lastCamera=null,checking=false,stopping=false,watch=null,member=null,wantWatch=false;
 const setStatus=value=>{$('#watchStatus').textContent=value;};
 
-function fitHostAspect(state){
- const aspect=Number(state?.aspect);
- if(!Number.isFinite(aspect)||aspect<.4||aspect>3)return;
- const viewport=$('#viewport'),stage=viewport.parentElement;
- const width=stage.clientWidth,height=stage.clientHeight;
- if(width/Math.max(1,height)>aspect){viewport.style.width=(height*aspect)+'px';viewport.style.height=height+'px';}
- else{viewport.style.width=width+'px';viewport.style.height=(width/aspect)+'px';}
- viewport.style.inset='auto';viewport.style.maxWidth='100%';viewport.style.maxHeight='100%';
- viewport.style.left='50%';viewport.style.top='50%';viewport.style.transform='translate(-50%,-50%)';
-}
 async function showQr(url){
  link=url;$('#shareQr').textContent='در حال ساخت QR…';
  try{
@@ -50,7 +40,7 @@ async function refresh(){
 const watchStage=$('.watch-stage'),watchParent=watchStage.parentNode,watchNext=watchStage.nextSibling;
 $('#showHere').onclick=async()=>{wantWatch=true;const dialog=$('#watchDialog');dialog.append(watchStage);if(!dialog.open)dialog.showModal();studio?.resize();await refresh();if(active&&watch&&['ended','rejected'].includes(watch.request?.status))await watch.retry();};
 $('#closeWatch').onclick=()=>$('#watchDialog').close();
-$('#watchDialog').addEventListener('close',()=>{wantWatch=false;watch?.stop();watchParent.insertBefore(watchStage,watchNext);fitHostAspect(lastCamera);studio?.resize();});
+$('#watchDialog').addEventListener('close',()=>{wantWatch=false;watch?.stop();watchParent.insertBefore(watchStage,watchNext);studio?.resize();});
 $('#renewLink').onclick=async()=>{await refresh();try{if(active){const url=link||await getLiveShareLink(active.id);await showQr(url);}}catch(error){$('#shareStatus').textContent=error.message||'دریافت لینک انجام نشد.';}};
 $('#copyLink').onclick=async()=>{if(!link){$('#shareStatus').textContent='لینک هنوز آماده نیست.';return;}try{await navigator.clipboard.writeText(link);$('#shareStatus').textContent='لینک کپی شد.';}catch{$('#shareStatus').textContent='کپی خودکار ممکن نیست.';}};
 $('#signOut').onclick=async()=>{stopping=true;await watch?.destroy();if(channel)await supabase.removeChannel(channel);studio?.destroy();await supabase.auth.signOut();localStorage.removeItem('chido-site-role');sessionStorage.removeItem('chido-site-role');location.replace('login.html?retry=1');};
@@ -65,7 +55,7 @@ try{
   $('#viewerShell').hidden=false;$('#authStatus').textContent='';
   studio=new Studio($('#viewport'),()=>{});studio.events?.abort();studio.setPhotoMode(true);
   $('#waitingOverlay').innerHTML=watchMarkup;
-  watch=new ApprovedLiveWatch(studio,{onState:state=>{renderWatchState($('#waitingOverlay'),state);setStatus(state.label);},onCamera:state=>{lastCamera=state;fitHostAspect(state);}});
+  watch=new ApprovedLiveWatch(studio,{onState:state=>{renderWatchState($('#waitingOverlay'),state);setStatus(state.label);},onCamera:state=>{lastCamera=state;studio?.resize();}});
   $('#waitingOverlay [data-watch-retry]').onclick=async()=>{if(watch.request)await watch.retry();else{wantWatch=true;await refresh();}};
   $('#showHere').disabled=false;
   await refresh();setInterval(()=>void refresh(),3000);

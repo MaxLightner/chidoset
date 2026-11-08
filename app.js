@@ -1,7 +1,7 @@
 import {LiveApprovalHost} from './live-approval-host.js?v=0.16.1';
 import {liveSession} from './live-approval.js?v=0.16.1';
-import {mountMaterialPanel} from './material-panel.js?v=0.15.0';
-import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.15.0';
+import {mountMaterialPanel} from './material-panel.js?v=0.16.2';
+import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.16.2';
 import {rememberAccount,accountName} from './auth-storage.js';
 import {readRecovery,saveRecovery,clearRecovery,filterPublishedScene} from './app-recovery.js';
 import {runtimeHealth,recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.16.1';
@@ -36,7 +36,7 @@ const themes=[
 ];
 let themeIndex=0,styleChoice='مینیمال',previewEnabled=false,peopleCount=5;
 let cloudMembership=null,cloudSets=[],demoLibrary=[],activeCloudSetId=null,activeCloudLayout=null,activeCloudColorway=null,activeLiveSession=null;
-let liveSceneTimer=null,lastLiveCameraSent=0,liveCameraBusy=false,liveCameraQueued=null;
+let liveSceneTimer=null,lastLiveSceneSent=0,liveSceneBusy=false,liveSceneDirty=false,lastLiveCameraSent=0,liveCameraBusy=false,liveCameraQueued=null;
 let autoShareAttempted=false,liveShareStarting=false;
 let liveRetryAt=0,liveReconcileBusy=false,liveSharingPaused=false;
 const liveApproval=new LiveApprovalHost({getStudio:()=>studio,publish:publishApprovedLiveScene});
@@ -104,7 +104,7 @@ function heading(step,title,sub,back){return `<div class="page-heading"><div><sp
 async function full(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(!document.documentElement.requestFullscreen){toast('مرورگر شما تمام‌صفحه را پشتیبانی نمی‌کند.');return;}try{await document.documentElement.requestFullscreen();}catch{toast('ورود به تمام‌صفحه ممکن نشد؛ می‌توانی ادامه بدهی.');}}
 $('#fullscreen').onclick=full;document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'خروج از تمام‌صفحه ↙':'تمام‌صفحه ⛶');
 async function support(){try{supported=!!(isSecureContext&&navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar'));}catch{supported=false;}return supported;}
-async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.16.1');Scene=m.Studio;palette=m.palette;}}
+async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.16.2');Scene=m.Studio;palette=m.palette;}}
 let draftTimer=null;
 function currentSceneRecord(){
  if(!studio)return null;
@@ -290,7 +290,7 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
    if($('#wideViewMode')?.value!=='ar')showWideProjection(projection);
   };
    studio.architecture.onSelectionChange=updateArchitectureSelection;
-  studio.onLiveChange=()=>{minimap.render();updateArchitectureSelection();};
+  studio.onLiveChange=reason=>{minimap.render();updateArchitectureSelection();if(reason==='drag')scheduleLiveScenePublish();};
    studio.onABPosition=point=>{const el=$('#abInline');if(!point||!studio?.session||studio.photoMode){el.hidden=true;return;}el.hidden=false;el.style.left=Math.max(72,Math.min(innerWidth-72,point.x))+'px';el.style.top=Math.max(88,Math.min(innerHeight-125,point.y))+'px';$('#abLengthButton').textContent='A—B · '+Math.round(studio.measurement().correctedCm).toLocaleString('fa-IR')+' cm ✎';};
   studio.onSelectionScreen=()=>{
     const quick=$('#objectQuick'),selected=studio?.selected;
@@ -357,24 +357,28 @@ async function applyCloudColorway(record){
  for(const mesh of studio.items){
   const spec=map[String(mesh.userData.index)];if(!spec)continue;
   if(spec.fabric&&[22,23,24].includes(mesh.userData.index))studio.setSofaFabric(spec.fabric,mesh);
-  else if(spec.color)mesh.traverse(node=>{
-   if(!node.isMesh||!node.material)return;
-   const materials=Array.isArray(node.material)?node.material:[node.material];
-   for(const material of materials)if(material.color)material.color.set(spec.color);
-  });
+  else if(spec.color)studio.tintItem(mesh,spec.color);
   changed++;
  }
  activeCloudColorway=record;
+ if(changed)studio.changed();
  if(changed)toast('رنگ‌بندی «'+record.name+'» اعمال شد؛ این تغییر هنوز ذخیره نشده است.');
  else toast('آبجکت‌های مربوط به این رنگ‌بندی در صحنه نیستند.');
 }
 function currentMaterialMap(){return instanceMaterialMap(studio?.items||[]);}
 function scheduleLiveScenePublish(){
  if(!activeLiveSession||!studio||!liveApproval.isAllowed(activeLiveSession.id))return;
- clearTimeout(liveSceneTimer);
- liveSceneTimer=setTimeout(()=>{
-  if(activeLiveSession&&studio)publishLiveScene(activeLiveSession.id,liveApproval.packet(studio.exportLiveState())).catch(error=>console.warn('Live scene sync failed',error));
- },160);
+ if(liveSceneTimer||liveSceneBusy){liveSceneDirty=true;return;}
+ const wait=Math.max(0,260-(performance.now()-lastLiveSceneSent));
+ liveSceneTimer=setTimeout(async()=>{
+  liveSceneTimer=null;
+  if(!activeLiveSession||!studio||!liveApproval.isAllowed(activeLiveSession.id))return;
+  liveSceneBusy=true;liveSceneDirty=false;lastLiveSceneSent=performance.now();
+  const sessionId=activeLiveSession.id;
+  try{await publishLiveScene(sessionId,liveApproval.packet(studio.exportLiveState()));}
+  catch(error){console.warn('Live scene sync failed',error);}
+  finally{liveSceneBusy=false;if(liveSceneDirty&&activeLiveSession?.id===sessionId)scheduleLiveScenePublish();}
+ },wait);
 }
 function liveRuntimeFrame(time){void liveApproval.poll();liveCameraFrame(time);}
 function liveCameraFrame(time){
