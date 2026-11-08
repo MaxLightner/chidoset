@@ -1,5 +1,6 @@
 import {rememberAccount,accountName} from './auth-storage.js';
 import {readRecovery,saveRecovery,clearRecovery,filterPublishedScene} from './app-recovery.js';
+import {releaseAfterPaint} from './xr-lifecycle.js';
 import {endXRSession} from './xr-end.js';
 import {accountLogin} from './account-login.js';
 import {explainXR,requestARSession} from './xr.js?v=0.5.4';
@@ -13,7 +14,7 @@ import {savedPlanSvg} from './saved-plan.js?v=0.8.0';
 import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-materials.js';
 import {LiveMiniMap} from './minimap.js?v=0.5.4';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
-import {SOFA_FABRICS} from './imported-models.js?v=0.13.0';
+import {SOFA_FABRICS} from './imported-models.js?v=0.13.2';
 import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList} from './cloud-product-registry.js';
 import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,saveOfficialLayout,saveOfficialColorway,createLiveSession,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.12.2';
 const $=s=>document.querySelector(s),app=$('#app'),fa=n=>n.toLocaleString('fa-IR');
@@ -94,7 +95,7 @@ function heading(step,title,sub,back){return `<div class="page-heading"><div><sp
 async function full(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(!document.documentElement.requestFullscreen){toast('مرورگر شما تمام‌صفحه را پشتیبانی نمی‌کند.');return;}try{await document.documentElement.requestFullscreen();}catch{toast('ورود به تمام‌صفحه ممکن نشد؛ می‌توانی ادامه بدهی.');}}
 $('#fullscreen').onclick=full;document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'خروج از تمام‌صفحه ↙':'تمام‌صفحه ⛶');
 async function support(){try{supported=!!(isSecureContext&&navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar'));}catch{supported=false;}return supported;}
-async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.13.1');Scene=m.Studio;palette=m.palette;}}
+async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.13.2');Scene=m.Studio;palette=m.palette;}}
 let draftTimer=null;
 function currentSceneRecord(){
  if(!studio)return null;
@@ -168,7 +169,7 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
   const previous=studio;
   try{persistDraft();snapshotItems();sceneMemory=previous.exportState();}catch(error){console.warn('Scene snapshot before navigation',error);}
   studio=null;
-  try{previous.destroy();}catch(error){console.warn('Scene renderer cleanup failed',error);}
+  try{previous.pause();}catch(error){console.warn('Scene pause failed',error);}releaseAfterPaint(()=>{try{previous.destroy();}catch(error){console.warn('Scene renderer cleanup failed',error);}});
  }
  photoURLs.forEach(URL.revokeObjectURL);photoURLs=[];
  if(route==='welcome'){
@@ -250,11 +251,14 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
   else{layout='empty';studio.seed('empty',space,peopleCount);}
   persistDraft();
   studio.onEnd=()=>{
+   try{
     if(activeLiveSession)void endLiveShare(true);
     resetWideViewControls();closeChidoMenu();minimap.collapse();setPhotoMode(false);closeArSheet();
     $('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=true;
     $('#measureHint').hidden=true;$('#arMiniMap').hidden=true;$('#abInline').hidden=true;$('#arBottomActions').hidden=true;$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;$('#arSurfaceActions').hidden=true;
-    // Finish XR callbacks before changing launch controls or navigating home.
+   }catch(error){console.warn('AR controls cleanup',error);}
+    $('#overlay').hidden=true;
+    // Home navigation must run even if an optional AR tool failed to close.
     arStarting=false;pendingARSession=null;
     if(homeExitRequested)queueMicrotask(finishChidoHomeExit);
     else queueMicrotask(()=>{
@@ -927,9 +931,9 @@ $('#chidoMenuHome').onclick=async()=>{
   console.warn('XR exit request',error);
   if(studio?.session===running&&!studio.renderer.xr.isPresenting)studio.endSession();
   if(studio?.session===running){
-   homeExitRequested=false;homeExitBusy=false;
+   homeExitBusy=false;
    $('#chidoMenuHome').disabled=false;
-   toast('خروج از AR انجام نشد. دوباره تلاش کن.');
+   toast('مرورگر هنوز پایان AR را تأیید نکرده؛ می‌توانی دوباره خروج را بزنی.');
    return;
   }
  }
@@ -939,14 +943,14 @@ $('#chidoMenuHome').onclick=async()=>{
  homeExitFallback=setTimeout(()=>{
   homeExitFallback=null;
   if(!homeExitRequested)return;
-  if(studio?.session===running){
+  if(studio?.session===running&&!studio.renderer.xr.isPresenting){
    try{studio.endSession();}catch(error){console.warn('WebXR end-event recovery',error);}
   }
   if(!studio?.session)finishChidoHomeExit();
   else{
-   homeExitRequested=false;homeExitBusy=false;
+   homeExitBusy=false;
    $('#chidoMenuHome').disabled=false;
-   toast('بازگشت به صفحه اصلی کامل نشد؛ دوباره تلاش کن.');
+   toast('در انتظار پایان نشست مرورگر؛ پس از پایان، صفحه اصلی باز می‌شود.');
   }
  },1400);
 };$('#resetAR').onclick=async()=>{try{$('#whiteFloorDialog').hidden=true;$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;studio?.architecture?.setMode(null);calibrationPrompted=false;await studio?.beginScan();$('#arSettings').open=false;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arSettings').hidden=true;}catch(error){toast('اسکن دوباره اجرا نشد.');}};$('#confirmFloor').onclick=()=>{if(studio?.confirmFloor()){calibrationPrompted=true;$('#abCalibrationSheet').hidden=false;}};$('#rescanFloor').onclick=async()=>{try{$('#whiteFloorDialog').hidden=true;await studio?.beginScan();$('#arSettings').open=false;}catch(error){toast('اسکن دوباره راه‌اندازی نشد؛ از AR خارج شو و دوباره وارد شو.');}};

@@ -50,9 +50,13 @@ function loadFabric(file,repeat=4){
  return fabricCache.get(key);
 }
 export function preloadSofaTextures(index,id='dark'){if(!SOFA_AO[index])return Promise.resolve();const fabric=SOFA_FABRICS.find(f=>f.id===id)||SOFA_FABRICS[0];return Promise.all([loadFabric(fabric.file).userData.ready,loadFabric(SOFA_AO[index],1).userData.ready]);}
-export function applySofaFabric(model,id='dark',index=22){
+export async function applySofaFabric(model,id='dark',index=22){
  const fabric=SOFA_FABRICS.find(x=>x.id===id)||SOFA_FABRICS[0];
  model.userData.fabric=fabric.id;
+ const request=(model.userData.fabricRequest||0)+1;model.userData.fabricRequest=request;model.userData.fabricState='loading';
+ try{await preloadSofaTextures(index,id);}catch(error){if(model.userData.fabricRequest===request)model.userData.fabricState='error';console.warn('Fabric unavailable; preserving GLB materials',error);return false;}
+ if(model.userData.disposed||model.userData.fabricRequest!==request)return false;
+ model.userData.fabricState='ready';
  model.traverse(object=>{
   if(!object.isMesh||object.userData.collisionProxy||object.name==='chido-contact-shadow')return;
   if(!object.geometry.attributes.uv)return;
@@ -73,6 +77,7 @@ export function applySofaFabric(model,id='dark',index=22){
    material.needsUpdate=true;
   }
  });
+ return true;
 }
 export const isImportedModel=index=>Object.hasOwn(IMPORTED_MODELS,index)||!!getCloudProduct(index);
 export const isImportedLight=index=>index===28||index===29;
@@ -149,7 +154,9 @@ export function createImportedModel(index,size,fabric='dark'){
  proxy.userData.imported=true;
  proxy.userData.collisionProxy=proxy;
  proxy.userData.assetSource=spec.file;
- proxy.userData.loadPromise=Promise.all([source(spec.file),SOFA_AO[index]?preloadSofaTextures(index,fabric):null]).then(([gltf])=>{
+ if(SOFA_AO[index])void preloadSofaTextures(index,fabric).catch(()=>{});
+ proxy.userData.loadStartedAt=performance.now();
+ proxy.userData.loadPromise=source(spec.file).then(gltf=>{
   if(proxy.userData.disposed)return;
   const visual=gltf.scene.clone(true);
   configureMeshes(visual,index);
@@ -174,7 +181,7 @@ export function createImportedModel(index,size,fabric='dark'){
   proxy.add(visual);
   if(SOFA_AO[index])applySofaFabric(visual,proxy.userData.fabric||'dark',index);
   if(isImportedLight(index))addLampLight(proxy,index,size);
-  proxy.userData.modelLoaded=true;
+  proxy.userData.modelLoaded=true;proxy.userData.loadDurationMs=performance.now()-proxy.userData.loadStartedAt;
   proxy.userData.onModelReady?.();
  }).catch(error=>{
   if(proxy.userData.disposed)return;
