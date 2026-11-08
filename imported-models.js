@@ -1,6 +1,7 @@
 import * as THREE from './vendor/three.module.js';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
 import {getCloudProduct} from './cloud-product-registry.js';
+import {materialRole} from './material-roles.js?v=0.14.0';
 
 // All units are metres. Native Blender GLB dimensions are preserved; the
 // quarter-turn only makes the long side of a sofa/table follow local X.
@@ -53,12 +54,14 @@ function loadFabric(file,repeat=4){
 }
 export function preloadSofaTextures(index,id='dark'){if(!SOFA_AO[index])return Promise.resolve();const fabric=SOFA_FABRICS.find(f=>f.id===id)||SOFA_FABRICS[0];return Promise.all([loadFabric(fabric.file).userData.ready,loadFabric(SOFA_AO[index],1).userData.ready]);}
 export async function applySofaFabric(model,id='dark',index=22){
+ if(model.userData.roleMaterialOverrides?.fabric)return false;
  const fabric=SOFA_FABRICS.find(x=>x.id===id)||SOFA_FABRICS[0];
  model.userData.fabric=fabric.id;
  const request=(model.userData.fabricRequest||0)+1;model.userData.fabricRequest=request;model.userData.fabricState='loading';
  try{await preloadSofaTextures(index,id);}catch(error){if(model.userData.fabricRequest===request)model.userData.fabricState='error';console.warn('Fabric unavailable; preserving GLB materials',error);return false;}
- if(model.userData.disposed||model.userData.fabricRequest!==request)return false;
+ if(model.userData.disposed||model.userData.fabricRequest!==request||model.userData.roleMaterialOverrides?.fabric)return false;
  model.userData.fabricState='ready';
+ let named=false;model.traverse(object=>{for(const m of Array.isArray(object.material)?object.material:[object.material])if(['fabric','body','detail'].some(role=>String(m?.name||'').toLowerCase().includes(role)))named=true;});
  model.traverse(object=>{
   if(!object.isMesh||object.userData.collisionProxy||object.name==='chido-contact-shadow')return;
   if(!object.geometry.attributes.uv)return;
@@ -66,7 +69,7 @@ export async function applySofaFabric(model,id='dark',index=22){
   if(!object.geometry.attributes.uv2)object.geometry.setAttribute('uv2',object.geometry.attributes.uv.clone());
   const materials=Array.isArray(object.material)?object.material:[object.material];
   for(const material of materials){
-   if(!material?.isMeshStandardMaterial)continue;
+   if(!material?.isMeshStandardMaterial||(named&&materialRole(material.name)!=='fabric'))continue;
    material.map=loadFabric(fabric.file,4);
    material.aoMap=loadFabric(SOFA_AO[index],1);
    material.aoMapIntensity=1.15;
@@ -162,6 +165,7 @@ export function createImportedModel(index,size,fabric='dark'){
   if(proxy.userData.disposed)return;
   const visual=gltf.scene.clone(true);
   configureMeshes(visual,index);
+  visual.userData.legacyFabric=!!SOFA_AO[index];
   visual.rotation.y=spec.yaw;
   visual.updateMatrixWorld(true);
   let box=new THREE.Box3().setFromObject(visual);

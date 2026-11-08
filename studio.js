@@ -1,19 +1,20 @@
 import * as THREE from './vendor/three.module.js';
+import {copyMaterialStyles,applyRoleMaterial,disposeRoleMaterials} from './material-roles.js?v=0.14.0';
 import {getCloudProduct,getCloudProductInfo,registerCloudProducts,cloudProductList} from './cloud-product-registry.js';
 import {ArchitectureLayer} from './architecture.js?v=0.9.0';
 import {createFurniture,furnitureHit} from './furniture.js?v=0.5.4';
 import {createDecor} from './decor.js?v=0.5.4';
-import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.13.3';
+import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.14.0';
 import {applyRugStyle} from './rug-textures.js?v=0.5.4';
 import {MeasureTool} from './measure-tool.js?v=0.5.4';
-import {bindXRExit} from './xr-lifecycle.js?v=0.13.6';
+import {bindXRExit} from './xr-lifecycle.js?v=0.14.0';
 import {endXRSession} from './xr-end.js';
 import {requestARSession,xrError} from './xr.js?v=0.5.4';
 import {WideViewRenderer,WIDE_VIEW_FOV} from './wide-view.js?v=0.13.3';
 import {SpatialState,CATALOG,pairAngle,wrappedAngle} from './spatial.js?v=0.8.0';
 import {FloorScanner,floorCandidates} from './surfaces.js?v=0.5.4';
 import {createSofaShadow,modelLocalBounds,isSofaShadowProduct} from './sofa-shadow.js?v=0.13.3';
-import {recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.13.6';
+import {recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.14.0';
 import {rendererPolicy} from './renderer-policy.js';
 import {EnvironmentEffects} from './effects.js?v=0.13.3';
 import {AnchorStabilizer,transformPoint} from './anchor-rig.js?v=0.5.4';
@@ -167,7 +168,7 @@ void main(){
  add(index=this.serial%4,position,options={}){const cloud=getCloudProduct(index);if(index>=32&&!cloud)throw Error('مدل این محصول در دسترس نیست؛ کتابخانه شرکت را دوباره دریافت کن.');if(!cloud)index=((index%CATALOG.length)+CATALOG.length)%CATALOG.length;const baseProduct=cloud?{name:cloud.name,size:cloud.size_m,price:0}:{...CATALOG[index],name:getCloudProductInfo(index)?.name||CATALOG[index].name},product=options.size?{...baseProduct,size:options.size}:baseProduct,id=++this.serial,[w,h,d]=product.size;const color=palette[index]||'#c6b7a3';const mesh=isImportedModel(index)?createImportedModel(index,product.size,options.fabric||'dark'):index<4?createFurniture(index,product.size,color,options.seats):createDecor(index,product.size,color);
   const edges=new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry),new THREE.LineBasicMaterial({color:0x9f927f,transparent:true,opacity:.15,depthWrite:false}));mesh.add(edges);
   const dimensions=`${product.name} · ${product.size.map(v=>fa(v*100)).join(' × ')} cm`;const label=this.makeLabel(dimensions);label.position.y=h/2+.18;label.scale.set(1.5,.22,1);mesh.add(label);
-  mesh.userData={...mesh.userData,id,index,height:h,price:product.price,product,edges,label,fabric:options.fabric||'dark',
+  mesh.userData={...mesh.userData,id,index,height:h,price:product.price,product,edges,label,fabric:options.fabric||'dark',materialStyles:copyMaterialStyles(options.materialStyles),
   asset:assetMetadata(index,product.size),seats:options.seats||(index===0?3:1),cushionPreset:'none',
   collisionBox:new THREE.Box3(new THREE.Vector3(-w/2,-h/2,-d/2),new THREE.Vector3(w/2,h/2,d/2))};const defaults=[[0,h/2,-2.1],[2,h/2,-2.1],[.6,h/2,-.9],[2,h/2,-.6],[.3,h/2,-.75],[.3,h/2,-2.1],[2,h/2,-.65],[.9,h/2,-1.5],[.5,h/2,-1.8],[.5,h/2,-1.8],[.5,h/2,-1.7],[.5,h/2,-1.2]];
   mesh.position.fromArray(defaults[index]||[0,h/2,-1.65]);if(position)mesh.position.copy(position);
@@ -191,7 +192,7 @@ void main(){
    this.snapToSupport(mesh);
   }
    if(isImportedModel(index)){
-    mesh.userData.onModelReady=()=>{if(isSofaShadowProduct(index,cloud||product)){const visual=mesh.getObjectByName('imported-visual');if(visual){const box=modelLocalBounds(mesh,visual),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());if(!box.isEmpty())this.addContactShadow(mesh,size.x,size.z,-box.min.y*2,.30,{bottom:box.min.y,x:center.x,z:center.z});}}if(mesh.userData.tint)this.tintItem(mesh,mesh.userData.tint);this.enableShadowCasting(mesh);if([22,23,24].includes(index))this.setSofaFabric(mesh.userData.fabric,mesh);if(isLamp(index))this.initializeLamp(mesh,mesh.userData.lampOn);this.changed();};
+    mesh.userData.onModelReady=()=>{if(isSofaShadowProduct(index,cloud||product)){const visual=mesh.getObjectByName('imported-visual');if(visual){const box=modelLocalBounds(mesh,visual),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());if(!box.isEmpty())this.addContactShadow(mesh,size.x,size.z,-box.min.y*2,.30,{bottom:box.min.y,x:center.x,z:center.z});}}if(mesh.userData.tint)this.tintItem(mesh,mesh.userData.tint);this.enableShadowCasting(mesh);if([22,23,24].includes(index))this.setSofaFabric(mesh.userData.fabric,mesh,{preserveRoles:true});if(isLamp(index))this.initializeLamp(mesh,mesh.userData.lampOn);this.restoreMaterialStyles(mesh);this.changed();};
     mesh.userData.onModelError=()=>this.onHint?.('بارگذاری '+product.name+' ناموفق بود؛ اتصال مدل‌های کتابخانه را بررسی کن.');
    }
   if(!options.silentSelect)this.select(mesh);this.setGuides();return mesh;
@@ -251,7 +252,7 @@ void main(){
    if(!spot){this.onHint?.('فضای کافی برای کپی کنار مبلمان نیست.');return null;}
    p.x=spot.x;p.z=spot.z;
   }
-  const copy=this.add(source.userData.index,p,{size:[...source.userData.product.size],seats:source.userData.seats});
+  const copy=this.add(source.userData.index,p,{size:[...source.userData.product.size],seats:source.userData.seats,fabric:source.userData.fabric,materialStyles:source.userData.materialStyles});
   copy.rotation.y=source.rotation.y;copy.material.color.copy(source.material.color);if(source.userData.tint)this.tintItem(copy,source.userData.tint);
   if(source.userData.rugStyle)applyRugStyle(copy,source.userData.rugStyle);
   copy.userData.capacity=source.userData.capacity;copy.userData.tableId=source.userData.tableId;
@@ -411,15 +412,25 @@ void main(){
 
  remove(){const m=this.selected;if(!m)return;this.items=this.items.filter(x=>x!==m);for(const child of this.items)if(child.userData.attachment?.id===m.userData.id){child.userData.attachment=null;this.keepOnFloor(child);}this.root.remove(m);this.disposeObject(m);this.select(this.items[0]||null);}
  clear(){for(const m of this.items){this.root.remove(m);this.disposeObject(m);}this.items=[];this.selected=null;this.serial=0;this.architecture?.restore({floor:[],walls:[],windows:[]});this.changed();}
- disposeObject(object){const imported=!!object.userData.imported;object.userData.disposed=true;object.traverse(o=>{o.geometry?.dispose();if(o.material){const materials=Array.isArray(o.material)?o.material:[o.material];for(const material of materials){if(!imported)material.map?.dispose();material.dispose();}}});}
+ disposeObject(object){disposeRoleMaterials(object.getObjectByName('imported-visual'));const imported=!!object.userData.imported;object.userData.disposed=true;object.traverse(o=>{o.geometry?.dispose();if(o.material){const materials=Array.isArray(o.material)?o.material:[o.material];for(const material of materials){if(!imported)material.map?.dispose();material.dispose();}}});}
  rotate(degrees){if(!this.selected)return;const mesh=this.selected;const desired=degrees===undefined?mesh.rotation.y+Math.PI/4:degrees*Math.PI/180;
   mesh.rotation.y=this.safeObjectRotation(mesh,desired);
   this.keepOnFloor(mesh);this.refreshAttachments();this.changed();}
  tintItem(mesh,color){if(!mesh)return;mesh.userData.tint=color;mesh.traverse(node=>{if(!node.isMesh)return;for(const material of Array.isArray(node.material)?node.material:[node.material])if(material?.color)material.color.set(color);});}
  color(color){if(this.selected){this.tintItem(this.selected,color);this.changed();}}
- setSofaFabric(id,mesh=this.selected){
+ async setMaterialStyle(role,style,mesh=this.selected){
+  if(!mesh||!this.items.includes(mesh)||mesh.userData.disposed)return false;
+  const visual=mesh.getObjectByName('imported-visual');if(!visual)return false;
+  const clean=style?copyMaterialStyles({[role]:style})[role]:null;if(style&&!clean)return false;
+  const applied=await applyRoleMaterial(visual,role,clean);
+  if(!applied||mesh.userData.disposed)return false;
+  mesh.userData.materialStyles??={};if(clean)mesh.userData.materialStyles[role]=clean;else delete mesh.userData.materialStyles[role];this.changed();return true;
+ }
+ restoreMaterialStyles(mesh){for(const [role,style] of Object.entries(copyMaterialStyles(mesh.userData.materialStyles)))void this.setMaterialStyle(role,style,mesh).catch(error=>this.onHint?.(error.message||'تکسچر بارگذاری نشد.'));}
+ setSofaFabric(id,mesh=this.selected,{preserveRoles=false}={}){
   if(![22,23,24].includes(mesh?.userData.index))return false;
   mesh.userData.fabric=id;
+  if(!preserveRoles){if(mesh.userData.materialStyles)delete mesh.userData.materialStyles.fabric;const visual=mesh.getObjectByName('imported-visual');if(visual?.userData.roleMaterialOverrides)delete visual.userData.roleMaterialOverrides.fabric;}
   const visual=mesh.getObjectByName('imported-visual');if(visual)void applySofaFabric(visual,id,mesh.userData.index).then(applied=>{if(applied&&!mesh.userData.disposed){if(mesh.userData.tint)this.tintItem(mesh,mesh.userData.tint);this.changed();}}).catch(error=>console.warn('Fabric apply failed',error));
   this.changed();return true;
  }
@@ -433,8 +444,8 @@ void main(){
  attachment:m.userData.attachment||null,size:[...m.userData.product.size],capacity:m.userData.capacity||null,
  seats:m.userData.seats||null,tableId:m.userData.tableId||null,hidden:!!m.userData.hidden,
  rugStyle:m.userData.rugStyle||null,artImage:m.userData.artImage||null,lampOn:!!m.userData.lampOn,
- cushionPreset:m.userData.cushionPreset||'none',fabric:m.userData.fabric||null}))};}
- restoreState(state){registerCloudProducts(state.cloudProducts);this.model.restore(state.spatial);this.architecture?.restore(state.architecture||{floor:[],walls:[],windows:[]});if(this.whiteFloor)this.whiteFloor.visible=!!state.whiteFloor&&!this.architecture?.data.floor.length;for(const x of state.items){const mesh=this.add(x.index,x.position?new THREE.Vector3(...x.position):undefined,{size:[22,23,24].includes(x.index)?undefined:x.size,seats:x.seats,silentSelect:true,cushionPreset:x.cushionPreset,lampOn:x.lampOn,fabric:x.fabric});mesh.userData.id=x.id;mesh.position.fromArray(x.position);if([22,23,24].includes(x.index))mesh.position.y=CATALOG[x.index].size[1]/2;mesh.rotation.y=x.rotation;mesh.material.color.set(x.color);if(x.tint)this.tintItem(mesh,x.tint);mesh.userData.attachment=x.attachment||null;mesh.userData.capacity=x.capacity||null;mesh.userData.seats=x.seats||mesh.userData.seats;mesh.userData.tableId=x.tableId||null;mesh.userData.hidden=!!x.hidden;mesh.visible=!x.hidden;if(x.rugStyle)applyRugStyle(mesh,x.rugStyle);if(x.artImage)this.setWallArtImage(x.artImage,mesh);if(isLamp(mesh.userData.index))this.initializeLamp(mesh,x.lampOn===true);}this.serial=Math.max(0,...state.items.map(x=>x.id));this.measureTool.setCorrection(this.model.correction);this.refreshAttachments();this.syncSpatial();this.select(this.items[0]||null);}
+ cushionPreset:m.userData.cushionPreset||'none',fabric:m.userData.fabric||null,materialStyles:copyMaterialStyles(m.userData.materialStyles)}))};}
+ restoreState(state){registerCloudProducts(state.cloudProducts);this.model.restore(state.spatial);this.architecture?.restore(state.architecture||{floor:[],walls:[],windows:[]});if(this.whiteFloor)this.whiteFloor.visible=!!state.whiteFloor&&!this.architecture?.data.floor.length;for(const x of state.items){const mesh=this.add(x.index,x.position?new THREE.Vector3(...x.position):undefined,{size:[22,23,24].includes(x.index)?undefined:x.size,seats:x.seats,silentSelect:true,cushionPreset:x.cushionPreset,lampOn:x.lampOn,fabric:x.fabric,materialStyles:x.materialStyles});mesh.userData.id=x.id;mesh.position.fromArray(x.position);if([22,23,24].includes(x.index))mesh.position.y=CATALOG[x.index].size[1]/2;mesh.rotation.y=x.rotation;mesh.material.color.set(x.color);if(x.tint)this.tintItem(mesh,x.tint);mesh.userData.attachment=x.attachment||null;mesh.userData.capacity=x.capacity||null;mesh.userData.seats=x.seats||mesh.userData.seats;mesh.userData.tableId=x.tableId||null;mesh.userData.hidden=!!x.hidden;mesh.visible=!x.hidden;if(x.rugStyle)applyRugStyle(mesh,x.rugStyle);if(x.artImage)this.setWallArtImage(x.artImage,mesh);if(isLamp(mesh.userData.index))this.initializeLamp(mesh,x.lampOn===true);}this.serial=Math.max(0,...state.items.map(x=>x.id));this.measureTool.setCorrection(this.model.correction);this.refreshAttachments();this.syncSpatial();this.select(this.items[0]||null);}
  attachInput(target,opts){target.addEventListener('pointerdown',e=>this.down(e,target),opts);target.addEventListener('pointermove',e=>this.drag(e,target),opts);target.addEventListener('pointerup',e=>this.up(e,target),opts);target.addEventListener('pointercancel',()=>this.cancelGesture(),opts);target.addEventListener('lostpointercapture',e=>{if(this.points.has(e.pointerId))this.up(e,target);},opts);}
 
  exportLiveState(){

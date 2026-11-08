@@ -1,6 +1,8 @@
+import {mountMaterialPanel} from './material-panel.js?v=0.14.0';
+import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.14.0';
 import {rememberAccount,accountName} from './auth-storage.js';
 import {readRecovery,saveRecovery,clearRecovery,filterPublishedScene} from './app-recovery.js';
-import {runtimeHealth,recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.13.6';
+import {runtimeHealth,recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.14.0';
 import {StudioCache,sceneStateKey} from './studio-cache.js';
 import {endXRSession} from './xr-end.js';
 import {accountLogin} from './account-login.js';
@@ -15,7 +17,6 @@ import {savedPlanSvg} from './saved-plan.js?v=0.8.0';
 import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-materials.js';
 import {LiveMiniMap} from './minimap.js?v=0.5.4';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
-import {SOFA_FABRICS} from './imported-models.js?v=0.13.3';
 import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList} from './cloud-product-registry.js';
 import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,saveOfficialLayout,saveOfficialColorway,createLiveSession,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.12.2';
 const studioCache=new StudioCache();
@@ -98,7 +99,7 @@ function heading(step,title,sub,back){return `<div class="page-heading"><div><sp
 async function full(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(!document.documentElement.requestFullscreen){toast('مرورگر شما تمام‌صفحه را پشتیبانی نمی‌کند.');return;}try{await document.documentElement.requestFullscreen();}catch{toast('ورود به تمام‌صفحه ممکن نشد؛ می‌توانی ادامه بدهی.');}}
 $('#fullscreen').onclick=full;document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'خروج از تمام‌صفحه ↙':'تمام‌صفحه ⛶');
 async function support(){try{supported=!!(isSecureContext&&navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar'));}catch{supported=false;}return supported;}
-async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.13.6');Scene=m.Studio;palette=m.palette;}}
+async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.14.0');Scene=m.Studio;palette=m.palette;}}
 let draftTimer=null;
 function currentSceneRecord(){
  if(!studio)return null;
@@ -342,9 +343,10 @@ function updateCloudControls(){
  if(menuSave)menuSave.hidden=!(manager&&hasSet);
  if(menuSaved)menuSaved.hidden=!hasSet;
 }
-function applyCloudColorway(record){
+async function applyCloudColorway(record){
  if(!studio||!record)return;
  const map=record.material_map||{};
+ if(map.version===2){try{const count=await applyInstanceMaterialMap(studio,map);activeCloudColorway=record;toast(count?'رنگ‌بندی روی نمونه‌های مربوط در صحنه اعمال شد.':'آبجکت‌های این رنگ‌بندی در صحنه نیستند.');}catch(error){toast(error.message||'بارگذاری متریال کامل نشد.');}return;}
  let changed=0;
  for(const mesh of studio.items){
   const spec=map[String(mesh.userData.index)];if(!spec)continue;
@@ -360,19 +362,7 @@ function applyCloudColorway(record){
  if(changed)toast('رنگ‌بندی «'+record.name+'» اعمال شد؛ این تغییر هنوز ذخیره نشده است.');
  else toast('آبجکت‌های مربوط به این رنگ‌بندی در صحنه نیستند.');
 }
-function currentMaterialMap(){
- const map={};
- for(const mesh of studio?.items||[]){
-  let color=null;
-  mesh.traverse(node=>{
-   if(color||!node.isMesh||!node.material)return;
-   const material=Array.isArray(node.material)?node.material.find(item=>item.color):node.material;
-   if(material?.color)color='#'+material.color.getHexString();
-  });
-  map[String(mesh.userData.index)]={...(color?{color}:{}),...(mesh.userData.fabric?{fabric:mesh.userData.fabric}:{})};
- }
- return map;
-}
+function currentMaterialMap(){return instanceMaterialMap(studio?.items||[]);}
 function scheduleLiveScenePublish(){
  if(!activeLiveSession||!studio)return;
  clearTimeout(liveSceneTimer);
@@ -471,10 +461,9 @@ function showArSheet(mode){
    title.textContent='طرح و رنگ فرش';
    body.innerHTML=`<div class="rug-grid">${RUG_STYLES.map(r=>`<button data-rug="${r.id}" class="${selected.userData.rugStyle===r.id?'selected':''}"><img src="${rugPreviewDataUrl(r.id)}" alt="${r.name}"><span>${r.name}</span></button>`).join('')}</div>`;
    body.querySelectorAll('[data-rug]').forEach(btn=>btn.onclick=()=>{studio.setRugStyle(btn.dataset.rug);body.querySelectorAll('[data-rug]').forEach(b=>b.classList.toggle('selected',b===btn));});
-  }else if([22,23,24].includes(selected?.userData.index)){
-   title.textContent='پارچه · '+selected.userData.product.name;
-   body.innerHTML=`<div class="sofa-fabric-grid">${SOFA_FABRICS.map(f=>`<button data-sofa-fabric="${f.id}" class="${(selected.userData.fabric||'dark')===f.id?'selected':''}"><img src="assets/chido/${f.file}" alt="بافت ${f.label}"><span>${f.label}</span></button>`).join('')}</div><small class="sheet-tip">تکسچرها ۴×۴ تکرار می‌شوند؛ نقشه اکلوژن جداگانه باقی می‌ماند.</small>`;
-   body.querySelectorAll('[data-sofa-fabric]').forEach(btn=>btn.onclick=()=>{studio.setSofaFabric(btn.dataset.sofaFabric);body.querySelectorAll('[data-sofa-fabric]').forEach(b=>b.classList.toggle('selected',b===btn));});
+  }else if(selected?.userData.imported){
+   title.textContent='متریال · '+selected.userData.product.name;
+   mountMaterialPanel(body,studio,selected,{notify:toast});
   }else{
    title.textContent=selected?'رنگ و جنس · '+selected.userData.product.name:'ابتدا آبجکت را انتخاب کن';
    const colors=[...themes[themeIndex].colors,'#b6bca2','#70858b','#b79c85','#ae8574','#546356','#5f5753','#efe8df'];

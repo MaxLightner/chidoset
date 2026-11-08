@@ -1,6 +1,6 @@
 // Bounded, local-only diagnostics. No scene, account, auth or network payloads.
 const key='chido:runtime-health:v2';
-export const DIAGNOSTIC_VERSION='0.13.6';
+export const DIAGNOSTIC_VERSION='0.14.0';
 const read=()=>{try{const value=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(value)?value.slice(-3):[];}catch{return [];}};
 const previous=read();
 const run={version:DIAGNOSTIC_VERSION,started:Date.now(),device:globalThis.navigator?.userAgent||'',events:[]};

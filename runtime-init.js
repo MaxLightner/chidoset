@@ -1,2 +1,2 @@
-import {installRuntimeDiagnostics} from './runtime-health.js?v=0.13.6';
+import {installRuntimeDiagnostics} from './runtime-health.js?v=0.14.0';
 installRuntimeDiagnostics();
