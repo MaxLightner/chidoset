@@ -8,6 +8,17 @@ import {allowedCapacities} from '../layout-templates.js';
 const root=dirname(dirname(fileURLToPath(import.meta.url)));
 const read=name=>readFileSync(join(root,name),'utf8');
 
+test('AR controls reflow for landscape phones and tablets without rotating the tracked camera',()=>{
+ const css=read('style.css'),html=read('index.html');
+ assert.match(html,/name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/);
+ assert.match(css,/@media \(orientation:landscape\) and \(min-width:600px\)/);
+ assert.match(css,/@media \(orientation:landscape\) and \(min-width:600px\) and \(max-height:450px\)/);
+ assert.match(css,/#overlay\.floor-ready \.ar-dock\{[\s\S]*?flex-direction:column!important/);
+ assert.match(css,/#overlay\.floor-ready \.ar-tool-sheet\{[\s\S]*?max-height:calc\(100dvh - 120px\)!important/);
+ assert.match(css,/#overlay \.ar-minimap\.expanded\{inset:calc\(env\(safe-area-inset-top/);
+ assert.doesNotMatch(css,/rotate\(90deg\)/);
+});
+
 test('floor choice cannot trap immersive AR behind an HTML modal backdrop',()=>{
  const html=read('index.html'),app=read('app.js'),css=read('style.css');
  assert.match(html,/id="whiteFloorDialog"[^>]*hidden/);
