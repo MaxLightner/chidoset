@@ -4,7 +4,7 @@ import {getCloudProduct,getCloudProductInfo,registerCloudProducts,cloudProductLi
 import {ArchitectureLayer} from './architecture.js?v=0.9.0';
 import {createFurniture,furnitureHit} from './furniture.js?v=0.5.4';
 import {createDecor} from './decor.js?v=0.5.4';
-import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.14.0';
+import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.14.2';
 import {applyRugStyle} from './rug-textures.js?v=0.5.4';
 import {MeasureTool} from './measure-tool.js?v=0.5.4';
 import {bindXRExit} from './xr-lifecycle.js?v=0.14.0';
@@ -21,9 +21,9 @@ import {AnchorStabilizer,transformPoint} from './anchor-rig.js?v=0.5.4';
 import {ARDebugView} from './ar-debug.js?v=0.5.4';
 import {buildLayout} from './layout-templates.js?v=0.5.4';
 import {captureInternalAR,canCaptureCamera,InternalCaptureUnavailable} from './internal-camera-capture.js?v=0.5.4';
-import {assetMetadata,isLamp,isSofa,isTable,isWallArt} from './asset-metadata.js?v=0.11.0';
+import {assetMetadata,isLamp,isSofa,isTable,isWallArt,SHEEN_CHAIR_SAMPLE} from './asset-metadata.js?v=0.14.2';
 import {installSofaCushions} from './sofa-cushions.js?v=0.5.4';
-import {isFloorSolid,footprint,footprintsOverlap,moveWithoutOverlap,rotateWithoutOverlap,moveGroupWithoutOverlap,rotateGroupWithoutOverlap,nearestFreeFootprint,settleFootprintsBySize} from './collision.js?v=0.7.0';
+import {isFloorSolid,footprint,footprintsOverlap,moveWithoutOverlap,rotateWithoutOverlap,moveGroupWithoutOverlap,rotateGroupWithoutOverlap,nearestFreeFootprint,settleFootprintsBySize} from './collision.js?v=0.14.2';
 export const palette=['#b6bca2','#d5c4ad','#b9c4c6','#ba9380'];
 const fa=n=>n.toLocaleString('fa-IR',{maximumFractionDigits:1});
 export class Studio{
@@ -169,7 +169,7 @@ void main(){
   const cloud=getCloudProduct(index),sheenChair=index===1000;
   if(index>=32&&!cloud&&!sheenChair)throw Error('مدل این محصول در دسترس نیست؛ کتابخانه شرکت را دوباره دریافت کن.');
   if(!cloud&&!sheenChair)index=((index%CATALOG.length)+CATALOG.length)%CATALOG.length;
-  const baseProduct=cloud?{name:cloud.name,size:cloud.size_m,price:0}:sheenChair?{name:'SheenChair',size:[.85,.9,.85],price:0}:{...CATALOG[index],name:getCloudProductInfo(index)?.name||CATALOG[index].name},product=options.size?{...baseProduct,size:options.size}:baseProduct,id=++this.serial,[w,h,d]=product.size;
+  const baseProduct=cloud?{name:cloud.name,size:cloud.size_m,price:0}:sheenChair?SHEEN_CHAIR_SAMPLE:{...CATALOG[index],name:getCloudProductInfo(index)?.name||CATALOG[index].name},product=options.size?{...baseProduct,size:options.size}:baseProduct,id=++this.serial,[w,h,d]=product.size;
   const color=palette[index]||'#c6b7a3';const mesh=isImportedModel(index)?createImportedModel(index,product.size,options.fabric||'dark'):index<4?createFurniture(index,product.size,color,options.seats):createDecor(index,product.size,color);
   const edges=new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry),new THREE.LineBasicMaterial({color:0x9f927f,transparent:true,opacity:.15,depthWrite:false}));mesh.add(edges);
   const dimensions=`${product.name} · ${product.size.map(v=>fa(v*100)).join(' × ')} cm`;const label=this.makeLabel(dimensions);label.position.y=h/2+.18;label.scale.set(1.5,.22,1);mesh.add(label);
@@ -269,7 +269,7 @@ void main(){
  replaceSelected(index,options={}){
   const old=this.selected;if(!old)return null;
   const p=old.position.clone(),id=old.userData.id,angle=old.rotation.y,color=old.material.color.clone();
-  const nextSize=options.size||getCloudProduct(index)?.size_m||CATALOG[index].size;
+  const nextSize=options.size||getCloudProduct(index)?.size_m||(index===1000?SHEEN_CHAIR_SAMPLE.size:CATALOG[index].size);
   if(isFloorSolid(index)){
    const ignored=this.items.filter(m=>old.userData.index===10&&m.userData.tableId===id);
    const blocked=this.collisionObstacles(old,ignored).some(other=>footprintsOverlap(footprint(nextSize,p.x,p.z,angle),other));
@@ -378,7 +378,7 @@ void main(){
   this.initializeLamp(this.selected,value);this.changed();return true;
  }
  addAtMarker(index){
-  const h=(getCloudProduct(index)?.size_m||CATALOG[index].size)[1];
+  const h=(getCloudProduct(index)?.size_m||(index===1000?SHEEN_CHAIR_SAMPLE.size:CATALOG[index].size))[1];
   const p=this.placementPoint?new THREE.Vector3(this.placementPoint.x,h/2,this.placementPoint.z):undefined;
   const previous=this.selected,item=this.add(index,p);
   if(!this.tryPlaceNew(item,previous,2.3))return null;

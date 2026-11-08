@@ -90,7 +90,7 @@ export const isImportedLight=index=>index===28||index===29;
 export const isImportedNoShadow=index=>[28,29,30,31].includes(index);
 const source=(file)=>{
  if(!cache.has(file)){
-  const url=file.startsWith('https://')?file:new URL('./assets/chido/'+file+(['sofaA1.glb','SofaC1.glb','sofab1.glb'].includes(file)?'?v=0.6.0':''),import.meta.url).href;
+  const url=file.startsWith('https://')?file:new URL('./assets/chido/'+file+(file==='SheenChair.glb'?'?v=0.14.2':['sofaA1.glb','SofaC1.glb','sofab1.glb'].includes(file)?'?v=0.6.0':''),import.meta.url).href;
   cache.set(file,loader.loadAsync(url).catch(error=>{cache.delete(file);throw error;}));
  }
  return cache.get(file);
