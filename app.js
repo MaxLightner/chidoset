@@ -256,7 +256,7 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
   if(!reuseCatalog)await refreshCloudSets();if(version!==routeVersion)return;await loadScene();if(version!==routeVersion)return;
   $('#launchProgress').value=1;$('#launchStage').textContent='موتور سه‌بعدی آماده شد؛ در حال ساخت ابزارها…';
   const parked=studioCache.take(studioOwner());
-  if(parked){studio=parked;studio.resume($('#viewport'));}else studio=new Scene($('#viewport'),updateObjects);studio.ownerKey=studioOwner();
+  if(parked){studio=parked;studio.resume($('#viewport'));}else studio=new Scene($('#viewport'),updateObjects);studio.ownerKey=studioOwner();studio.onFrame=liveRuntimeFrame;
   $('#startAR').hidden=false;$('#startAR').disabled=true;$('#launchLoading').hidden=false;$('#viewport').classList.toggle('show-preview',previewEnabled);$('#preview3D').textContent=previewEnabled?'بستن پیش‌نمایش':'پیش‌نمایش سه‌بعدی';
   $('#launchProgress').value=2;$('#launchStage').textContent='ابزارها و صحنه آماده‌اند؛ در انتظار دوربین و نشست AR…';
   if(!sceneMemory){const recovered=readRecovery(cloudMembership);if(recovered)loadSceneRecord(recovered);}
@@ -376,6 +376,7 @@ function scheduleLiveScenePublish(){
   if(activeLiveSession&&studio)publishLiveScene(activeLiveSession.id,liveApproval.packet(studio.exportLiveState())).catch(error=>console.warn('Live scene sync failed',error));
  },160);
 }
+function liveRuntimeFrame(time){void liveApproval.poll();liveCameraFrame(time);}
 function liveCameraFrame(time){
  if(!activeLiveSession||!studio?.session||!liveApproval.isAllowed(activeLiveSession.id)||time-lastLiveCameraSent<250||liveCameraBusy)return;
  const state=liveApproval.packet(studio.cameraSnapshot());if(!state)return;
@@ -402,7 +403,7 @@ async function publishApprovedLiveScene(request){
  const packet=state=>liveApproval.packet(state);
  await Promise.all([publishLiveScene(row.id,packet(sender.exportLiveState())),publishLiveCamera(row.id,packet(sender.cameraSnapshot()))]);
  if(!sender.session||studio!==sender)throw Error('نشست AR پایان یافته است.');
- activeLiveSession={id:row.id,expiresAt:row.expires_at};lastLiveCameraSent=0;liveSharingPaused=false;sender.onFrame=liveCameraFrame;
+ activeLiveSession={id:row.id,expiresAt:row.expires_at};lastLiveCameraSent=0;liveSharingPaused=false;sender.onFrame=liveRuntimeFrame;
  recordRuntime('live-initial-state-published',sender.renderer);
 }
 async function ensureLivePublisher(){await liveApproval.poll();}
@@ -427,7 +428,7 @@ async function endLiveShare(silent=false){
  }
  activeLiveSession=null;clearTimeout(liveSceneTimer);liveSceneTimer=null;
  autoShareAttempted=false;
- if(studio)studio.onFrame=null;
+ if(studio)studio.onFrame=studio.session?liveRuntimeFrame:null;
  const dialog=$('#liveShareDialog');if(dialog?.open)dialog.close();
  if(!silent)toast('نمایش زنده پایان یافت.');
  return true;
