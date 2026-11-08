@@ -1,8 +1,10 @@
+import {LiveApprovalHost} from './live-approval-host.js?v=0.16.0';
+import {liveSession} from './live-approval.js?v=0.16.0';
 import {mountMaterialPanel} from './material-panel.js?v=0.15.0';
 import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.15.0';
 import {rememberAccount,accountName} from './auth-storage.js';
 import {readRecovery,saveRecovery,clearRecovery,filterPublishedScene} from './app-recovery.js';
-import {runtimeHealth,recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.15.0';
+import {runtimeHealth,recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.16.0';
 import {StudioCache,sceneStateKey} from './studio-cache.js';
 import {endXRSession} from './xr-end.js';
 import {accountLogin} from './account-login.js';
@@ -18,7 +20,7 @@ import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-
 import {LiveMiniMap} from './minimap.js?v=0.5.4';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
 import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList} from './cloud-product-registry.js';
-import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,loadDemoLibrary,saveOfficialLayout,saveOfficialColorway,createLiveSession,findActiveLiveSession,getLiveShareLink,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.15.0';
+import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,loadDemoLibrary,saveOfficialLayout,saveOfficialColorway,createLiveSession,findActiveLiveSession,getLiveShareLink,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.16.0';
 const studioCache=new StudioCache();
 const studioOwner=()=>cloudMembership?cloudMembership.company_id+':'+cloudMembership.user.id:'';
 const $=s=>document.querySelector(s),app=$('#app'),fa=n=>n.toLocaleString('fa-IR');
@@ -37,6 +39,7 @@ let cloudMembership=null,cloudSets=[],demoLibrary=[],activeCloudSetId=null,activ
 let liveSceneTimer=null,lastLiveCameraSent=0,liveCameraBusy=false,liveCameraQueued=null;
 let autoShareAttempted=false,liveShareStarting=false;
 let liveRetryAt=0,liveReconcileBusy=false,liveSharingPaused=false;
+const liveApproval=new LiveApprovalHost({getStudio:()=>studio,publish:publishApprovedLiveScene});
 let appSessionLogged=false,lastHeartbeatAt=0;
 const catalogImages=[
  ['کاناپه','<rect x="14" y="24" width="74" height="46" rx="10"/><path d="M16 38h70M32 42v25m37-25v25"/>'],
@@ -101,7 +104,7 @@ function heading(step,title,sub,back){return `<div class="page-heading"><div><sp
 async function full(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(!document.documentElement.requestFullscreen){toast('مرورگر شما تمام‌صفحه را پشتیبانی نمی‌کند.');return;}try{await document.documentElement.requestFullscreen();}catch{toast('ورود به تمام‌صفحه ممکن نشد؛ می‌توانی ادامه بدهی.');}}
 $('#fullscreen').onclick=full;document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'خروج از تمام‌صفحه ↙':'تمام‌صفحه ⛶');
 async function support(){try{supported=!!(isSecureContext&&navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar'));}catch{supported=false;}return supported;}
-async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.15.0');Scene=m.Studio;palette=m.palette;}}
+async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.16.0');Scene=m.Studio;palette=m.palette;}}
 let draftTimer=null;
 function currentSceneRecord(){
  if(!studio)return null;
@@ -367,51 +370,42 @@ async function applyCloudColorway(record){
 }
 function currentMaterialMap(){return instanceMaterialMap(studio?.items||[]);}
 function scheduleLiveScenePublish(){
- if(!activeLiveSession||!studio)return;
+ if(!activeLiveSession||!studio||!liveApproval.isAllowed(activeLiveSession.id))return;
  clearTimeout(liveSceneTimer);
  liveSceneTimer=setTimeout(()=>{
-  if(activeLiveSession&&studio)publishLiveScene(activeLiveSession.id,studio.exportLiveState()).catch(error=>console.warn('Live scene sync failed',error));
+  if(activeLiveSession&&studio)publishLiveScene(activeLiveSession.id,liveApproval.packet(studio.exportLiveState())).catch(error=>console.warn('Live scene sync failed',error));
  },160);
 }
 function liveCameraFrame(time){
- if(!activeLiveSession||!studio?.session||time-lastLiveCameraSent<250||liveCameraBusy)return;
- const state=studio.cameraSnapshot();if(!state)return;
+ if(!activeLiveSession||!studio?.session||!liveApproval.isAllowed(activeLiveSession.id)||time-lastLiveCameraSent<250||liveCameraBusy)return;
+ const state=liveApproval.packet(studio.cameraSnapshot());if(!state)return;
  liveCameraBusy=true;lastLiveCameraSent=time;
  const sending=activeLiveSession.id;
- publishLiveCamera(sending,state).catch(error=>{recordRuntimeError('live-camera-failed',error);if(activeLiveSession?.id===sending){activeLiveSession=null;autoShareAttempted=false;}console.warn('Live camera sync failed',error);}).finally(()=>{liveCameraBusy=false;});
+ publishLiveCamera(sending,state).catch(error=>{recordRuntimeError('live-camera-failed',error);console.warn('Live camera sync failed; next frame will retry',error);}).finally(()=>{liveCameraBusy=false;});
 }
 async function beginLiveShare({silent=false}={}){
- if(!silent)liveSharingPaused=false;
  if(!studio?.session){if(!silent)toast('ابتدا وارد AR شو.');return;}
- if(activeLiveSession&&Date.parse(activeLiveSession.expiresAt)<=Date.now())activeLiveSession=null;
- if(activeLiveSession){if(!silent)await openLiveShareDialog();return;}
- if(liveShareStarting)return;
- liveShareStarting=true;
- liveRetryAt=Date.now()+5000;
- const publisher=studio,owner=cloudMembership?.user.id;
- const button=$('#arShareSession');if(button)button.disabled=true;
+ if(liveShareStarting)return;liveShareStarting=true;
  try{
-  let session=await findActiveLiveSession();
-  if(!session)session=await createLiveSession({sceneState:publisher.exportLiveState(),cameraState:publisher.cameraSnapshot()});
-  if(studio!==publisher||!publisher.session||cloudMembership?.user.id!==owner)return;
-  activeLiveSession=session;
-  lastLiveCameraSent=0;recordRuntime('live-connected',publisher.renderer);
-  studio.onFrame=liveCameraFrame;
-  await Promise.all([publishLiveScene(session.id,studio.exportLiveState()),publishLiveCamera(session.id,studio.cameraSnapshot())]);
+  if(!activeLiveSession||Date.parse(activeLiveSession.expiresAt)<=Date.now()){
+   activeLiveSession=await findActiveLiveSession(cloudMembership?.user.id);
+   if(!activeLiveSession)activeLiveSession=await createLiveSession({sceneState:{...studio.exportLiveState(),items:[],cloudProducts:[]},cameraState:{timestamp:0,waiting:true},membership:cloudMembership});
+  }
   if(!silent)await openLiveShareDialog();
-  await logActivity(cloudMembership,'live_session_started',{session_id:activeLiveSession.id});
- }catch(error){recordRuntimeError('live-connect-failed',error);activeLiveSession=null;autoShareAttempted=false;console.error(error);if(!silent)toast(error.message||'اتصال نمایش زنده انجام نشد.');}
- finally{liveShareStarting=false;if(button)button.disabled=false;}
+ }catch(error){recordRuntimeError('live-link-failed',error);if(!silent)toast('آماده‌سازی لینک نمایش انجام نشد.');}
+ finally{liveShareStarting=false;}
 }
-async function ensureLivePublisher(){
- if(!studio?.session||!cloudMembership||liveSharingPaused||liveShareStarting||liveReconcileBusy||Date.now()<liveRetryAt)return;
- liveRetryAt=Date.now()+8000;liveReconcileBusy=true;
- try{
-  if(activeLiveSession){const latest=await findActiveLiveSession();if(latest?.id===activeLiveSession.id){scheduleLiveScenePublish();return;}activeLiveSession=null;}
-  await beginLiveShare({silent:true});
- }catch(error){recordRuntimeError('live-reconnect-failed',error);}finally{liveReconcileBusy=false;}
+async function publishApprovedLiveScene(request){
+ const sender=studio;if(!sender?.session)throw Error('نشست AR فعال نیست.');
+ const row=await liveSession(request.session_id);
+ if(!sender.session||studio!==sender)throw Error('نشست AR تغییر کرده است.');
+ const packet=state=>liveApproval.packet(state);
+ await Promise.all([publishLiveScene(row.id,packet(sender.exportLiveState())),publishLiveCamera(row.id,packet(sender.cameraSnapshot()))]);
+ if(!sender.session||studio!==sender)throw Error('نشست AR پایان یافته است.');
+ activeLiveSession={id:row.id,expiresAt:row.expires_at};lastLiveCameraSent=0;liveSharingPaused=false;sender.onFrame=liveCameraFrame;
+ recordRuntime('live-initial-state-published',sender.renderer);
 }
-setInterval(()=>void ensureLivePublisher(),2000);
+async function ensureLivePublisher(){await liveApproval.poll();}
 async function openLiveShareDialog(){
  if(!activeLiveSession)return;
  const url=activeLiveSession.url||await getLiveShareLink(activeLiveSession.id);
@@ -423,6 +417,7 @@ async function openLiveShareDialog(){
  catch(error){console.warn('QR module unavailable',error);$('#liveShareQr').innerHTML='<span>QR در دسترس نیست؛ لینک را کپی کن.</span>';}
 }
 async function endLiveShare(silent=false){
+ liveApproval.end();
  if(!silent)liveSharingPaused=true;
  const current=activeLiveSession;if(!current)return;
  try{await stopLiveSession(current.id);}catch(error){

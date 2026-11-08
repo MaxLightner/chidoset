@@ -1,0 +1,15 @@
+# 0.16.0 — observable viewer requests and AR consent
+
+The user confirmed the same seller login on both devices. Hosted data still showed only a placeholder session (`timestamp: 0`, no models), so previous changes had not established a working publisher on that device. The exact earlier runtime failure remains unproven; this protocol makes each leg observable and removes repeated auth lookups from the critical known-account path.
+
+Website: an empty white Three.js context with a light preview grid is initialized. Show-here creates a request; the UI distinguishes registration, receipt in AR, approval, model loading (actual loaded/total) and connection. Rejected/ended requests, network errors, stale camera data and model failures have explicit states and retry actions. Model downloads begin after approval. Scene identity excludes continuously changing floor poses, so tracking updates do not repeatedly destroy and reload unchanged models. Spatial/floor changes are applied separately.
+
+AR: a card inside the actual DOM overlay displays approve/reject controls. The application claims a request as `seen`, publishes the initial scene/camera with its per-page publisher ID, then marks it approved. Continuous publishing is allowed only for approvals held by that sender instance. Requests are polled independently of floor placement and catalog/auth reloads. Camera failures can retry without dropping an otherwise approved session. A new AR page instance requires a fresh approval request.
+
+Guests using QR follow the same request/approval flow with their existing separate scoped guest session. The route remains read-only synchronized 3D, not camera video.
+
+Hosted migration `20261108163326_live_view_request_approval` adds `live_view_requests`, scoped request policies, immutable owner/session/client columns, Realtime publication, approved guest reads and publisher-ID checks on host updates. Existing session ownership rules remain in force. Same-account website and AR clients share account authority; physical-device approval is an application workflow, not a distinct authenticated principal. No new dependency, service or credential was added.
+
+Verification: hosted migration succeeded; metadata confirms RLS enabled, three request policies, no anonymous read, no authenticated session reassignment, and permission to update status. Security advisors reported no finding for the new table. Syntax/whitespace checks completed. No login/browser/physical-device tests were run locally, respecting the user's earlier instruction. End-to-end confirmation on the affected device is still required.
+
+Use fresh 0.16.0 pages on both devices. Enter AR, choose show-here on the website, and approve in AR. A request stuck at registered means the AR receiver has not acknowledged it. Seen means receiver acknowledgement occurred. Approved means initial publishing succeeded. Loading/model-error identifies asset retrieval separately. Local diagnostics record protocol phases without account IDs or tokens.

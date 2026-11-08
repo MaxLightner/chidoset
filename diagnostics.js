@@ -1,4 +1,4 @@
-import {runtimeHealth} from './runtime-health.js?v=0.15.0';
+import {runtimeHealth} from './runtime-health.js?v=0.16.0';
 const report=runtimeHealth(),text=JSON.stringify(report,null,2);
 const field=document.querySelector('#reportText'),status=document.querySelector('#reportStatus');
 field.value=text;

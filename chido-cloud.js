@@ -217,8 +217,8 @@ async function sha256(value) {
   return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
 }
 
-export async function createLiveSession({ sceneState, cameraState, branchId = null }) {
-  const membership = await getMembership();
+export async function createLiveSession({ sceneState, cameraState, branchId = null, membership: cachedMembership = null }) {
+  const membership = cachedMembership || await getMembership();
   if (!membership) throw new Error('برای شروع نمایش زنده باید وارد چیدو شوی.');
   let selectedBranch = branchId || membership.branch_id;
   if (!selectedBranch && membership.role === 'company_admin') {
@@ -237,7 +237,7 @@ export async function createLiveSession({ sceneState, cameraState, branchId = nu
   const tokenHash = await sha256(rawToken);
   const expiresAt = new Date(Date.now() + 45 * 60 * 1000).toISOString();
 
-  const { data: session, error: sessionError } = await supabase
+  const { data: session, error: sessionError } = await withLiveTimeout(supabase
     .from('live_sessions')
     .insert({
       company_id: membership.company_id,
@@ -247,19 +247,19 @@ export async function createLiveSession({ sceneState, cameraState, branchId = nu
       expires_at: expiresAt
     })
     .select('id,expires_at')
-    .single();
+    .single());
   if (sessionError) throw sessionError;
 
-  const { error: sceneError } = await supabase.from('live_session_scenes').insert({
+  const { error: sceneError } = await withLiveTimeout(supabase.from('live_session_scenes').insert({
     session_id: session.id,
     scene_state: sceneState,
     updated_at: new Date().toISOString()
-  });
-  const { error: cameraError } = await supabase.from('live_session_cameras').insert({
+  }));
+  const { error: cameraError } = await withLiveTimeout(supabase.from('live_session_cameras').insert({
     session_id: session.id,
     camera_state: cameraState,
     updated_at: new Date().toISOString()
-  });
+  }));
 
   if (sceneError || cameraError) {
     await supabase.from('live_sessions').update({ revoked_at: new Date().toISOString() }).eq('id', session.id);
@@ -268,18 +268,19 @@ export async function createLiveSession({ sceneState, cameraState, branchId = nu
 
   const guestUrl = new URL('guest.html', window.location.href);
   guestUrl.search = '?token=' + encodeURIComponent(rawToken);
+  guestUrl.searchParams.set('v','0.16.0');
   return { id: session.id, token: rawToken, expiresAt: session.expires_at, url: guestUrl.toString() };
 }
 
-export async function findActiveLiveSession() {
-  const membership = await getMembership();
-  if (!membership) return null;
-  const { data, error } = await supabase.from('live_sessions')
+export async function findActiveLiveSession(knownUserId=null) {
+  const userId=knownUserId||(await getMembership())?.user.id;
+  if(!userId)return null;
+  const { data, error } = await withLiveTimeout(supabase.from('live_sessions')
     .select('id,expires_at,created_at')
-    .eq('host_user_id', membership.user.id)
+    .eq('host_user_id', userId)
     .is('revoked_at', null)
     .gt('expires_at', new Date().toISOString())
-    .order('created_at', { ascending: false }).limit(1).maybeSingle();
+    .order('created_at', { ascending: false }).limit(1).maybeSingle());
   if (error) throw error;
   return data ? { id: data.id, expiresAt: data.expires_at } : null;
 }
@@ -290,6 +291,7 @@ export async function getLiveShareLink(sessionId) {
   const result = await api('/live/link', { body: { session_id: sessionId }, token: session.access_token });
   const guestUrl = new URL('guest.html', window.location.href);
   guestUrl.search = '?token=' + encodeURIComponent(result.token);
+  guestUrl.searchParams.set('v','0.16.0');
   return guestUrl.toString();
 }
 
