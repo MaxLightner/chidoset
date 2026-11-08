@@ -151,7 +151,7 @@ void main(){
  setMeasureHandler(fn){this.onMeasure=fn;}
  setDebugVisible(value){this.debugView.setVisible(value);}
  debugExport(){return this.debugView.exportLog();}
- resize(){if(this.session||this.suspended)return;const w=this.host.clientWidth,h=this.host.clientHeight;if(w<2||h<2)return;this.camera.aspect=w/Math.max(h,1);this.camera.updateProjectionMatrix();if(this.externalCameraState)this.applyExternalCameraState(this.externalCameraState);this.renderer.setSize(w,h);}
+ resize(){if(this.session||this.suspended||this.exitToHome)return;const w=this.host.clientWidth,h=this.host.clientHeight;if(w<2||h<2)return;this.camera.aspect=w/Math.max(h,1);this.camera.updateProjectionMatrix();if(this.externalCameraState)this.applyExternalCameraState(this.externalCameraState);this.renderer.setSize(w,h);}
  makeLabel(text){const canvas=document.createElement('canvas');let context=canvas.getContext('2d');context.font='42px Tahoma, sans-serif';canvas.width=Math.ceil(Math.max(90,context.measureText(text).width+44));canvas.height=100;context=canvas.getContext('2d');context.fillStyle='#fff9e9ee';context.beginPath();context.roundRect(2,2,canvas.width-4,96,16);context.fill();context.font='42px Tahoma, sans-serif';context.textAlign='center';context.textBaseline='middle';context.fillStyle='#423c31';context.fillText(text,canvas.width/2,50);const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:false}));sprite.scale.set(canvas.width/500,.2,1);sprite.renderOrder=8;sprite.userData.text=text;return sprite;}
  setLabel(sprite,text){if(sprite.userData.text===text)return;const previous=sprite.material.map;const replacement=this.makeLabel(text);sprite.material.map=replacement.material.map;sprite.material.needsUpdate=true;sprite.userData.text=text;previous.dispose();replacement.material.dispose();}
  makeHandle(name,color){const mesh=new THREE.Mesh(new THREE.SphereGeometry(.055,20,16),new THREE.MeshBasicMaterial({color,depthTest:false}));mesh.renderOrder=6;mesh.userData.handle=name;const label=this.makeLabel(name);label.scale.set(.27,.085,1);label.position.y=.19;mesh.add(label);return mesh;}
@@ -701,7 +701,18 @@ safeObjectMotion(mesh,desired){
   if(this.anchorNodes.length>=5){this.hitSource?.cancel();this.hitSource=null;}
  }
  selectAR(event){if(!this.model.locked)return;const pose=event.frame.getPose(event.inputSource.targetRaySpace,this.renderer.xr.getReferenceSpace());if(!pose)return;const matrix=new THREE.Matrix4().fromArray(pose.transform.matrix);this.ray.ray.origin.setFromMatrixPosition(matrix);this.ray.ray.direction.set(0,0,-1).transformDirection(matrix);this.floorFrame.updateMatrixWorld(true);const hit=furnitureHit(this.ray,this.items);if(hit)this.select(hit.object);}
- endSession(){if(!this.session)return;
+ endSession(){
+  // Both the device event and the menu fallback arrive here. Never resize or
+  // detach the canvas from inside Three's native sessionend event dispatch.
+  if(!this.session||this.renderer.xr.isPresenting||this.sessionEndTimer!=null)return;
+  const session=this.session;
+  this.sessionEndTimer=setTimeout(()=>{
+   this.sessionEndTimer=null;
+   if(this.session!==session||this.renderer.xr.isPresenting)return;
+   this.finishSessionEnd();
+  },0);
+ }
+ finishSessionEnd(){if(!this.session)return;
   recordRuntime('xr-ended',this.renderer);this.session=null;this.xrExitBinding?.dispose();this.xrExitBinding=null;
   const clean=(label,fn)=>{try{fn();}catch(error){console.warn('XR cleanup: '+label,error);}};
   clean('photo',()=>{if(this.pendingPhoto){clearTimeout(this.pendingPhoto.timeout);this.pendingPhoto.reject(new InternalCaptureUnavailable('جلسه AR بسته شد.'));this.pendingPhoto=null;}});
@@ -712,12 +723,12 @@ safeObjectMotion(mesh,desired){
   this.model.origin.set(0,0,0);this.model.anchorYaw=0;this.model.heightOffset=0;this.model.locked=true;this.tracking=true;this.root.visible=true;this.photoMode=false;this.scanMarkers.visible=false;
   clean('spatial',()=>this.syncSpatial());clean('guides',()=>this.setGuides());clean('effects',()=>this.effects.reset());
   this.scene.background=new THREE.Color('#eeeee3');this.camera.position.set(5.2,4.4,6);this.camera.lookAt(.6,0,-.5);
-  clean('gesture',()=>this.cancelGesture());if(!this.renderer.xr.isPresenting)clean('resize',()=>this.resize());
+  clean('gesture',()=>this.cancelGesture());if(!this.exitToHome&&!this.renderer.xr.isPresenting)clean('resize',()=>this.resize());
   const overlay=document.querySelector('#overlay');if(overlay)overlay.hidden=true;
   clean('end UI',()=>this.onEnd?.());clean('changed',()=>this.changed());
  }
  frame(time,frame){
-  if(this.suspended)return;
+  if(this.suspended||this.exitToHome)return;
   if(!this.session&&this.host.classList.contains('ar-launch-stage')&&!this.host.classList.contains('show-preview'))return;
   if(frame&&this.session){const space=this.renderer.xr.getReferenceSpace(),pose=frame.getViewerPose(space);if(this.wideView?.active)this.wideView.updatePose(pose);this.tracking=!!pose;
    if(!pose){this.cancelGesture();this.status('ردیابی قطع شد؛ چیدمان جابجا نمی‌شود. دوربین را آرام به محیط برگردان.');}
@@ -789,8 +800,8 @@ safeObjectMotion(mesh,desired){
  }
  async snapshot(){if(this.session)throw Error('در AR از اسکرین‌شات گوشی استفاده کن.');const before=this.photoMode;this.setPhotoMode(true);this.effects.updateCameraLight?.(this.renderer.xr.isPresenting?this.renderer.xr.getCamera():this.camera);this.renderer.render(this.scene,this.camera);try{return await new Promise((resolve,reject)=>this.renderer.domElement.toBlob(blob=>blob?resolve(blob):reject(Error('ثبت نشد')),'image/webp',.82));}finally{this.setPhotoMode(before);}}
  suspend(){recordRuntime('renderer-suspended',this.renderer);this.suspended=true;this.renderer.setAnimationLoop(null);this.resizeObserver.disconnect();this.events.abort();this.renderer.domElement.remove();}
- resume(host){this.host=host;host.prepend(this.renderer.domElement);this.events=new AbortController();const opts={signal:this.events.signal};this.attachInput(host,opts);const surface=document.querySelector('#arSurface');if(surface)this.attachInput(surface,opts);this.resizeObserver.observe(host);this.suspended=false;this.resize();recordRuntime('renderer-resumed',this.renderer);if(!this.contextLost)this.renderer.setAnimationLoop((time,frame)=>this.frame(time,frame));}
- pause(){this.suspended=true;this.renderer.setAnimationLoop(null);this.resizeObserver.disconnect();this.events.abort();this.xrExitBinding?.dispose();for(const item of this.items)item.traverse(node=>node.userData.disposed=true);this.renderer.domElement.remove();}
+ resume(host){this.exitToHome=false;this.host=host;host.prepend(this.renderer.domElement);this.events=new AbortController();const opts={signal:this.events.signal};this.attachInput(host,opts);const surface=document.querySelector('#arSurface');if(surface)this.attachInput(surface,opts);this.resizeObserver.observe(host);this.suspended=false;this.resize();recordRuntime('renderer-resumed',this.renderer);if(!this.contextLost)this.renderer.setAnimationLoop((time,frame)=>this.frame(time,frame));}
+ pause(){clearTimeout(this.sessionEndTimer);this.sessionEndTimer=null;this.suspended=true;this.renderer.setAnimationLoop(null);this.resizeObserver.disconnect();this.events.abort();this.xrExitBinding?.dispose();for(const item of this.items)item.traverse(node=>node.userData.disposed=true);this.renderer.domElement.remove();}
  destroy(){this.pause();this.effects?.dispose();this.architecture?.dispose();this.wideView?.dispose();this.wideView=null;this.resizeObserver.disconnect();this.events.abort();this.renderer.setAnimationLoop(null);this.dropAnchor();this.clear();this.disposeObject(this.ruler);this.disposeObject(this.artFloorHandle);this.scanCrosses[0]?.geometry.dispose();for(const m of this.scanCrosses)m.material.dispose();this.debugView.dispose();this.measureTool?.dispose();this.placementMarker.geometry.dispose();this.placementMarker.material.dispose();this.floorNet.geometry.dispose();this.floorNet.material.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
 }
 

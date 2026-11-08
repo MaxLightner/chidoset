@@ -98,7 +98,7 @@ function heading(step,title,sub,back){return `<div class="page-heading"><div><sp
 async function full(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(!document.documentElement.requestFullscreen){toast('مرورگر شما تمام‌صفحه را پشتیبانی نمی‌کند.');return;}try{await document.documentElement.requestFullscreen();}catch{toast('ورود به تمام‌صفحه ممکن نشد؛ می‌توانی ادامه بدهی.');}}
 $('#fullscreen').onclick=full;document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'خروج از تمام‌صفحه ↙':'تمام‌صفحه ⛶');
 async function support(){try{supported=!!(isSecureContext&&navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar'));}catch{supported=false;}return supported;}
-async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.13.3');Scene=m.Studio;palette=m.palette;}}
+async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.13.4');Scene=m.Studio;palette=m.palette;}}
 let draftTimer=null;
 function currentSceneRecord(){
  if(!studio)return null;
@@ -909,12 +909,12 @@ $('#chidoMenuBlank').onclick=()=>{
  closeChidoMenu();minimap.render();toast('صحنه خالی آماده است؛ مبلمان جدید اضافه کن.');
 };
 function finishChidoHomeExit(){
- if(!homeExitRequested||studio?.session)return;
+ if(!homeExitRequested||studio?.session||studio?.renderer.xr.isPresenting)return;
  homeExitRequested=false;homeExitBusy=false;
  if(homeExitFallback!==null){clearTimeout(homeExitFallback);homeExitFallback=null;}
  $('#chidoMenuHome').disabled=false;
  $('#overlay').hidden=true;
- // No page reload, no new browser tab, no browser history navigation inside immersive mode.
+ // Navigate only after the native XR event has returned and Studio has finished cleanup.
  history.replaceState(null,'',location.pathname+location.search+'#welcome');
  void render({reuseCatalog:true}).catch(error=>{
   console.error('CHIDO home render failed',error);
@@ -928,6 +928,7 @@ $('#chidoMenuHome').onclick=async()=>{
   homeExitRequested=true;finishChidoHomeExit();return;
  }
  homeExitRequested=true;homeExitBusy=true;
+ studio.exitToHome=true;
  try{persistDraft();sceneMemory=studio.exportState();}catch(error){console.warn('Snapshot on AR exit',error);}
  closeChidoMenu();
  const running=studio.session;
@@ -936,7 +937,9 @@ $('#chidoMenuHome').onclick=async()=>{
  catch(error){
   console.warn('XR exit request',error);
   if(studio?.session===running&&!studio.renderer.xr.isPresenting)studio.endSession();
+  if(studio?.sessionEndTimer!=null)return;
   if(studio?.session===running){
+   studio.exitToHome=false;
    homeExitBusy=false;
    $('#chidoMenuHome').disabled=false;
    toast('مرورگر هنوز پایان AR را تأیید نکرده؛ می‌توانی دوباره خروج را بزنی.');
@@ -953,7 +956,8 @@ $('#chidoMenuHome').onclick=async()=>{
    try{studio.endSession();}catch(error){console.warn('WebXR end-event recovery',error);}
   }
   if(!studio?.session)finishChidoHomeExit();
-  else{
+  else if(studio.sessionEndTimer==null){
+   if(studio)studio.exitToHome=false;
    homeExitBusy=false;
    $('#chidoMenuHome').disabled=false;
    toast('در انتظار پایان نشست مرورگر؛ پس از پایان، صفحه اصلی باز می‌شود.');

@@ -197,7 +197,9 @@ test('CHIDO navigation waits for WebXR end and keeps the page open',()=>{
  assert.ok(app.includes("if(homeExitBusy)return"));
  assert.doesNotMatch(app,/window\.close\(|location\.reload\(/);
  assert.ok(studio.includes("if(this.session===session)this.endSession()"));
- assert.ok(studio.includes("endSession(){if(!this.session)return"));
+ assert.ok(studio.includes('this.sessionEndTimer=setTimeout('));
+ assert.ok(studio.includes('if(this.session!==session||this.renderer.xr.isPresenting)return;'));
+ assert.ok(studio.includes('finishSessionEnd(){if(!this.session)return;'));
 });
 
 test('original five icon cards have independent shallow plus bars and a dense tablet grid',()=>{
