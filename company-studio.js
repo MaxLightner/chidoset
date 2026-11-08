@@ -1,4 +1,4 @@
-import {Studio} from './studio.js?v=0.13.4';
+import {Studio} from './studio.js?v=0.13.5';
 import {getMembership,loadCompanySets,saveOfficialLayout,saveOfficialColorway} from './chido-cloud.js?v=0.12.2';
 import {esc} from './workspace-ui.js';
 const $=s=>document.querySelector(s),params=new URLSearchParams(location.search);

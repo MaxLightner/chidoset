@@ -1,6 +1,6 @@
 import {rememberAccount,accountName} from './auth-storage.js';
 import {readRecovery,saveRecovery,clearRecovery,filterPublishedScene} from './app-recovery.js';
-import {runtimeHealth} from './runtime-health.js';
+import {runtimeHealth,recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.13.5';
 import {StudioCache,sceneStateKey} from './studio-cache.js';
 import {endXRSession} from './xr-end.js';
 import {accountLogin} from './account-login.js';
@@ -98,7 +98,7 @@ function heading(step,title,sub,back){return `<div class="page-heading"><div><sp
 async function full(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(!document.documentElement.requestFullscreen){toast('مرورگر شما تمام‌صفحه را پشتیبانی نمی‌کند.');return;}try{await document.documentElement.requestFullscreen();}catch{toast('ورود به تمام‌صفحه ممکن نشد؛ می‌توانی ادامه بدهی.');}}
 $('#fullscreen').onclick=full;document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'خروج از تمام‌صفحه ↙':'تمام‌صفحه ⛶');
 async function support(){try{supported=!!(isSecureContext&&navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar'));}catch{supported=false;}return supported;}
-async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.13.4');Scene=m.Studio;palette=m.palette;}}
+async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.13.5');Scene=m.Studio;palette=m.palette;}}
 let draftTimer=null;
 function currentSceneRecord(){
  if(!studio)return null;
@@ -154,6 +154,7 @@ function updateAccountHeader(){
 }
 $('#appSignOut').onclick=async()=>{if(studio?.session)return;const {error}=await supabase.auth.signOut();if(error){toast('خروج انجام نشد. دوباره تلاش کن.');return;}clearRecovery(cloudMembership);if(studio){const departing=studio;studio=null;departing.destroy();}studioCache.drop();cloudMembership=null;membershipCheckedAt=0;appSessionLogged=false;sceneMemory=null;clearDraft();location.hash='welcome';void render();};
 async function render({reuseCatalog=false}={}){const version=++routeVersion;let route=location.hash.slice(1)||'welcome';
+ recordRuntime('route-start',studio?.renderer,['welcome','studio','spaces','layouts','entry','gallery','invoice'].includes(route)?route:'other');
  if(studio?.session){if(location.hash!=='#studio')history.replaceState(null,'',location.pathname+location.search+'#studio');return;}
  if(route==='access'){route='welcome';history.replaceState(null,'',location.pathname+location.search+'#welcome');}
  document.body.dataset.route=route;
@@ -173,11 +174,12 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
   const previous=studio;
   try{if(previous.ownerKey===studioOwner()){persistDraft();snapshotItems();sceneMemory=previous.exportState();}else{sceneMemory=null;activeCloudSetId=null;activeCloudLayout=null;activeCloudColorway=null;}}catch(error){console.warn('Scene snapshot before navigation',error);}
   studio=null;
-  studioCache.park(previous,previous.ownerKey);
+  recordRuntime('park-start',previous.renderer);studioCache.park(previous,previous.ownerKey);recordRuntime('park-complete',previous.renderer);
  }
  photoURLs.forEach(URL.revokeObjectURL);photoURLs=[];
  if(route==='welcome'){
   app.innerHTML=`<section class="welcome-screen"><div class="welcome-title"><h1>CHIDO</h1><p>خانه را جور دیگری ببینید</p></div><img class="welcome-photo" src="assets/welcome.webp" width="853" height="1280" fetchpriority="high" alt="صندلی کرم و گلدان در فضایی آرام">${cloudMembership?`<div class="welcome-bottom"><button class="primary" id="welcome">ورود به نمایشگاه <span>→</span></button><button class="quick-ar" id="quickAR">ادامه چیدمان ↗</button><button class="quick-ar quick-empty" id="startEmpty">＋ ایجاد صحنه خالی</button></div>`:`<form id="accountLoginForm" class="entry-login"><h2>ورود به اپ چیدو</h2><label for="accountUsername">نام کاربری</label><input id="accountUsername" name="username" autocomplete="username" dir="ltr" required maxlength="254"><label for="accountPassword">رمز عبور</label><input id="accountPassword" name="password" type="password" autocomplete="current-password" dir="ltr" required maxlength="128"><label class="remember-line"><input id="appRemember" type="checkbox" checked> مرا به خاطر بسپار</label><button class="primary" type="submit">ورود به اپلیکیشن</button><p id="accessMessage" role="status" aria-live="polite"></p></form>`}</section>`;
+  recordRuntime('home-dom-ready');
   if(!cloudMembership){
    $('#accountUsername').value=accountName('chido-auth-v1');
    $('#appRemember').checked=localStorage.getItem('chido-auth-v1-remember')!=='no';
@@ -262,7 +264,7 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
     resetWideViewControls();closeChidoMenu();minimap.collapse();setPhotoMode(false);closeArSheet();
     $('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=true;
     $('#measureHint').hidden=true;$('#arMiniMap').hidden=true;$('#abInline').hidden=true;$('#arBottomActions').hidden=true;$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;$('#arSurfaceActions').hidden=true;
-   }catch(error){console.warn('AR controls cleanup',error);}
+   }catch(error){recordRuntimeError('exit-ui-error',error);console.warn('AR controls cleanup',error);}
     $('#overlay').hidden=true;
     // Home navigation must run even if an optional AR tool failed to close.
     arStarting=false;pendingARSession=null;
@@ -909,6 +911,7 @@ $('#chidoMenuBlank').onclick=()=>{
  closeChidoMenu();minimap.render();toast('صحنه خالی آماده است؛ مبلمان جدید اضافه کن.');
 };
 function finishChidoHomeExit(){
+ recordRuntime('home-exit-check',studio?.renderer,'requested='+homeExitRequested+' session='+!!studio?.session);
  if(!homeExitRequested||studio?.session||studio?.renderer.xr.isPresenting)return;
  homeExitRequested=false;homeExitBusy=false;
  if(homeExitFallback!==null){clearTimeout(homeExitFallback);homeExitFallback=null;}
@@ -916,13 +919,20 @@ function finishChidoHomeExit(){
  $('#overlay').hidden=true;
  // Navigate only after the native XR event has returned and Studio has finished cleanup.
  history.replaceState(null,'',location.pathname+location.search+'#welcome');
- void render({reuseCatalog:true}).catch(error=>{
+ recordRuntime('home-navigation-start',studio?.renderer);
+ void render({reuseCatalog:true}).then(()=>{
+  recordRuntime('home-render-returned');
+  requestAnimationFrame(()=>recordRuntime('home-animation-frame'));
+  for(const delay of [1000,3000,8000])setTimeout(()=>recordRuntime('post-exit-alive',null,'delay='+delay+' visible='+document.visibilityState+' home='+!!document.querySelector('.welcome-screen')),delay);
+ }).catch(error=>{
+  recordRuntimeError('home-render-error',error);
   console.error('CHIDO home render failed',error);
   $('#app').innerHTML='<section class="page"><h1>چیدو</h1><p>نمای اصلی بارگذاری نشد.</p><button type="button" id="retryChidoHome">بازکردن صفحه اصلی</button></section>';
   $('#retryChidoHome').onclick=()=>render();
  });
 }
 $('#chidoMenuHome').onclick=async()=>{
+ recordRuntime('menu-home-click',studio?.renderer,'busy='+homeExitBusy+' session='+!!studio?.session);
  if(homeExitBusy)return;
  if(!studio?.session){
   homeExitRequested=true;finishChidoHomeExit();return;
@@ -933,8 +943,9 @@ $('#chidoMenuHome').onclick=async()=>{
  closeChidoMenu();
  const running=studio.session;
  $('#chidoMenuHome').disabled=true;
- try{await endXRSession(running);}
+ try{recordRuntime('session-end-call',studio.renderer);await endXRSession(running);recordRuntime('session-end-resolved',studio?.renderer);}
  catch(error){
+  recordRuntimeError('session-end-rejected',error);
   console.warn('XR exit request',error);
   if(studio?.session===running&&!studio.renderer.xr.isPresenting)studio.endSession();
   if(studio?.sessionEndTimer!=null)return;

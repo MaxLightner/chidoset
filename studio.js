@@ -6,14 +6,14 @@ import {createDecor} from './decor.js?v=0.5.4';
 import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.13.3';
 import {applyRugStyle} from './rug-textures.js?v=0.5.4';
 import {MeasureTool} from './measure-tool.js?v=0.5.4';
-import {bindXRExit} from './xr-lifecycle.js';
+import {bindXRExit} from './xr-lifecycle.js?v=0.13.5';
 import {endXRSession} from './xr-end.js';
 import {requestARSession,xrError} from './xr.js?v=0.5.4';
 import {WideViewRenderer,WIDE_VIEW_FOV} from './wide-view.js?v=0.13.3';
 import {SpatialState,CATALOG,pairAngle,wrappedAngle} from './spatial.js?v=0.8.0';
 import {FloorScanner,floorCandidates} from './surfaces.js?v=0.5.4';
 import {createSofaShadow,modelLocalBounds,isSofaShadowProduct} from './sofa-shadow.js?v=0.13.3';
-import {recordRuntime} from './runtime-health.js';
+import {recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.13.5';
 import {rendererPolicy} from './renderer-policy.js';
 import {EnvironmentEffects} from './effects.js?v=0.13.3';
 import {AnchorStabilizer,transformPoint} from './anchor-rig.js?v=0.5.4';
@@ -626,7 +626,7 @@ safeObjectMotion(mesh,desired){
  }
  async startAR(status,report,basic=false,options={},incomingSession=null){
   const session=incomingSession?await incomingSession:await requestARSession(navigator.xr,document.querySelector('#overlay'),basic,options);this.session=session;this.onStatus=status;this.onReport=report;this.tracking=false;this.frames=0;this.fps=0;this.lastReport=performance.now();this.lastReportState='';this.lastStatus='';this.debugView.start();this.model.locked=false;this.model.heightOffset=0; // Restore saved project calibration; a new empty scene defaults to 1:1.this.anchorRig=new AnchorStabilizer();this.scanMarkers.visible=true;this.scanHits=0;this.scanDrop=null;this.scanDistance=null;this.floorNet.material.uniforms.opacity.value=.85;this.syncSpatial();this.scanner.reset();this.debugView.note('scan started');this.root.visible=false;this.floorNet.visible=false;this.ruler.visible=false;this.scene.background=null;this.status('کف را اسکن کن؛ دوربین را آرام رو به پایین حرکت بده.');
-  const finish=()=>{if(this.session===session)this.endSession();};this.xrExitBinding?.dispose();this.xrExitBinding=bindXRExit(session,this.renderer.xr,finish);let stage='renderer';
+  const finish=()=>{if(this.session===session)this.endSession();};this.xrExitBinding?.dispose();this.xrExitBinding=bindXRExit(session,this.renderer.xr,finish,stage=>recordRuntime(stage,this.renderer));let stage='renderer';
   try{await this.renderer.xr.setSession(session);recordRuntime('xr-started',this.renderer);if(this.session!==session)return {hasOverlay:false,ended:true};this.cameraBinding=null;
     if(session.enabledFeatures?.includes('camera-access')&&globalThis.XRWebGLBinding){try{this.cameraBinding=new XRWebGLBinding(session,this.renderer.getContext());}catch(error){console.warn('Camera binding unavailable',error?.name||error);}}
     stage='hit-test';await this.beginScan();if(this.session!==session)return {hasOverlay:false,ended:true};this.hasOverlay=!!session.domOverlayState;this.effects.start(session,options);session.addEventListener('select',e=>{if(this.hasOverlay||!this.tracking||this.photoMode)return;if(!this.placed&&this.scanner.ready)this.confirmFloor();else this.selectAR(e);});return {hasOverlay:this.hasOverlay};}
@@ -705,6 +705,7 @@ safeObjectMotion(mesh,desired){
   // Both the device event and the menu fallback arrive here. Never resize or
   // detach the canvas from inside Three's native sessionend event dispatch.
   if(!this.session||this.renderer.xr.isPresenting||this.sessionEndTimer!=null)return;
+  recordRuntime('cleanup-queued',this.renderer);
   const session=this.session;
   this.sessionEndTimer=setTimeout(()=>{
    this.sessionEndTimer=null;
@@ -714,18 +715,19 @@ safeObjectMotion(mesh,desired){
  }
  finishSessionEnd(){if(!this.session)return;
   recordRuntime('xr-ended',this.renderer);this.session=null;this.xrExitBinding?.dispose();this.xrExitBinding=null;
-  const clean=(label,fn)=>{try{fn();}catch(error){console.warn('XR cleanup: '+label,error);}};
+  const clean=(label,fn)=>{try{fn();}catch(error){recordRuntimeError('cleanup-error:'+label,error);console.warn('XR cleanup: '+label,error);}};
   clean('photo',()=>{if(this.pendingPhoto){clearTimeout(this.pendingPhoto.timeout);this.pendingPhoto.reject(new InternalCaptureUnavailable('جلسه AR بسته شد.'));this.pendingPhoto=null;}});
   this.cameraBinding=null;clean('wide view',()=>this.wideView?.disable());this.wideMode='ar';
   clean('hit source',()=>this.hitSource?.cancel());for(const source of this.extraHitSources)clean('extra hit source',()=>source.cancel());this.extraHitSources=[];this.hitSource=null;
-  clean('anchors',()=>this.dropAnchor());this.needsAnchor=false;this.moveLayoutMode=false;
+  clean('anchors',()=>this.dropAnchor());this.needsAnchor=false;this.moveLayoutMode=false;recordRuntime('cleanup-inputs-done',this.renderer);
   clean('measure',()=>this.measureTool?.setActive(false));this.setPlacementEnabled(false);
   this.model.origin.set(0,0,0);this.model.anchorYaw=0;this.model.heightOffset=0;this.model.locked=true;this.tracking=true;this.root.visible=true;this.photoMode=false;this.scanMarkers.visible=false;
   clean('spatial',()=>this.syncSpatial());clean('guides',()=>this.setGuides());clean('effects',()=>this.effects.reset());
   this.scene.background=new THREE.Color('#eeeee3');this.camera.position.set(5.2,4.4,6);this.camera.lookAt(.6,0,-.5);
   clean('gesture',()=>this.cancelGesture());if(!this.exitToHome&&!this.renderer.xr.isPresenting)clean('resize',()=>this.resize());
   const overlay=document.querySelector('#overlay');if(overlay)overlay.hidden=true;
-  clean('end UI',()=>this.onEnd?.());clean('changed',()=>this.changed());
+  recordRuntime('cleanup-scene-done',this.renderer);
+  clean('end UI',()=>this.onEnd?.());clean('changed',()=>this.changed());recordRuntime('cleanup-complete',this.renderer);
  }
  frame(time,frame){
   if(this.suspended||this.exitToHome)return;
