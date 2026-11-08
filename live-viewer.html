@@ -3,7 +3,7 @@
 <head>
  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
  <meta name="robots" content="noindex,nofollow"><title>نمایش زنده | چیدو</title>
- <link rel="stylesheet" href="style.css?v=0.16.1"><link rel="stylesheet" href="live-viewer.css?v=0.15.0">
+ <link rel="stylesheet" href="style.css?v=0.16.1"><link rel="stylesheet" href="live-viewer.css?v=0.16.3">
 <link rel="stylesheet" href="live-watch.css?v=0.16.2"></head>
 <body><script type="module" src="runtime-init.js?v=0.16.1"></script>
  <header class="viewer-header"><a href="website/" class="brand">CHIDO <small>نمایش زنده</small></a><div><span id="operatorName"></span><button id="signOut" type="button">خروج</button></div></header>
@@ -11,10 +11,10 @@
   <section class="viewer-intro"><div><p class="eyebrow">پنل عامل فروش</p><h1>نمایش زندهٔ چیدو</h1><p>مدل‌ها، تکسچر و تغییرات چیدمان در همین مرورگر سه‌بعدی دیده می‌شوند. تبلت فقط حرکت دوربین و تغییرات صحنه را می‌فرستد؛ بدون تصویر یا ماسک دوربین واقعی. برای مهمان‌ها QR مقابل را به اشتراک بگذار.</p></div><a href="index.html#welcome">اپلیکیشن AR ↗</a></section>
   <div class="broadcast-layout">
    <section class="share-card" aria-labelledby="shareTitle"><div class="live-label"><i></i> لینک مهمان</div><h2 id="shareTitle">QR نمایش زنده</h2><p>این کد برای مشتری و بیننده است؛ حساب عامل فروش خودش مستقیم به صحنه وصل می‌شود.</p><div class="share-qr" id="shareQr" aria-label="کد QR نمایش مهمان">در حال آماده‌سازی QR…</div><div class="share-actions"><button type="button" id="copyLink">کپی لینک</button><button type="button" id="renewLink">به‌روزرسانی</button></div><p id="shareStatus" class="status-line" role="status"></p><small>لینک نشست ۴۵ دقیقه اعتبار دارد. با شروع نشست تازه، QR خودکار نوسازی می‌شود.</small></section>
-   <section class="watch-card" id="watchPanel" aria-labelledby="watchTitle"><div class="watch-head"><div><div class="live-label"><i></i> مانیتور عامل فروش</div><h2 id="watchTitle">نمایش همین‌جا</h2></div><button type="button" class="primary" id="showHere" disabled>نمایش همین‌جا ↗</button></div><div class="watch-stage"><div id="viewport" class="guest-viewport"><div id="arSurface" aria-hidden="true"></div></div><div id="waitingOverlay" class="waiting-overlay" role="status"><strong>در حال آماده‌سازی محیط سه‌بعدی…</strong><p>در حال بارگذاری ابزارهای نمایش و بررسی حساب.</p></div></div><footer class="watch-footer"><span id="watchStatus" role="status">در حال اتصال…</span><span>فقط نمایش · بدون کنترل</span></footer></section>
+   <section class="watch-card" id="watchPanel" aria-labelledby="watchTitle"><div class="watch-head"><div><div class="live-label"><i></i> مانیتور عامل فروش</div><h2 id="watchTitle">نمایش همین‌جا</h2></div><button type="button" class="primary" id="showHere" disabled>نمایش همین‌جا ↗</button></div><div class="watch-stage"><div class="viewer-modes viewer-modes-floating" role="group" aria-label="زاویه دوربین نمایشگر"><button type="button" id="viewOverview" aria-pressed="true">کل صحنه</button><button type="button" id="viewFollow" aria-pressed="false">زاویه تبلت</button></div><div id="viewport" class="guest-viewport"><div id="arSurface" aria-hidden="true"></div></div><div id="waitingOverlay" class="waiting-overlay" role="status"><strong>در حال آماده‌سازی محیط سه‌بعدی…</strong><p>در حال بارگذاری ابزارهای نمایش و بررسی حساب.</p></div></div><footer class="watch-footer"><span id="watchStatus" role="status">در حال اتصال…</span><span>نمای کامل مستقل از میدان دید تبلت · فقط نمایش</span></footer></section>
   </div>
  </main>
  <p id="authStatus" class="auth-status" role="status">در حال بررسی دسترسی عامل فروش…</p>
  <dialog id="watchDialog"><button type="button" id="closeWatch">بستن نمایش</button></dialog>
- <script type="module" src="live-viewer.js?v=0.16.2"></script>
+ <script type="module" src="live-viewer.js?v=0.16.3"></script>
 </body></html>

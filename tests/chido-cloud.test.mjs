@@ -14,7 +14,8 @@ test('guest viewer follows the host tracked pose without requesting camera or AR
  assert.doesNotMatch(js,/getUserMedia|requestSession\s*\(|startAR\s*\(/);
  assert.match(js,/authenticateGuest\(token\)/);
  assert.match(js,/ApprovedLiveWatch/);
- assert.match(watch,/applyViewerCameraState/);
+ assert.match(watch,/this\.viewerCamera\.setPose\(state\)/);
+ assert.match(read('live-view-camera.js'),/sceneOverviewBounds/);
  assert.match(watch,/live_session_scenes/);
  assert.match(watch,/live_session_cameras/);
  assert.match(js,/studio\.events\?\.abort\(\)/);

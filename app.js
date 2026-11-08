@@ -1,4 +1,4 @@
-import {LiveApprovalHost} from './live-approval-host.js?v=0.16.1';
+import {LiveApprovalHost} from './live-approval-host.js?v=0.16.3';
 import {liveSession} from './live-approval.js?v=0.16.1';
 import {mountMaterialPanel} from './material-panel.js?v=0.16.2';
 import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.16.2';
@@ -36,7 +36,7 @@ const themes=[
 ];
 let themeIndex=0,styleChoice='مینیمال',previewEnabled=false,peopleCount=5;
 let cloudMembership=null,cloudSets=[],demoLibrary=[],activeCloudSetId=null,activeCloudLayout=null,activeCloudColorway=null,activeLiveSession=null;
-let liveSceneTimer=null,lastLiveSceneSent=0,liveSceneBusy=false,liveSceneDirty=false,lastLiveCameraSent=0,liveCameraBusy=false,liveCameraQueued=null;
+let liveSceneTimer=null,lastLiveSceneSent=0,liveSceneBusy=false,liveSceneDirty=false,lastLiveCameraSent=0,lastLiveCameraPersist=0,liveCameraBusy=false,liveCameraQueued=null;
 let autoShareAttempted=false,liveShareStarting=false;
 let liveRetryAt=0,liveReconcileBusy=false,liveSharingPaused=false;
 const liveApproval=new LiveApprovalHost({getStudio:()=>studio,publish:publishApprovedLiveScene});
@@ -130,7 +130,7 @@ function updateObjects(){if(!studio)return;const buttons=studio.items.map(m=>`<b
  const mesh=studio.selected,label=mesh?mesh.userData.product.name+' · '+mesh.userData.product.size.map(v=>fa(Math.round(v*100))).join(' × ')+' سانتی‌متر':'یک قطعه را لمس کن';for(const id of ['selection','arSelection']){const el=$('#'+id);if(el)el.textContent=label;}
  const rotation=$('#rotation');if(rotation)rotation.value=mesh?Math.round(mesh.rotation.y*180/Math.PI)%360:0;
  for(const id of ['rotate','delete','rotation']){const el=$('#'+id);if(el)el.disabled=!mesh;}for(const id of ['selectedARTools']){const el=$('#'+id);if(el)el.hidden=!mesh;}
- updateMeasurements();minimap.render();scheduleDraftSave();if(activeLiveSession)scheduleLiveScenePublish();}
+ updateMeasurements();minimap.render();scheduleDraftSave();if(activeLiveSession)scheduleLiveScenePublish(true);}
 function updateMeasurements(){if(!studio)return;const m=studio.measurement();for(const id of ['measurement','arMeasurement']){const el=$('#'+id);if(el)el.textContent=`A—B: ${fa(m.measuredCm)} سانتی‌متر اندازه‌گیری‌شده · ضریب ${fa(m.scale)} · طول اصلاح‌شده ${fa(m.correctedCm)} سانتی‌متر`;}}
 function calibrationControls(prefix=''){return `<div class="calibration-controls"><p class="measurement" id="${prefix?'arMeasurement':'measurement'}"></p><label for="${prefix}actual">طول واقعی A—B (۱۰۰ تا ۱۰۰۰ سانتی‌متر)</label><div class="input-row"><input id="${prefix}actual" type="number" inputmode="decimal" min="100" max="1000" step="0.1" placeholder="مثلاً ۱۰۰"><button id="${prefix}calibrate">کالیبره کن</button><button id="${prefix}resetScale">۱:۱</button></div><small>A کل صحنه را جابه‌جا می‌کند و B جهت آن را تعیین می‌کند.</small></div>`;}
 function bindCalibration(prefix=''){const initial=studio.measurement();if(initial.actualCm!==null)$('#'+prefix+'actual').value=initial.actualCm;const fail=fn=>()=>{try{fn();}catch(error){toast(error.message);}};$('#'+prefix+'calibrate').onclick=fail(()=>{studio.calibrate($('#'+prefix+'actual').value);$('#abCalibrationSheet').hidden=true;toast('مقیاس و مرجع پروژه تنظیم شد.');});$('#'+prefix+'resetScale').onclick=()=>studio.resetCalibration();}
@@ -366,25 +366,35 @@ async function applyCloudColorway(record){
  else toast('آبجکت‌های مربوط به این رنگ‌بندی در صحنه نیستند.');
 }
 function currentMaterialMap(){return instanceMaterialMap(studio?.items||[]);}
-function scheduleLiveScenePublish(){
+function scheduleLiveScenePublish(urgent=false){
  if(!activeLiveSession||!studio||!liveApproval.isAllowed(activeLiveSession.id))return;
+ if(urgent&&liveSceneTimer){clearTimeout(liveSceneTimer);liveSceneTimer=null;}
  if(liveSceneTimer||liveSceneBusy){liveSceneDirty=true;return;}
- const wait=Math.max(0,260-(performance.now()-lastLiveSceneSent));
+ const wait=urgent?0:Math.max(0,650-(performance.now()-lastLiveSceneSent));
  liveSceneTimer=setTimeout(async()=>{
   liveSceneTimer=null;
   if(!activeLiveSession||!studio||!liveApproval.isAllowed(activeLiveSession.id))return;
   liveSceneBusy=true;liveSceneDirty=false;lastLiveSceneSent=performance.now();
   const sessionId=activeLiveSession.id;
-  try{await publishLiveScene(sessionId,liveApproval.packet(studio.exportLiveState()));}
+  const payload=liveApproval.packet({...studio.exportLiveState(),timestamp:Date.now()});
+  liveApproval.broadcastScene(payload);
+  try{await publishLiveScene(sessionId,payload);}
   catch(error){console.warn('Live scene sync failed',error);}
   finally{liveSceneBusy=false;if(liveSceneDirty&&activeLiveSession?.id===sessionId)scheduleLiveScenePublish();}
  },wait);
 }
 function liveRuntimeFrame(time){void liveApproval.poll();liveCameraFrame(time);}
 function liveCameraFrame(time){
- if(!activeLiveSession||!studio?.session||!liveApproval.isAllowed(activeLiveSession.id)||time-lastLiveCameraSent<250||liveCameraBusy)return;
+ if(!activeLiveSession||!studio?.session||!liveApproval.isAllowed(activeLiveSession.id))return;
+ const dueBroadcast=time-lastLiveCameraSent>=95,duePersistence=time-lastLiveCameraPersist>=1800&&!liveCameraBusy;
+ if(!dueBroadcast&&!duePersistence)return;
  const state=liveApproval.packet(studio.cameraSnapshot());if(!state)return;
- liveCameraBusy=true;lastLiveCameraSent=time;
+ if(dueBroadcast){
+  lastLiveCameraSent=time;liveApproval.broadcastPose(state);
+  liveApproval.broadcastTransforms(liveApproval.packet({timestamp:state.timestamp,items:studio.items.map(mesh=>({id:mesh.userData.id,index:mesh.userData.index,position:mesh.position.toArray(),rotation:mesh.rotation.y,hidden:!!mesh.userData.hidden}))}));
+ }
+ if(!duePersistence)return;
+ liveCameraBusy=true;lastLiveCameraPersist=time;
  const sending=activeLiveSession.id;
  publishLiveCamera(sending,state).catch(error=>{recordRuntimeError('live-camera-failed',error);console.warn('Live camera sync failed; next frame will retry',error);}).finally(()=>{liveCameraBusy=false;});
 }
@@ -405,9 +415,9 @@ async function publishApprovedLiveScene(request){
  const row=await liveSession(request.session_id);
  if(!sender.session||studio!==sender)throw Error('نشست AR تغییر کرده است.');
  const packet=state=>liveApproval.packet(state);
- await Promise.all([publishLiveScene(row.id,packet(sender.exportLiveState())),publishLiveCamera(row.id,packet(sender.cameraSnapshot()))]);
+ await Promise.all([publishLiveScene(row.id,packet({...sender.exportLiveState(),timestamp:Date.now()})),publishLiveCamera(row.id,packet(sender.cameraSnapshot()))]);
  if(!sender.session||studio!==sender)throw Error('نشست AR پایان یافته است.');
- activeLiveSession={id:row.id,expiresAt:row.expires_at};lastLiveCameraSent=0;liveSharingPaused=false;sender.onFrame=liveRuntimeFrame;
+ activeLiveSession={id:row.id,expiresAt:row.expires_at};lastLiveCameraSent=0;lastLiveCameraPersist=0;liveSharingPaused=false;sender.onFrame=liveRuntimeFrame;
  recordRuntime('live-initial-state-published',sender.renderer);
 }
 async function ensureLivePublisher(){await liveApproval.poll();}

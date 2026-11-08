@@ -1,6 +1,6 @@
 import {Studio} from './scene.js?v=0.16.2';
 import {supabase,authenticateGuest,guestStatus} from './chido-cloud.js?v=0.16.1';
-import {ApprovedLiveWatch} from './live-watch.js?v=0.16.2';
+import {ApprovedLiveWatch} from './live-watch.js?v=0.16.3';
 import {watchMarkup,renderWatchState} from './live-watch-ui.js?v=0.16.1';
 const $=selector=>document.querySelector(selector),token=new URLSearchParams(location.search).get('token');
 let studio=null,watch=null,expiresAt=0,checking=false,ended=false,timer=null,lastCamera=null;
@@ -14,7 +14,7 @@ async function start(){
  try{
   const auth=await authenticateGuest(token);if(!auth.user?.id)throw Error('دسترسی مشاهده آماده نشد.');expiresAt=Date.parse(auth.expiresAt);
   studio=new Studio($('#viewport'),()=>{});studio.events?.abort();
-  watch=new ApprovedLiveWatch(studio,{onState:state=>{const root=$('#guestMessage');root.querySelector('ol').hidden=false;renderWatchState(root,state);connection(state.label,['connected','scanning'].includes(state.phase));},onCamera:state=>{lastCamera=state;studio?.resize();}});
+  watch=new ApprovedLiveWatch(studio,{onState:state=>{const root=$('#guestMessage');root.querySelector('ol').hidden=false;renderWatchState(root,state);connection(state.label,['connected','scanning'].includes(state.phase));},onCamera:state=>{lastCamera=state;}});
   $('#guestMessage [data-watch-retry]').onclick=()=>void watch.retry();
   await watch.start(auth.sessionId,auth.user.id);timer=setInterval(()=>void refresh(),4000);
  }catch(error){console.error(error);message('اتصال نمایش آماده نشد',error.message||'دسترسی نمایش معتبر نیست.');connection('اتصال ناموفق');}

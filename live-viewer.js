@@ -1,4 +1,4 @@
-import {ApprovedLiveWatch} from './live-watch.js?v=0.16.2';
+import {ApprovedLiveWatch} from './live-watch.js?v=0.16.3';
 import {watchMarkup,renderWatchState} from './live-watch-ui.js?v=0.16.1';
 import {Studio} from './scene.js?v=0.16.2';
 import {supabase,getMembership,findActiveLiveSession,createLiveSession,getLiveShareLink,withLiveTimeout} from './chido-cloud.js?v=0.16.1';
@@ -38,6 +38,13 @@ async function refresh(){
  finally{checking=false;}
 }
 const watchStage=$('.watch-stage'),watchParent=watchStage.parentNode,watchNext=watchStage.nextSibling;
+function changeViewMode(mode){
+ watch?.setViewMode(mode);
+ $('#viewOverview').setAttribute('aria-pressed',String(mode==='overview'));
+ $('#viewFollow').setAttribute('aria-pressed',String(mode==='follow'));
+}
+$('#viewOverview').onclick=()=>changeViewMode('overview');
+$('#viewFollow').onclick=()=>changeViewMode('follow');
 $('#showHere').onclick=async()=>{wantWatch=true;const dialog=$('#watchDialog');dialog.append(watchStage);if(!dialog.open)dialog.showModal();studio?.resize();await refresh();if(active&&watch&&['ended','rejected'].includes(watch.request?.status))await watch.retry();};
 $('#closeWatch').onclick=()=>$('#watchDialog').close();
 $('#watchDialog').addEventListener('close',()=>{wantWatch=false;watch?.stop();watchParent.insertBefore(watchStage,watchNext);studio?.resize();});
@@ -55,7 +62,7 @@ try{
   $('#viewerShell').hidden=false;$('#authStatus').textContent='';
   studio=new Studio($('#viewport'),()=>{});studio.events?.abort();studio.setPhotoMode(true);
   $('#waitingOverlay').innerHTML=watchMarkup;
-  watch=new ApprovedLiveWatch(studio,{onState:state=>{renderWatchState($('#waitingOverlay'),state);setStatus(state.label);},onCamera:state=>{lastCamera=state;studio?.resize();}});
+  watch=new ApprovedLiveWatch(studio,{onState:state=>{renderWatchState($('#waitingOverlay'),state);setStatus(state.label);},onCamera:state=>{lastCamera=state;}});
   $('#waitingOverlay [data-watch-retry]').onclick=async()=>{if(watch.request)await watch.retry();else{wantWatch=true;await refresh();}};
   $('#showHere').disabled=false;
   await refresh();setInterval(()=>void refresh(),3000);
