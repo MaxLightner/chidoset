@@ -165,7 +165,12 @@ void main(){
    this.rulerTicks.geometry.dispose();this.rulerTicks.geometry=new THREE.BufferGeometry().setFromPoints(pts);}
    this.updateArtFloorHandle();this.floorFrame.updateMatrixWorld(true);if(!this.lastLiveMapUpdate||performance.now()-this.lastLiveMapUpdate>65){this.lastLiveMapUpdate=performance.now();this.onLiveChange?.();}
  }
- add(index=this.serial%4,position,options={}){const cloud=getCloudProduct(index);if(index>=32&&!cloud)throw Error('مدل این محصول در دسترس نیست؛ کتابخانه شرکت را دوباره دریافت کن.');if(!cloud)index=((index%CATALOG.length)+CATALOG.length)%CATALOG.length;const baseProduct=cloud?{name:cloud.name,size:cloud.size_m,price:0}:{...CATALOG[index],name:getCloudProductInfo(index)?.name||CATALOG[index].name},product=options.size?{...baseProduct,size:options.size}:baseProduct,id=++this.serial,[w,h,d]=product.size;const color=palette[index]||'#c6b7a3';const mesh=isImportedModel(index)?createImportedModel(index,product.size,options.fabric||'dark'):index<4?createFurniture(index,product.size,color,options.seats):createDecor(index,product.size,color);
+ add(index=this.serial%4,position,options={}){
+  const cloud=getCloudProduct(index),sheenChair=index===1000;
+  if(index>=32&&!cloud&&!sheenChair)throw Error('مدل این محصول در دسترس نیست؛ کتابخانه شرکت را دوباره دریافت کن.');
+  if(!cloud&&!sheenChair)index=((index%CATALOG.length)+CATALOG.length)%CATALOG.length;
+  const baseProduct=cloud?{name:cloud.name,size:cloud.size_m,price:0}:sheenChair?{name:'SheenChair',size:[.85,.9,.85],price:0}:{...CATALOG[index],name:getCloudProductInfo(index)?.name||CATALOG[index].name},product=options.size?{...baseProduct,size:options.size}:baseProduct,id=++this.serial,[w,h,d]=product.size;
+  const color=palette[index]||'#c6b7a3';const mesh=isImportedModel(index)?createImportedModel(index,product.size,options.fabric||'dark'):index<4?createFurniture(index,product.size,color,options.seats):createDecor(index,product.size,color);
   const edges=new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry),new THREE.LineBasicMaterial({color:0x9f927f,transparent:true,opacity:.15,depthWrite:false}));mesh.add(edges);
   const dimensions=`${product.name} · ${product.size.map(v=>fa(v*100)).join(' × ')} cm`;const label=this.makeLabel(dimensions);label.position.y=h/2+.18;label.scale.set(1.5,.22,1);mesh.add(label);
   mesh.userData={...mesh.userData,id,index,height:h,price:product.price,product,edges,label,fabric:options.fabric||'dark',materialStyles:copyMaterialStyles(options.materialStyles),

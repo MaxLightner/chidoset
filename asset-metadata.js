@@ -1,6 +1,6 @@
 import {CATALOG} from './spatial.js?v=0.6.0';
 import {getCloudProduct,cloudProductList} from './cloud-product-registry.js';
-const categoryByIndex=index=>[0,1,3,22,23,24].includes(index)?'seating':[2,12,13,25,26,27].includes(index)?'low-tables':[10,11].includes(index)?'dining':index===9?'workspace':index===8?'bedroom':[7,31].includes(index)?'rugs':index>=16&&index<=21?'wall-art':'decor';
+const categoryByIndex=index=>[0,1,3,22,23,24,1000].includes(index)?'seating':[2,12,13,25,26,27].includes(index)?'low-tables':[10,11].includes(index)?'dining':index===9?'workspace':index===8?'bedroom':[7,31].includes(index)?'rugs':index>=16&&index<=21?'wall-art':'decor';
 export const RUG_SIZE_PRESETS=Object.freeze([
  {id:'170x240',label:'۱.۷ × ۲.۴ متر',size:[2.4,.015,1.7]},
  {id:'150x200',label:'۱.۵ × ۲ متر',size:[2,.015,1.5]},
@@ -9,7 +9,7 @@ export const RUG_SIZE_PRESETS=Object.freeze([
  {id:'300x400',label:'۳ × ۴ متر',size:[4,.015,3]}
 ]);
 export const ASSET_CATEGORIES=Object.freeze([
- {id:'seating',label:'مبل و نشیمن',indexes:[1,0,3,24,23,22]},
+ {id:'seating',label:'مبل و نشیمن',indexes:[1,0,3,24,23,22,1000]},
  {id:'low-tables',label:'میز جلو مبلی و عسلی',indexes:[2,12,13,25,26,27]},
  {id:'dining',label:'میز ناهارخوری و صندلی',indexes:[10,11]},
  {id:'workspace',label:'میز کار و مطالعه',indexes:[9]},

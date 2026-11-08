@@ -6,6 +6,7 @@ import {materialRole} from './material-roles.js?v=0.14.0';
 // All units are metres. Native Blender GLB dimensions are preserved; the
 // quarter-turn only makes the long side of a sofa/table follow local X.
 export const IMPORTED_MODELS=Object.freeze({
+ 1000:{file:'SheenChair.glb',yaw:0,kind:'chair'},
  22:{file:'sofaA1.glb',yaw:Math.PI/2,kind:'sofa'},
  23:{file:'SofaC1.glb',yaw:Math.PI/2,kind:'sofa'},
  24:{file:'sofab1.glb',yaw:Math.PI/2,kind:'sofa'},

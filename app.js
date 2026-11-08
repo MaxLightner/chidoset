@@ -331,7 +331,7 @@ function closeArSheet(){
  studio?.setPlacementEnabled(false);
 }
 // A preset set is an initial layout, never a permission boundary for the catalog.
-function publishedCatalogIndexes(){return new Set([...cloudSets.flatMap(set=>set.products),...demoLibrary].map(product=>product.catalog_index));}
+function publishedCatalogIndexes(){return new Set([1000,...[...cloudSets.flatMap(set=>set.products),...demoLibrary].map(product=>product.catalog_index)]);}
 function getActiveCloudSet(){return cloudSets.find(item=>item.id===activeCloudSetId)||null;}
 function updateCloudControls(){
  const hasSet=!!activeCloudSetId,manager=cloudMembership?.role==='company_admin';
@@ -434,7 +434,7 @@ function showArSheet(mode){
    ${groups.some(c=>c.id==='wall-art')?'<small class="sheet-tip">تابلوها فعلاً روی یک صفحه عمودی مجازی در موقعیت تقریبی قرار می‌گیرند؛ تشخیص خودکار دیوار واقعی نیاز به WebXR Plane Detection دارد.</small>':''}`;
   function populate(category){
    const group=groups.find(c=>c.id===category)||groups[0];if(!group)return;
-   const holder=body.querySelector('#categoryObjects');holder.innerHTML=group.indexes.map(i=>{const cloud=getCloudProduct(i)||getCloudProductInfo(i),name=(cloud?.name||catalogImages[i]?.[0]||'مدل').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));return `<button data-add-object="${i}" class="catalog-tile"><span class="catalog-preview">${cloud&&i>=32&&!cloud.thumbnail_url?'<span class="catalog-no-preview">◈<small>بدون تصویر</small></span>':`<img src="${cloud?.thumbnail_url||`assets/chido/thumbs/${i}.jpg?v=0.7.0`}" width="192" height="192" loading="lazy" decoding="async" alt="پیش‌نمایش ${name}">`}</span><span class="catalog-name">${name}</span></button>`;}).join('');
+   const holder=body.querySelector('#categoryObjects');holder.innerHTML=group.indexes.map(i=>{const cloud=getCloudProduct(i)||getCloudProductInfo(i),name=(i===1000?'SheenChair':cloud?.name||catalogImages[i]?.[0]||'مدل').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));return `<button data-add-object="${i}" class="catalog-tile"><span class="catalog-preview">${i===1000||(cloud&&i>=32&&!cloud.thumbnail_url)?'<span class="catalog-no-preview">◈<small>مدل سه‌بعدی</small></span>':`<img src="${cloud?.thumbnail_url||`assets/chido/thumbs/${i}.jpg?v=0.7.0`}" width="192" height="192" loading="lazy" decoding="async" alt="پیش‌نمایش ${name}">`}</span><span class="catalog-name">${name}</span></button>`;}).join('');
    body.querySelectorAll('[data-category]').forEach(btn=>btn.classList.toggle('selected',btn.dataset.category===group.id));
    holder.querySelectorAll('[data-add-object]').forEach(btn=>btn.onclick=()=>{
     if(studio.items.length>=24&&!replacing){toast('به محدودیت ۲۴ آبجکت رسیدی.');return;}

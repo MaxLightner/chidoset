@@ -8,9 +8,9 @@ import * as THREE from '../vendor/three.module.js';
 import {isFloorSolid} from '../collision.js';
 import {isLamp,isRug,assetMetadata,categoryForIndex} from '../asset-metadata.js';
 
-test('all ten uploaded GLBs are present, binary and embedded in the catalog',()=>{
+test('all eleven included GLBs are present, binary and valid',()=>{
  assert.equal(CATALOG.length,32);
- assert.equal(Object.keys(IMPORTED_MODELS).length,10);
+ assert.equal(Object.keys(IMPORTED_MODELS).length,11);
  for(const [key,model] of Object.entries(IMPORTED_MODELS)){
   const index=Number(key);
   const url=new URL('../assets/chido/'+model.file,import.meta.url);
@@ -22,8 +22,9 @@ test('all ten uploaded GLBs are present, binary and embedded in the catalog',()=
   assert.equal(bytes.toString('ascii',16,20),'JSON',model.file);
   const document=JSON.parse(bytes.toString('utf8',20,20+jsonLength));
   assert.ok(document.meshes?.length>0,model.file);
-  assert.ok(CATALOG[index].size.every(n=>n>0),model.file);
-  assert.deepEqual(assetMetadata(index).collision.size,[...CATALOG[index].size]);
+  const size=CATALOG[index]?.size||[.85,.9,.85];
+  assert.ok(size.every(n=>n>0),model.file);
+  assert.deepEqual(assetMetadata(index,size).collision.size,[...size]);
  }
 });
 test('imported lights and rug use existing app power and collision exemptions',()=>{
