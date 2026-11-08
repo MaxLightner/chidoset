@@ -1,4 +1,4 @@
-import {MATERIAL_ROLES,ROLE_LABELS,roleMaterials,materialPresets,materialImage} from './material-roles.js?v=0.14.0';
+import {MATERIAL_ROLES,ROLE_LABELS,roleMaterials,materialPresets,materialImage} from './material-roles.js?v=0.15.0';
 export function mountMaterialPanel(host,studio,mesh,{notify=()=>{}}={}){
  let active='fabric';
  const valid=()=>host.isConnected&&studio.items.includes(mesh)&&studio.selected===mesh&&!mesh.userData.disposed;
@@ -28,7 +28,7 @@ export function mountMaterialPanel(host,studio,mesh,{notify=()=>{}}={}){
   }
   const tabs=[...host.querySelectorAll('[role=tab]')];
   const choose=role=>{active=role;render();host.querySelector('[data-role='+role+']')?.focus();};
-  tabs.forEach((tab,i)=>{tab.onclick=()=>choose(tab.dataset.role);tab.onkeydown=event=>{let next;if(event.key==='ArrowLeft')next=(i+1)%3;else if(event.key==='ArrowRight')next=(i+2)%3;else if(event.key==='Home')next=0;else if(event.key==='End')next=2;if(next!==undefined){event.preventDefault();choose(MATERIAL_ROLES[next]);}};});
+  tabs.forEach((tab,i)=>{tab.onclick=()=>choose(tab.dataset.role);tab.onkeydown=event=>{let next;if(event.key==='ArrowLeft')next=(i+1)%MATERIAL_ROLES.length;else if(event.key==='ArrowRight')next=(i+MATERIAL_ROLES.length-1)%MATERIAL_ROLES.length;else if(event.key==='Home')next=0;else if(event.key==='End')next=MATERIAL_ROLES.length-1;if(next!==undefined){event.preventDefault();choose(MATERIAL_ROLES[next]);}};});
  };
  render();if(!visual())void mesh.userData.loadPromise?.then(()=>{if(valid())render();});
 }

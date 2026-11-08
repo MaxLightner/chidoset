@@ -848,3 +848,14 @@ header .quiet{font-size:14px!important;min-width:60px}
  .rooms-integrated .layout-caption{min-height:0}
  #overlay .architecture-finish-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+/* Compact AR controls, safe insets and dense catalogs — 0.15.0. */
+html:fullscreen{padding:0!important}html:fullscreen body{max-width:none;border-radius:0;min-height:100dvh}
+#overlay .ar-top{position:absolute;top:calc(env(safe-area-inset-top,0px) + 14px)!important;left:calc(env(safe-area-inset-left,0px) + 8px)!important;right:calc(env(safe-area-inset-right,0px) + 8px)!important;display:flex;align-items:center;gap:7px;min-height:52px;padding:6px 8px;background:#f6f0e6ed;border:1px solid #d7cbbb;border-radius:13px;pointer-events:auto;z-index:15;direction:rtl;box-sizing:border-box}
+#overlay .ar-top .ar-nav-actions{display:flex;gap:5px;flex-shrink:0;max-width:none}#overlay .ar-top button{min-height:40px;padding:6px 9px;font-size:12px!important}
+#overlay .ar-top #arIdentity{max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;padding:4px;background:transparent}
+#overlay .ar-top #arStatus{min-width:0;flex:1;font-size:11px!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:4px;background:transparent;margin:0}
+#overlay .ar-top .wide-view-panel{position:static!important;display:flex;align-items:center;flex-wrap:nowrap;gap:5px;max-width:none;flex-shrink:0;margin:0;padding:0;background:transparent;border:0;box-shadow:none}
+#overlay .ar-top .wide-view-panel select{max-width:125px;min-height:40px}#overlay .ar-top .wide-view-panel .wide-natural-label{min-height:40px;font-size:10px}#overlay .wide-view-panel>label:first-child{display:none}#overlay #wideViewHint{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+#overlay .ar-object-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:6px}#overlay .catalog-tile{min-height:80px;padding:5px 3px}#overlay .catalog-tile .catalog-name{font-size:11px!important;line-height:1.3}#overlay .catalog-preview{height:60px;min-height:0;aspect-ratio:auto;width:100%}
+@media(max-width:650px){#overlay .ar-top{flex-wrap:wrap;gap:4px}#overlay .ar-top #arIdentity{max-width:110px}#overlay .ar-top #arStatus{flex-basis:calc(100% - 260px)}#overlay .ar-top .wide-view-panel{margin-inline-start:auto}#overlay .ar-top .wide-view-panel select{max-width:105px}#overlay .ar-object-grid{gap:4px}#overlay .catalog-tile .catalog-name{font-size:10px!important}#overlay .catalog-preview{height:45px}}

@@ -1,8 +1,8 @@
-import {mountMaterialPanel} from './material-panel.js?v=0.14.0';
-import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.14.0';
+import {mountMaterialPanel} from './material-panel.js?v=0.15.0';
+import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.15.0';
 import {rememberAccount,accountName} from './auth-storage.js';
 import {readRecovery,saveRecovery,clearRecovery,filterPublishedScene} from './app-recovery.js';
-import {runtimeHealth,recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.14.0';
+import {runtimeHealth,recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.15.0';
 import {StudioCache,sceneStateKey} from './studio-cache.js';
 import {endXRSession} from './xr-end.js';
 import {accountLogin} from './account-login.js';
@@ -18,7 +18,7 @@ import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-
 import {LiveMiniMap} from './minimap.js?v=0.5.4';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
 import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList} from './cloud-product-registry.js';
-import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,loadDemoLibrary,saveOfficialLayout,saveOfficialColorway,createLiveSession,findActiveLiveSession,getLiveShareLink,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.12.4';
+import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,loadDemoLibrary,saveOfficialLayout,saveOfficialColorway,createLiveSession,findActiveLiveSession,getLiveShareLink,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.15.0';
 const studioCache=new StudioCache();
 const studioOwner=()=>cloudMembership?cloudMembership.company_id+':'+cloudMembership.user.id:'';
 const $=s=>document.querySelector(s),app=$('#app'),fa=n=>n.toLocaleString('fa-IR');
@@ -36,6 +36,7 @@ let themeIndex=0,styleChoice='مینیمال',previewEnabled=false,peopleCount=5
 let cloudMembership=null,cloudSets=[],demoLibrary=[],activeCloudSetId=null,activeCloudLayout=null,activeCloudColorway=null,activeLiveSession=null;
 let liveSceneTimer=null,lastLiveCameraSent=0,liveCameraBusy=false,liveCameraQueued=null;
 let autoShareAttempted=false,liveShareStarting=false;
+let liveRetryAt=0,liveReconcileBusy=false,liveSharingPaused=false;
 let appSessionLogged=false,lastHeartbeatAt=0;
 const catalogImages=[
  ['کاناپه','<rect x="14" y="24" width="74" height="46" rx="10"/><path d="M16 38h70M32 42v25m37-25v25"/>'],
@@ -100,7 +101,7 @@ function heading(step,title,sub,back){return `<div class="page-heading"><div><sp
 async function full(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(!document.documentElement.requestFullscreen){toast('مرورگر شما تمام‌صفحه را پشتیبانی نمی‌کند.');return;}try{await document.documentElement.requestFullscreen();}catch{toast('ورود به تمام‌صفحه ممکن نشد؛ می‌توانی ادامه بدهی.');}}
 $('#fullscreen').onclick=full;document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'خروج از تمام‌صفحه ↙':'تمام‌صفحه ⛶');
 async function support(){try{supported=!!(isSecureContext&&navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar'));}catch{supported=false;}return supported;}
-async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.14.2');Scene=m.Studio;palette=m.palette;}}
+async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.15.0');Scene=m.Studio;palette=m.palette;}}
 let draftTimer=null;
 function currentSceneRecord(){
  if(!studio)return null;
@@ -373,28 +374,44 @@ function scheduleLiveScenePublish(){
  },160);
 }
 function liveCameraFrame(time){
- if(!activeLiveSession||!studio?.session||!studio.placed||time-lastLiveCameraSent<110||liveCameraBusy)return;
+ if(!activeLiveSession||!studio?.session||time-lastLiveCameraSent<250||liveCameraBusy)return;
  const state=studio.cameraSnapshot();if(!state)return;
  liveCameraBusy=true;lastLiveCameraSent=time;
- publishLiveCamera(activeLiveSession.id,state).catch(error=>console.warn('Live camera sync failed',error)).finally(()=>{liveCameraBusy=false;});
+ const sending=activeLiveSession.id;
+ publishLiveCamera(sending,state).catch(error=>{recordRuntimeError('live-camera-failed',error);if(activeLiveSession?.id===sending){activeLiveSession=null;autoShareAttempted=false;}console.warn('Live camera sync failed',error);}).finally(()=>{liveCameraBusy=false;});
 }
 async function beginLiveShare({silent=false}={}){
- if(!studio?.session||!studio.placed){toast('ابتدا AR را اجرا و کف را تثبیت کن.');return;}
+ if(!silent)liveSharingPaused=false;
+ if(!studio?.session){if(!silent)toast('ابتدا وارد AR شو.');return;}
+ if(activeLiveSession&&Date.parse(activeLiveSession.expiresAt)<=Date.now())activeLiveSession=null;
  if(activeLiveSession){if(!silent)await openLiveShareDialog();return;}
  if(liveShareStarting)return;
  liveShareStarting=true;
+ liveRetryAt=Date.now()+5000;
+ const publisher=studio,owner=cloudMembership?.user.id;
  const button=$('#arShareSession');if(button)button.disabled=true;
  try{
   let session=await findActiveLiveSession();
-  if(!session){await refreshCloudSets();session=await createLiveSession({sceneState:studio.exportLiveState(),cameraState:studio.cameraSnapshot()});}
+  if(!session)session=await createLiveSession({sceneState:publisher.exportLiveState(),cameraState:publisher.cameraSnapshot()});
+  if(studio!==publisher||!publisher.session||cloudMembership?.user.id!==owner)return;
   activeLiveSession=session;
+  lastLiveCameraSent=0;recordRuntime('live-connected',publisher.renderer);
   studio.onFrame=liveCameraFrame;
   await Promise.all([publishLiveScene(session.id,studio.exportLiveState()),publishLiveCamera(session.id,studio.cameraSnapshot())]);
   if(!silent)await openLiveShareDialog();
   await logActivity(cloudMembership,'live_session_started',{session_id:activeLiveSession.id});
- }catch(error){console.error(error);toast(error.message||'ساخت نمایش زنده انجام نشد.');}
+ }catch(error){recordRuntimeError('live-connect-failed',error);activeLiveSession=null;autoShareAttempted=false;console.error(error);if(!silent)toast(error.message||'اتصال نمایش زنده انجام نشد.');}
  finally{liveShareStarting=false;if(button)button.disabled=false;}
 }
+async function ensureLivePublisher(){
+ if(!studio?.session||!cloudMembership||liveSharingPaused||liveShareStarting||liveReconcileBusy||Date.now()<liveRetryAt)return;
+ liveRetryAt=Date.now()+8000;liveReconcileBusy=true;
+ try{
+  if(activeLiveSession){const latest=await findActiveLiveSession();if(latest?.id===activeLiveSession.id){scheduleLiveScenePublish();return;}activeLiveSession=null;}
+  await beginLiveShare({silent:true});
+ }catch(error){recordRuntimeError('live-reconnect-failed',error);}finally{liveReconcileBusy=false;}
+}
+setInterval(()=>void ensureLivePublisher(),2000);
 async function openLiveShareDialog(){
  if(!activeLiveSession)return;
  const url=activeLiveSession.url||await getLiveShareLink(activeLiveSession.id);
@@ -406,6 +423,7 @@ async function openLiveShareDialog(){
  catch(error){console.warn('QR module unavailable',error);$('#liveShareQr').innerHTML='<span>QR در دسترس نیست؛ لینک را کپی کن.</span>';}
 }
 async function endLiveShare(silent=false){
+ if(!silent)liveSharingPaused=true;
  const current=activeLiveSession;if(!current)return;
  try{await stopLiveSession(current.id);}catch(error){
   console.warn('Live session revoke failed',error);
@@ -704,10 +722,7 @@ function handleARReport(report){
  $('#arEditControls').hidden=true;
  $('#arSettings').hidden=!(report.placed&&arSheetMode==='settings');
  $('#arDock').hidden=!report.placed;$('#arMiniMap').hidden=!report.placed;$('#arBottomActions').hidden=!report.placed;updateCloudControls();if(report.placed){minimap.render();if(!calibrationPrompted){calibrationPrompted=true;$('#abCalibrationSheet').hidden=false;}}else $('#abInline').hidden=true;
- if(report.placed&&!autoShareAttempted&&cloudMembership?.role==='branch'){
-  autoShareAttempted=true;
-  void beginLiveShare({silent:true});
- }
+ if(studio?.session)void ensureLivePublisher();
  $('#arDock').classList.toggle('ready',report.placed);
  const wideSelect=$('#wideViewMode');wideSelect.disabled=!report.placed||!studio?.hasOverlay;
  $('#wideNatural').disabled=wideSelect.disabled;
@@ -716,7 +731,7 @@ function handleARReport(report){
  if(!report.placed){closeArSheet();$('#measureHint').hidden=true;}
  updateMeasurements();
 }
-async function startAR(basic=false,incomingSession=null){if(!studio||studio.session||arStarting)return;arStarting=true;calibrationPrompted=false;const launchingStudio=studio;const button=$('#startAR');button.disabled=true;$('#arError').close();try{$('#overlay').hidden=false;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=false;$('#scanProgress').value=12;$('#scanStage').textContent='راه‌اندازی AR…';$('#scanPercent').textContent='۱۲٪';closeArSheet();$('#arSettings').hidden=true;$('#arStatus').textContent='در حال شناسایی کف…';resetWideViewControls();const result=await launchingStudio.startAR(message=>$('#arStatus').textContent=message,handleARReport,basic,{light:!basic&&$('#lightEnabled').checked,depth:!basic&&$('#depthEnabled').checked},incomingSession);if(studio!==launchingStudio||!launchingStudio.session)return;if(!result.hasOverlay)$('#overlay').hidden=true;$('#launchProgress').value=3;$('#launchStage').textContent='نشست AR آماده شد؛ کف را اسکن کن.';studio.setDebugVisible(debugEnabled);updateObjects();}catch(error){if(studio!==launchingStudio)return;$('#overlay').hidden=true;$('#arDock').hidden=true;button.hidden=false;$('#launchStage').textContent='ورود به AR ناموفق بود؛ جزئیات را بررسی کن.';const failure=explainXR(error);lastXRErrorReport=JSON.stringify({version:'0.4.1',mode:basic?'basic':'full',stage:failure.stage,name:failure.name,message:failure.detail,secureContext:isSecureContext,webXR:!!navigator.xr,supportCheck:supported,userAgent:navigator.userAgent},null,2);$('#arErrorMessage').textContent=failure.message;$('#arErrorDetails').textContent=lastXRErrorReport;$('#arError').showModal();console.error(error);}finally{arStarting=false;button.disabled=false;}}
+async function startAR(basic=false,incomingSession=null){if(!studio||studio.session||arStarting)return;arStarting=true;liveSharingPaused=false;liveRetryAt=0;calibrationPrompted=false;const launchingStudio=studio;const button=$('#startAR');button.disabled=true;$('#arError').close();try{$('#overlay').hidden=false;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=false;$('#scanProgress').value=12;$('#scanStage').textContent='راه‌اندازی AR…';$('#scanPercent').textContent='۱۲٪';closeArSheet();$('#arSettings').hidden=true;$('#arStatus').textContent='در حال شناسایی کف…';resetWideViewControls();const result=await launchingStudio.startAR(message=>$('#arStatus').textContent=message,handleARReport,basic,{light:!basic&&$('#lightEnabled').checked,depth:!basic&&$('#depthEnabled').checked},incomingSession);if(studio!==launchingStudio||!launchingStudio.session)return;if(!result.hasOverlay)$('#overlay').hidden=true;$('#launchProgress').value=3;$('#launchStage').textContent='نشست AR آماده شد؛ کف را اسکن کن.';studio.setDebugVisible(debugEnabled);updateObjects();}catch(error){if(studio!==launchingStudio)return;$('#overlay').hidden=true;$('#arDock').hidden=true;button.hidden=false;$('#launchStage').textContent='ورود به AR ناموفق بود؛ جزئیات را بررسی کن.';const failure=explainXR(error);lastXRErrorReport=JSON.stringify({version:'0.4.1',mode:basic?'basic':'full',stage:failure.stage,name:failure.name,message:failure.detail,secureContext:isSecureContext,webXR:!!navigator.xr,supportCheck:supported,userAgent:navigator.userAgent},null,2);$('#arErrorMessage').textContent=failure.message;$('#arErrorDetails').textContent=lastXRErrorReport;$('#arError').showModal();console.error(error);}finally{arStarting=false;button.disabled=false;}}
 function resetWideViewControls(){
  const select=$('#wideViewMode');if(select){select.value='ar';select.disabled=true;}
  const natural=$('#wideNatural');if(natural)natural.disabled=true;

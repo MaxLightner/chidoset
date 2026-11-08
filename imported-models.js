@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.js';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
 import {getCloudProduct} from './cloud-product-registry.js';
-import {materialRole} from './material-roles.js?v=0.14.0';
+import {materialRole} from './material-roles.js?v=0.15.0';
 
 // All units are metres. Native Blender GLB dimensions are preserved; the
 // quarter-turn only makes the long side of a sofa/table follow local X.
@@ -60,9 +60,16 @@ export async function applySofaFabric(model,id='dark',index=22){
  model.userData.fabric=fabric.id;
  const request=(model.userData.fabricRequest||0)+1;model.userData.fabricRequest=request;model.userData.fabricState='loading';
  try{await preloadSofaTextures(index,id);}catch(error){if(model.userData.fabricRequest===request)model.userData.fabricState='error';console.warn('Fabric unavailable; preserving GLB materials',error);return false;}
- if(model.userData.disposed||model.userData.fabricRequest!==request||model.userData.roleMaterialOverrides?.fabric)return false;
+ if(model.userData.disposed)return false;
+ // AO belongs to the model, even when a newer/custom fabric won the color request.
+ if(SOFA_AO[index])model.traverse(object=>{
+  if(!object.isMesh||!object.geometry.attributes.uv)return;
+  if(!object.geometry.attributes.uv2)object.geometry.setAttribute('uv2',object.geometry.attributes.uv.clone());
+  for(const m of Array.isArray(object.material)?object.material:[object.material])if(m?.isMeshStandardMaterial&&materialRole(m.name)==='fabric'){m.aoMap=loadFabric(SOFA_AO[index],1);m.aoMapIntensity=1.15;m.needsUpdate=true;}
+ });
+ if(model.userData.fabricRequest!==request||model.userData.roleMaterialOverrides?.fabric)return false;
  model.userData.fabricState='ready';
- let named=false;model.traverse(object=>{for(const m of Array.isArray(object.material)?object.material:[object.material])if(['fabric','body','detail'].some(role=>String(m?.name||'').toLowerCase().includes(role)))named=true;});
+ let named=false;model.traverse(object=>{for(const m of Array.isArray(object.material)?object.material:[object.material])if(['fabric','wood','metal','glass','body','detail'].some(role=>String(m?.name||'').toLowerCase().includes(role)))named=true;});
  model.traverse(object=>{
   if(!object.isMesh||object.userData.collisionProxy||object.name==='chido-contact-shadow')return;
   if(!object.geometry.attributes.uv)return;
@@ -90,7 +97,7 @@ export const isImportedLight=index=>index===28||index===29;
 export const isImportedNoShadow=index=>[28,29,30,31].includes(index);
 const source=(file)=>{
  if(!cache.has(file)){
-  const url=file.startsWith('https://')?file:new URL('./assets/chido/'+file+(file==='SheenChair.glb'?'?v=0.14.2':['sofaA1.glb','SofaC1.glb','sofab1.glb'].includes(file)?'?v=0.6.0':''),import.meta.url).href;
+  const url=file.startsWith('https://')?file:new URL('./assets/chido/'+file+(file==='SheenChair.glb'?'?v=0.14.2':['sofaA1.glb','SofaC1.glb','sofab1.glb'].includes(file)?'?v=0.15.0':''),import.meta.url).href;
   cache.set(file,loader.loadAsync(url).catch(error=>{cache.delete(file);throw error;}));
  }
  return cache.get(file);

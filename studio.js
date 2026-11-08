@@ -1,10 +1,10 @@
 import * as THREE from './vendor/three.module.js';
-import {copyMaterialStyles,applyRoleMaterial,disposeRoleMaterials} from './material-roles.js?v=0.14.0';
+import {copyMaterialStyles,applyRoleMaterial,disposeRoleMaterials} from './material-roles.js?v=0.15.0';
 import {getCloudProduct,getCloudProductInfo,registerCloudProducts,cloudProductList} from './cloud-product-registry.js';
 import {ArchitectureLayer} from './architecture.js?v=0.9.0';
 import {createFurniture,furnitureHit} from './furniture.js?v=0.5.4';
 import {createDecor} from './decor.js?v=0.5.4';
-import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.14.2';
+import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.15.0';
 import {applyRugStyle} from './rug-textures.js?v=0.5.4';
 import {MeasureTool} from './measure-tool.js?v=0.5.4';
 import {bindXRExit} from './xr-lifecycle.js?v=0.14.0';
@@ -14,9 +14,9 @@ import {WideViewRenderer,WIDE_VIEW_FOV} from './wide-view.js?v=0.13.3';
 import {SpatialState,CATALOG,pairAngle,wrappedAngle} from './spatial.js?v=0.8.0';
 import {FloorScanner,floorCandidates} from './surfaces.js?v=0.5.4';
 import {createSofaShadow,modelLocalBounds,isSofaShadowProduct} from './sofa-shadow.js?v=0.13.3';
-import {recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.14.0';
+import {recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.15.0';
 import {rendererPolicy} from './renderer-policy.js';
-import {EnvironmentEffects} from './effects.js?v=0.13.3';
+import {EnvironmentEffects} from './effects.js?v=0.15.0';
 import {AnchorStabilizer,transformPoint} from './anchor-rig.js?v=0.5.4';
 import {ARDebugView} from './ar-debug.js?v=0.5.4';
 import {buildLayout} from './layout-templates.js?v=0.5.4';
@@ -465,17 +465,19 @@ void main(){
   }
  }
  cameraSnapshot(){
-  const camera=this.activeCamera();camera.updateMatrixWorld(true);
+  this.floorFrame.updateMatrixWorld(true);const camera=this.activeCamera();camera.updateMatrixWorld(true);
   const position=camera.getWorldPosition(new THREE.Vector3());
   const quaternion=camera.getWorldQuaternion(new THREE.Quaternion());
   const rect=this.host.getBoundingClientRect();
   const projectionMatrix=camera.projectionMatrix.toArray();
   // XR cameras may keep the default fov/aspect properties. Their matrix is authoritative.
   const aspect=Math.abs(projectionMatrix[5]/projectionMatrix[0]);
-  return {position:position.toArray(),quaternion:quaternion.toArray(),projectionMatrix,fov:camera.fov||48,zoom:camera.zoom||1,near:camera.near||.03,far:camera.far||40,aspect:Number.isFinite(aspect)?aspect:(rect.width/Math.max(1,rect.height)),wideMode:this.wideMode||'ar',timestamp:Date.now()};
+  return {position:position.toArray(),quaternion:quaternion.toArray(),projectionMatrix,fov:camera.fov||48,zoom:camera.zoom||1,near:camera.near||.03,far:camera.far||40,aspect:Number.isFinite(aspect)?aspect:(rect.width/Math.max(1,rect.height)),wideMode:this.wideMode||'ar',timestamp:Date.now(),arActive:!!this.session,placed:this.placed,tracking:this.tracking,sceneVisible:this.root.visible,floorPose:this.floorFrame.matrixWorld.toArray()};
  }
  applyExternalCameraState(state){
   if(!state||!Array.isArray(state.position)||state.position.length!==3||!state.position.every(Number.isFinite)||!Array.isArray(state.quaternion)||state.quaternion.length!==4||!state.quaternion.every(Number.isFinite))return false;
+  if(Array.isArray(state.floorPose)&&state.floorPose.length===16&&state.floorPose.every(Number.isFinite)){new THREE.Matrix4().fromArray(state.floorPose).decompose(this.floorFrame.position,this.floorFrame.quaternion,this.floorFrame.scale);this.floorFrame.updateMatrixWorld(true);}
+  if(typeof state.sceneVisible==='boolean')this.root.visible=state.sceneVisible;
   this.externalCameraState=state;
   this.camera.position.fromArray(state.position);this.camera.quaternion.fromArray(state.quaternion);
   this.camera.fov=Number(state.fov)||48;this.camera.zoom=Number(state.zoom)||1;
@@ -805,7 +807,7 @@ safeObjectMotion(mesh,desired){
    }
    if(time-this.lastSelectionUI>65){this.onSelectionScreen?.(this.selectionScreenPosition());this.onABPosition?.(this.rulerScreenPosition());this.lastSelectionUI=time;}
   }
-  this.effects.setRealShadows?.(!!this.architecture?.data.floor.length);this.scaleLabels();this.effects.updateCameraLight?.(this.renderer.xr.isPresenting?this.renderer.xr.getCamera():this.camera);this.renderer.render(this.scene,this.camera);
+  this.effects.setRealShadows?.(!!this.architecture?.data.floor.length);this.scaleLabels();this.effects.updateCameraLight?.(this.renderer.xr.isPresenting?this.renderer.xr.getCamera():this.camera,this.items.find(m=>[22,23,24,1000].includes(m.userData.index))||this.root);this.renderer.render(this.scene,this.camera);
   try{this.onFrame?.(time,frame);}catch(error){console.warn('Chido live frame callback failed',error);}
   if(this.wideView?.active&&this.tracking){
    try{this.wideView.draw();}catch(error){
@@ -823,7 +825,7 @@ safeObjectMotion(mesh,desired){
    const parentScale=label.parent.getWorldScale(new THREE.Vector3()),worldHeight=2*distance*pixels/(Math.max(height,1)*camera.projectionMatrix.elements[5]);const image=label.material.map.image;label.scale.set(worldHeight*(image.width/image.height)/parentScale.x,worldHeight/parentScale.y,1);
   }
  }
- async snapshot(){if(this.session)throw Error('در AR از اسکرین‌شات گوشی استفاده کن.');const before=this.photoMode;this.setPhotoMode(true);this.effects.updateCameraLight?.(this.renderer.xr.isPresenting?this.renderer.xr.getCamera():this.camera);this.renderer.render(this.scene,this.camera);try{return await new Promise((resolve,reject)=>this.renderer.domElement.toBlob(blob=>blob?resolve(blob):reject(Error('ثبت نشد')),'image/webp',.82));}finally{this.setPhotoMode(before);}}
+ async snapshot(){if(this.session)throw Error('در AR از اسکرین‌شات گوشی استفاده کن.');const before=this.photoMode;this.setPhotoMode(true);this.effects.updateCameraLight?.(this.renderer.xr.isPresenting?this.renderer.xr.getCamera():this.camera,this.items.find(m=>[22,23,24,1000].includes(m.userData.index))||this.root);this.renderer.render(this.scene,this.camera);try{return await new Promise((resolve,reject)=>this.renderer.domElement.toBlob(blob=>blob?resolve(blob):reject(Error('ثبت نشد')),'image/webp',.82));}finally{this.setPhotoMode(before);}}
  suspend(){recordRuntime('renderer-suspended',this.renderer);this.suspended=true;this.renderer.setAnimationLoop(null);this.resizeObserver.disconnect();this.events.abort();this.renderer.domElement.remove();}
  resume(host){this.exitToHome=false;this.host=host;host.prepend(this.renderer.domElement);this.events=new AbortController();const opts={signal:this.events.signal};this.attachInput(host,opts);const surface=document.querySelector('#arSurface');if(surface)this.attachInput(surface,opts);this.resizeObserver.observe(host);this.suspended=false;this.resize();recordRuntime('renderer-resumed',this.renderer);if(!this.contextLost)this.renderer.setAnimationLoop((time,frame)=>this.frame(time,frame));}
  pause(){clearTimeout(this.sessionEndTimer);this.sessionEndTimer=null;this.suspended=true;this.renderer.setAnimationLoop(null);this.resizeObserver.disconnect();this.events.abort();this.xrExitBinding?.dispose();for(const item of this.items)item.traverse(node=>node.userData.disposed=true);this.renderer.domElement.remove();}

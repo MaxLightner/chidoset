@@ -1,5 +1,5 @@
-import { Studio } from './scene.js?v=0.14.0';
-import { supabase, authenticateGuest, guestStatus } from './chido-cloud.js?v=0.12.2';
+import { Studio } from './scene.js?v=0.15.0';
+import { supabase, authenticateGuest, guestStatus, withLiveTimeout } from './chido-cloud.js?v=0.15.0';
 
 const $ = selector => document.querySelector(selector);
 const token = new URLSearchParams(location.search).get('token');
@@ -55,18 +55,13 @@ function applyScene(state) {
   lastScene = serialized;
 }
 
-function applyCamera(state) {
-  if (!studio || !state) return;
-  if (lastCamera && Number(state.timestamp) < Number(lastCamera.timestamp)) return;
-  lastCamera = state;
-  if(state.waiting||Number(state.timestamp)===0){
-    message('در انتظار تبلت', 'فروشنده به‌زودی نمای AR را شروع می‌کند. این صفحه خودکار به نمایش زنده وصل می‌شود.');
-    setConnection('منتظر شروع AR');
-    return;
-  }
-  fitHostAspect(state);
-  studio.applyExternalCameraState(state);
-  message('', '', false);
+function applyCamera(state){
+ if(!studio||!state)return;if(lastCamera&&Number(state.timestamp)<Number(lastCamera.timestamp))return;lastCamera=state;
+ if(state.waiting||!(Number(state.timestamp)>0)){message('در انتظار تصویر','فروشنده به‌زودی نمایش را شروع می‌کند. این صفحه خودکار متصل می‌شود.');setConnection('در انتظار فرستنده');return;}
+ fitHostAspect(state);studio.applyExternalCameraState(state);
+ if(Date.now()-Number(state.timestamp)>12000){message('در انتظار نمای تازه','اتصال فرستنده در حال بازیابی است.');setConnection('در انتظار فرستنده');}
+ else if(state.tracking===false||state.placed===false){message('نمایش متصل است',state.tracking===false?'ردیابی محیط در حال بازیابی است.':'فروشنده در حال اسکن محیط است.');setConnection('متصل به نمایش فروشنده',true);}
+ else{message('','',false);setConnection('متصل به نمایش فروشنده',true);}
 }
 
 async function finish() {
@@ -90,7 +85,6 @@ async function refresh() {
     const latest = await loadInitialState();
     applyScene(latest.scene);
     applyCamera(latest.camera);
-    if(!lastCamera?.waiting){setConnection('متصل به نمایش فروشنده', true);message('', '', false);}
   } catch (error) {
     setConnection('در حال تلاش برای اتصال مجدد');
     console.warn('Guest reconnect pending', error.message);
@@ -99,8 +93,8 @@ async function refresh() {
 
 async function loadInitialState() {
   const [sceneResult, cameraResult] = await Promise.all([
-    supabase.from('live_session_scenes').select('scene_state').eq('session_id', sessionId).single(),
-    supabase.from('live_session_cameras').select('camera_state').eq('session_id', sessionId).single()
+    withLiveTimeout(supabase.from('live_session_scenes').select('scene_state').eq('session_id', sessionId).single()),
+    withLiveTimeout(supabase.from('live_session_cameras').select('camera_state').eq('session_id', sessionId).single())
   ]);
   if (sceneResult.error) throw sceneResult.error;
   if (cameraResult.error) throw cameraResult.error;
@@ -140,7 +134,6 @@ async function start() {
       }, payload => applyCamera(payload.new?.camera_state))
       .subscribe(status => {
         if (status === 'SUBSCRIBED') {
-          if(!lastCamera?.waiting){setConnection('متصل به نمایش فروشنده', true);message('', '', false);}
           void refresh();
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           setConnection('در حال تلاش برای اتصال مجدد');
@@ -157,10 +150,12 @@ async function start() {
 
 window.addEventListener('online', () => { void refresh(); });
 
-window.addEventListener('pagehide', () => {
+window.addEventListener('pagehide', event => {
+  if(event.persisted)return;
   if (statusTimer) clearInterval(statusTimer);
   if (channel) void supabase.removeChannel(channel);
   if (studio) studio.destroy();
 });
+window.addEventListener('pageshow',event=>{if(event.persisted)void refresh();});
 
 start();

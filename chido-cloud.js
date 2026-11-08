@@ -293,21 +293,16 @@ export async function getLiveShareLink(sessionId) {
   return guestUrl.toString();
 }
 
-export async function publishLiveScene(sessionId, sceneState) {
-  const { error } = await supabase
-    .from('live_session_scenes')
-    .update({ scene_state: sceneState, updated_at: new Date().toISOString() })
-    .eq('session_id', sessionId);
-  if (error) throw error;
+export async function withLiveTimeout(query){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6000);
+ try{return await query.abortSignal(controller.signal);}finally{clearTimeout(timer);}
 }
-
-export async function publishLiveCamera(sessionId, cameraState) {
-  const { error } = await supabase
-    .from('live_session_cameras')
-    .update({ camera_state: cameraState, updated_at: new Date().toISOString() })
-    .eq('session_id', sessionId);
-  if (error) throw error;
+async function updateLiveRow(table,sessionId,field,state){
+ const {data,error}=await withLiveTimeout(supabase.from(table).update({[field]:state,updated_at:new Date().toISOString()}).eq('session_id',sessionId).select('session_id').maybeSingle());
+ if(error)throw error;if(!data)throw Error('نشست نمایش فعال نیست یا به این حساب تعلق ندارد.');
 }
+export const publishLiveScene=(sessionId,state)=>updateLiveRow('live_session_scenes',sessionId,'scene_state',state);
+export const publishLiveCamera=(sessionId,state)=>updateLiveRow('live_session_cameras',sessionId,'camera_state',state);
 
 export async function stopLiveSession(sessionId) {
   const { data: { session } } = await supabase.auth.getSession();
