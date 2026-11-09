@@ -4,7 +4,13 @@ import {supabase,getMembership} from './chido-cloud.js?v=0.15.0';
 import {centralAuth} from './central-service.js?v=0.12.2';
 import {CHIDO_URLS,deployedChidoHost} from './chido-urls.js';
 const centralHost=location.hostname==='admin.chidoset.ir';
+if(deployedChidoHost()){
+ document.querySelector('.site-login-header a').href=CHIDO_URLS.website;
+ document.querySelector('.login-intro a').href=CHIDO_URLS.application;
+}
 if(centralHost){
+ document.title='ورود مدیریت مرکزی — چیدو';
+ document.querySelector('#siteLoginForm h2').textContent='ورود مدیر مرکزی';
  document.querySelector('.login-intro h1').textContent='مدیریت مرکزی چیدو';
  document.querySelector('.login-intro p').textContent='با حساب مدیریت مرکزی وارد شو.';
  document.querySelector('.activation-link').href='central.html?activate=1';
