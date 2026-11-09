@@ -1,5 +1,5 @@
 import {LiveApprovalHost} from './live-approval-host.js?v=0.16.3';
-import {bindAROrientation} from './ar-orientation.js?v=0.16.8';
+import {bindAROrientation} from './ar-orientation.js?v=0.16.9';
 import {liveSession} from './live-approval.js?v=0.16.1';
 import {mountMaterialPanel} from './material-panel.js?v=0.16.2';
 import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.16.2';
