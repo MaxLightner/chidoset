@@ -3,6 +3,7 @@ import { mountHero, createProductImages, mountViewer, startAR } from './scene.js
 
 const $ = selector => document.querySelector(selector);
 document.querySelector('[data-open-app]')?.setAttribute('href', CHIDO_CONFIG.applicationUrl);
+document.querySelectorAll('[data-site-login]').forEach(link=>link.setAttribute('href', CHIDO_CONFIG.workspaceUrl));
 const $$ = selector => Array.from(document.querySelectorAll(selector));
 const money = number => Number(number).toLocaleString('fa-IR') + ' تومان';
 const clamp01 = number => Math.max(0, Math.min(1, number));

@@ -32,7 +32,7 @@ try{
   if(a.role==='branch')assert.equal(await page.evaluate(()=>Object.keys(localStorage).some(k=>k.startsWith('chido:recovery:v2:'))),false);
   await page.reload();await page.locator('#startAR:not([disabled])').waitFor({timeout:60000});await page.waitForFunction(()=>globalThis.__qaStudio.items.length===2&&globalThis.__qaStudio.items.every(m=>m.userData.modelLoaded),null,{timeout:60000});assert.deepEqual(await page.evaluate(()=>globalThis.__qaStudio.items.map(m=>m.userData.index)),[22,25]);
   // A legacy procedural draft must not reappear if the new recovery record is absent.
-  await page.evaluate(()=>{const scene=globalThis.__qaStudio.exportState();scene.items=[{...scene.items[0],index:0}];for(const store of [localStorage,sessionStorage])for(const k of Object.keys(store))if(k.startsWith('chido:recovery:v2:'))store.removeItem(k);localStorage.setItem('tolica:draft:v1',JSON.stringify({scene,updatedAt:Date.now()}));globalThis.__qaStudio.items=[];});
+  await page.evaluate(()=>{const scene=globalThis.__qaStudio.exportState();scene.items=[{...scene.items[0],index:0}];for(const store of [localStorage,sessionStorage])for(const k of Object.keys(store))if(k.startsWith('chido:recovery:v2:'))store.removeItem(k);localStorage.setItem('chido:draft:v1',JSON.stringify({scene,updatedAt:Date.now()}));globalThis.__qaStudio.items=[];});
   await page.reload();await page.locator('#startAR:not([disabled])').waitFor({timeout:60000});assert.equal(await page.evaluate(()=>globalThis.__qaStudio.items.length),0);
   await page.context().close();console.log('PASS real GLBs, textures, v15 sofa-only shadow, retained renderer, scoped refresh and legacy draft rejection: '+a.role);
  }));

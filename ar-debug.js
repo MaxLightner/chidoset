@@ -122,7 +122,7 @@ export class ARDebugView{
   this.onUpdate?.(sample);
  }
  exportLog(){
-  return {type:'tolica-ar-diagnostics',version:'0.2.6',startedAt:this.startedAt,exportedAt:new Date().toISOString(),platform:navigator.userAgent,notes:'XR tracking-space coordinates in metres. No camera images/audio captured. Unsupported Plane Detection appears as unavailable.',events:this.events,samples:this.samples};
+  return {type:'chidoset-diagnostics',version:'0.2.6',startedAt:this.startedAt,exportedAt:new Date().toISOString(),platform:navigator.userAgent,notes:'XR tracking-space coordinates in metres. No camera images/audio captured. Unsupported Plane Detection appears as unavailable.',events:this.events,samples:this.samples};
  }
  summary(){
   const s=this.lastState;

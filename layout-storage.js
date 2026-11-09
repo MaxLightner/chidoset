@@ -1,5 +1,5 @@
-const DRAFT='tolica:draft:v1';
-const SAVED='tolica:custom-layouts:v1';
+const DRAFT='chido:draft:v1';
+const SAVED='chido:custom-layouts:v1';
 const safeJSON=(store,key)=>{try{return JSON.parse(store.getItem(key)||'null');}catch{return null;}};
 const validScene=scene=>scene&&typeof scene==='object'&&Array.isArray(scene.items)&&scene.items.length<=64&&scene.spatial;
 export function readDraft(store=globalThis.localStorage){

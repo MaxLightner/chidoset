@@ -792,7 +792,7 @@ function openGitHubDebugIssue(){
  if(!studio)return;
  const data=studio.debugExport(),last=studio.debugView.lastState;
  const body=['## CHIDO AR diagnostic report','Version: v0.3.4','Started: '+(data.startedAt||'unknown'),'','### Latest readout','```',studio.debugView.summary(),'```','','### Events','```',JSON.stringify(data.events.slice(-12),null,2),'```','','### Device test notes','(Describe whether the floor was above or below the carpet.)','','The full time-series log is available via the Save JSON button. Attach it manually if needed.'].join('\\n');
- const url='https://github.com/MaxLightner/tolica-ar/issues/new?title='+encodeURIComponent('AR floor detection debug report')+'&body='+encodeURIComponent(body);
+ const url='https://github.com/MaxLightner/chidoset/issues/new?title='+encodeURIComponent('AR floor detection debug report')+'&body='+encodeURIComponent(body);
  window.open(url,'_blank','noopener');
 }
 

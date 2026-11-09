@@ -4,9 +4,9 @@
 
 سایت معرفی به پنل واقعی شرکت و اپلیکیشن متصل است. کدهای مرحله اول از `feature/chido-stage1` ادغام و نقص‌های اجرایی آن رفع شدند. پنل کامل مدیریت مرکزی چیدو در این مرحله ساخته نشده است.
 
-- سایت: https://maxlightner.github.io/tolica-ar/website/
-- پنل شرکت: https://maxlightner.github.io/tolica-ar/portal.html#company-access
-- اپلیکیشن: https://maxlightner.github.io/tolica-ar/
+- سایت: https://maxlightner.github.io/chidoset/website/
+- پنل شرکت: https://maxlightner.github.io/chidoset/portal.html#company-access
+- اپلیکیشن: https://maxlightner.github.io/chidoset/
 - بک‌اند مشترک: پروژه `zeeztpblibcqtxompvxa`؛ سرویس `chido-api`.
 
 ## اصلاحات

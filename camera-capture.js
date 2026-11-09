@@ -6,7 +6,7 @@ export function cropRect(width,height,ratio){
  if(sourceRatio>ratio){const w=height*ratio;return {sx:(width-w)/2,sy:0,sw:w,sh:height};}
  const h=width/ratio;return {sx:0,sy:(height-h)/2,sw:width,sh:h};
 }
-export const CAMERA_PHOTO_KIND='tolica-camera';
+export const CAMERA_PHOTO_KIND='chido-camera';
 export const isCameraPhoto=photo=>photo?.kind===CAMERA_PHOTO_KIND;
 export const CAMERA_RATIOS=Object.freeze({'9:16':9/16,'3:4':3/4,'1:1':1,'4:3':4/3,'16:9':16/9});
 

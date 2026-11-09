@@ -1,13 +1,13 @@
 // Marketing/storefront demo data stays separate from the real company workspace.
 // Workspace and application links share the backend configured in ../backend-config.js.
-const applicationRoot = globalThis.location?.hostname.endsWith('.chatgpt.site')
-  ? 'https://maxlightner.github.io/tolica-ar/'
-  : new URL('../', import.meta.url).href;
+import {CHIDO_URLS, deployedChidoHost} from '../chido-urls.js';
+const hosted = deployedChidoHost() || globalThis.location?.hostname.endsWith('.chatgpt.site');
+const applicationRoot = hosted ? CHIDO_URLS.application : new URL('../', import.meta.url).href;
 export const CHIDO_CONFIG = Object.freeze({
   mode: 'frontend-demo',
   workspaceUrl: new URL('login.html', applicationRoot).href,
-  centralUrl: new URL('login.html', applicationRoot).href,
-  applicationUrl: new URL('index.html', applicationRoot).href,
+  centralUrl: hosted ? CHIDO_URLS.central : new URL('central.html', applicationRoot).href,
+  applicationUrl: hosted ? CHIDO_URLS.application : new URL('index.html', applicationRoot).href,
   domain: 'chidoset.ir',
   endpoints: {
     api: '',

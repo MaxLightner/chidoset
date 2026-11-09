@@ -26,7 +26,7 @@ Camera pose is updated through `live_session_cameras`; scene state is updated on
 
 ## Deployment
 
-- App/portal/guest pages are in the existing `tolica-ar` GitHub Pages repository.
+- App/portal/guest pages are in the existing `chidoset` GitHub Pages repository.
 - `chido-api` is deployed as a Supabase Edge Function with gateway JWT verification disabled because it supports code exchange and guest access; each route performs its own validation.
 - `menu-api` is replaced with a 410 retirement response.
 - The browser bundle contains only the Supabase publishable key. The service-role key is used only by the Edge Function.

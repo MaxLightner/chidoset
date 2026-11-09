@@ -5,7 +5,7 @@ const CACHE_NAME='chido-models-v1';
 const MAX_MODELS=48;
 
 export function modelCacheKey(url){
- const parsed=new URL(url,globalThis.location?.href||'https://maxlightner.github.io/tolica-ar/');
+ const parsed=new URL(url,globalThis.location?.href||'https://maxlightner.github.io/chidoset/');
  const version=parsed.searchParams.get('v')||'';
  const identity=parsed.origin+parsed.pathname+(version?'?v='+version:'');
  return new URL('__chido-glb-cache__/'+encodeURIComponent(identity),globalThis.location?.origin||'https://maxlightner.github.io').href;

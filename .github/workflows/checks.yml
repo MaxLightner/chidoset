@@ -1,4 +1,4 @@
-name: Tolica JavaScript checks
+name: Chido JavaScript checks
 on:
   push:
     branches: [main, feature/ar-first-ui-decor-ruler-028, feature/chido-stage1]

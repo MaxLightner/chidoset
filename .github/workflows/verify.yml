@@ -1,4 +1,4 @@
-name: Verify Tolica
+name: Verify Chido
 on:
   push:
     branches: [main, feature/chido-stage1]
@@ -18,3 +18,5 @@ jobs:
         run: npm run check
       - name: Regression tests
         run: npm test
+      - name: Cloudflare production package
+        run: npm run build:cloudflare

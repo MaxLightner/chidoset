@@ -1,5 +1,5 @@
 // Versioned, device-local preferences. A future account adapter can implement the same get/set contract.
-const KEY='tolica:settings:v1';
+const KEY='chido:settings:v1';
 export const DEFAULT_SETTINGS=Object.freeze({
  lighting:true,shadows:true,brightness:1,gamma:1,occlusion:true,grid:true,camera:true,units:'cm'
 });

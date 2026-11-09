@@ -1,4 +1,4 @@
-// Tolica native still-photo composition from WebXR Raw Camera Access.
+// Chido native still-photo composition from WebXR Raw Camera Access.
 // No screen sharing or OS screenshot. Access is available only with "camera-access".
 import * as THREE from './vendor/three.module.js';
 import {cropRect,CAMERA_RATIOS} from './camera-capture.js';
