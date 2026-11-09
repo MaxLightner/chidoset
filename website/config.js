@@ -5,7 +5,7 @@ const hosted = deployedChidoHost() || globalThis.location?.hostname.endsWith('.c
 const applicationRoot = hosted ? CHIDO_URLS.application : new URL('../', import.meta.url).href;
 export const CHIDO_CONFIG = Object.freeze({
   mode: 'frontend-demo',
-  workspaceUrl: new URL('login.html', applicationRoot).href,
+  workspaceUrl: hosted ? new URL('login.html', CHIDO_URLS.website).href : new URL('login.html', applicationRoot).href,
   centralUrl: hosted ? CHIDO_URLS.central : new URL('central.html', applicationRoot).href,
   applicationUrl: hosted ? CHIDO_URLS.application : new URL('index.html', applicationRoot).href,
   domain: 'chidoset.ir',
