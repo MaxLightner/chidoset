@@ -936,3 +936,80 @@ html:fullscreen{padding:0!important}html:fullscreen body{max-width:none;border-r
  #overlay .ar-minimap.expanded .map-title [data-map-expand]{min-height:34px;font-size:12px!important;padding:5px 8px}
  #overlay .camera-shot-actions{padding:4px}
 }
+
+/* WebXR DOM overlay can keep the old media-query state during a live rotation.
+   The orientation attribute is refreshed on resize, visualViewport and orientationchange.
+   These rules make the tool layout switch without exiting AR or recreating its renderer. */
+#overlay[data-ui-orientation="landscape"]{width:100vw;height:100dvh;inset:0}
+#overlay[data-ui-orientation="landscape"] .ar-top{
+ top:calc(env(safe-area-inset-top,0px) + 5px)!important;
+ min-height:42px;padding:4px 7px;gap:4px;flex-wrap:nowrap!important
+}
+#overlay[data-ui-orientation="landscape"] .ar-top .ar-nav-actions{gap:3px;flex-shrink:0}
+#overlay[data-ui-orientation="landscape"] .ar-top button{min-height:36px!important;padding:5px 7px!important;font-size:11px!important;white-space:nowrap}
+#overlay[data-ui-orientation="landscape"] .ar-top #arStatus{flex:1 1 38px;min-width:0;flex-basis:auto;font-size:11px!important}
+#overlay[data-ui-orientation="landscape"] .ar-top #arIdentity{max-width:90px;font-size:10px!important}
+#overlay[data-ui-orientation="landscape"] .ar-top .wide-view-panel{flex:0 0 auto;margin:0;gap:3px}
+#overlay[data-ui-orientation="landscape"] .ar-top .wide-view-panel select{max-width:112px;min-height:35px;font-size:10px}
+#overlay[data-ui-orientation="landscape"].floor-ready .ar-dock{
+ position:absolute!important;left:calc(env(safe-area-inset-left,0px) + 6px)!important;right:auto!important;
+ top:calc(env(safe-area-inset-top,0px) + 60px)!important;bottom:calc(env(safe-area-inset-bottom,0px) + 7px)!important;
+ display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;
+ width:61px!important;max-width:61px!important;max-height:none!important;
+ transform:none!important;margin:0!important;padding:4px!important;gap:3px!important;
+ overflow-x:hidden!important;overflow-y:auto!important;scroll-snap-type:y proximity
+}
+#overlay[data-ui-orientation="landscape"].floor-ready .ar-dock button{
+ flex:0 0 auto!important;width:100%!important;min-width:0!important;min-height:45px!important;
+ padding:3px 1px!important;font-size:19px!important
+}
+#overlay[data-ui-orientation="landscape"] .ar-dock button span{font-size:10px!important;line-height:1.1}
+#overlay[data-ui-orientation="landscape"].floor-ready .ar-bottom.compact{
+ top:auto!important;left:auto!important;right:calc(env(safe-area-inset-right,0px) + 8px)!important;
+ bottom:calc(env(safe-area-inset-bottom,0px) + 7px)!important;
+ transform:none!important;max-width:calc(100vw - 88px)!important;
+ width:max-content!important;padding:4px!important
+}
+#overlay[data-ui-orientation="landscape"].floor-ready .ar-bottom-actions{gap:3px;flex-wrap:nowrap}
+#overlay[data-ui-orientation="landscape"].floor-ready .ar-bottom-actions button{
+ min-height:38px!important;font-size:clamp(10px,1.5vw,13px)!important;padding:6px 8px!important
+}
+#overlay[data-ui-orientation="landscape"].floor-ready .ar-tool-sheet{
+ position:absolute!important;left:auto!important;right:calc(env(safe-area-inset-right,0px) + 8px)!important;
+ bottom:calc(env(safe-area-inset-bottom,0px) + 57px)!important;top:auto!important;
+ width:min(440px,calc(100vw - 92px))!important;max-width:none!important;
+ max-height:calc(100dvh - 123px)!important;min-height:0!important;
+ margin:0!important;padding:10px!important;overflow:auto;overscroll-behavior:contain
+}
+#overlay[data-ui-orientation="landscape"] .ar-object-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+#overlay[data-ui-orientation="landscape"] .catalog-preview{height:48px}
+#overlay[data-ui-orientation="landscape"] .catalog-tile{min-height:68px;padding:4px}
+#overlay[data-ui-orientation="landscape"] .ar-minimap:not(.expanded){
+ right:calc(env(safe-area-inset-right,0px) + 8px);bottom:calc(env(safe-area-inset-bottom,0px) + 58px);
+ width:clamp(108px,15vw,145px);padding:5px
+}
+#overlay[data-ui-orientation="landscape"]:has(#arToolSheet:not([hidden])) .ar-minimap:not(.expanded){display:none!important}
+#overlay[data-ui-orientation="landscape"] .ar-minimap.expanded{
+ inset:calc(env(safe-area-inset-top,0px) + 58px) calc(env(safe-area-inset-right,0px) + 8px)
+ calc(env(safe-area-inset-bottom,0px) + 54px) calc(env(safe-area-inset-left,0px) + 76px)!important;
+ width:auto!important
+}
+#overlay[data-ui-orientation="landscape"] .object-quick{
+ top:calc(env(safe-area-inset-top,0px) + 61px)!important;
+ left:calc(env(safe-area-inset-left,0px) + 73px)!important;
+ transform:none!important;width:60px;max-height:calc(100dvh - 127px)
+}
+#overlay[data-ui-orientation="landscape"] .object-quick button{min-height:42px!important;font-size:18px!important}
+#overlay[data-ui-orientation="landscape"] .object-quick button>span{font-size:20px}
+#overlay[data-ui-orientation="landscape"] .object-quick button>small{font-size:10px!important}
+#overlay[data-ui-orientation="landscape"] .ar-surface-actions{left:calc(env(safe-area-inset-left,0px) + 77px);top:calc(env(safe-area-inset-top,0px) + 61px)}
+#overlay[data-ui-orientation="landscape"] .ab-calibration-sheet,
+#overlay[data-ui-orientation="landscape"] .ar-architecture-actions{
+ left:79px;right:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 57px)
+}
+@media(max-height:470px){
+ #overlay[data-ui-orientation="landscape"] .ar-top #arIdentity{display:none}
+ #overlay[data-ui-orientation="landscape"].floor-ready .ar-dock button{min-height:41px!important;font-size:17px!important}
+ #overlay[data-ui-orientation="landscape"] .ar-dock button span{font-size:9px!important}
+ #overlay[data-ui-orientation="landscape"] .ar-minimap:not(.expanded) .map-meta{display:none}
+}

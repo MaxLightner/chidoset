@@ -1,4 +1,5 @@
 import {LiveApprovalHost} from './live-approval-host.js?v=0.16.3';
+import {bindAROrientation} from './ar-orientation.js?v=0.16.6';
 import {liveSession} from './live-approval.js?v=0.16.1';
 import {mountMaterialPanel} from './material-panel.js?v=0.16.2';
 import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.16.2';
@@ -24,6 +25,7 @@ import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanyS
 const studioCache=new StudioCache();
 const studioOwner=()=>cloudMembership?cloudMembership.company_id+':'+cloudMembership.user.id:'';
 const $=s=>document.querySelector(s),app=$('#app'),fa=n=>n.toLocaleString('fa-IR');
+bindAROrientation($('#overlay'));
 let studio,Scene,palette,space='پذیرایی',layout='empty',supported=false,routeVersion=0,photoURLs=[],savedItems=[],arReport=null,sceneMemory=null,arStarting=false,lastXRErrorReport='',activeSavedLayoutId=null;
 const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio);
 let chidoMenuOpen=false;
