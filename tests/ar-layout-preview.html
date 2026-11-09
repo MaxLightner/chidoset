@@ -6,10 +6,10 @@
 <h1>آزمایش جانمایی نوارهای AR</h1>
 <p>این صفحه صرفاً تست اندازهٔ رابط است؛ دوربین واقعی یا نشست WebXR اجرا نمی‌شود.</p>
 <main>
-<section><h2>گوشی افقی · 568 × 320</h2><iframe width="568" height="320" src="ar-layout-frame.html?mode=landscape"></iframe><pre>در انتظار بررسی...</pre></section>
-<section><h2>گوشی افقی · 844 × 390</h2><iframe width="844" height="390" src="ar-layout-frame.html?mode=landscape"></iframe><pre>در انتظار بررسی...</pre></section>
-<section><h2>تبلت افقی · 1024 × 768</h2><iframe width="1024" height="768" src="ar-layout-frame.html?mode=landscape"></iframe><pre>در انتظار بررسی...</pre></section>
-<section><h2>گوشی عمودی · 390 × 844</h2><iframe width="390" height="844" src="ar-layout-frame.html?mode=portrait"></iframe><pre>در انتظار بررسی...</pre></section>
+<section><h2>گوشی افقی · 568 × 320</h2><iframe width="568" height="320" src="ar-layout-frame.html?mode=landscape&qa=0.16.8"></iframe><pre>در انتظار بررسی...</pre></section>
+<section><h2>گوشی افقی · 844 × 390</h2><iframe width="844" height="390" src="ar-layout-frame.html?mode=landscape&qa=0.16.8"></iframe><pre>در انتظار بررسی...</pre></section>
+<section><h2>تبلت افقی · 1024 × 768</h2><iframe width="1024" height="768" src="ar-layout-frame.html?mode=landscape&qa=0.16.8"></iframe><pre>در انتظار بررسی...</pre></section>
+<section><h2>گوشی عمودی · 390 × 844</h2><iframe width="390" height="844" src="ar-layout-frame.html?mode=portrait&qa=0.16.8"></iframe><pre>در انتظار بررسی...</pre></section>
 </main>
 <script>addEventListener('message',event=>{if(event.origin!==location.origin||!event.data?.chidoArPreview)return;const frame=[...document.querySelectorAll('iframe')].find(f=>f.contentWindow===event.source);if(!frame)return;const r=event.data.chidoArPreview,errors=Object.entries(r).filter(([k,v])=>k.startsWith('overlap')&&v);frame.nextElementSibling.textContent=errors.length?'تداخل یافت شد: '+errors.map(([k])=>k).join('، '):'بدون تداخل نوارهای اصلی';frame.nextElementSibling.style.color=errors.length?'#b33':'#207a40';});</script>
 </html>
