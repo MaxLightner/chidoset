@@ -9,6 +9,9 @@ test('landscape is determined from the viewport without locking XR orientation',
  assert.equal(arLayoutOrientation({width:1024,height:768}),'landscape');
  assert.equal(arLayoutOrientation({width:768,height:1024}),'portrait');
  assert.equal(arLayoutOrientation({width:600,height:600,angle:90}),'landscape');
+ assert.equal(arLayoutOrientation({width:390,height:844,type:'landscape-primary',angle:90}),'landscape','XR may temporarily retain portrait viewport dimensions');
+ assert.equal(arLayoutOrientation({width:844,height:390,type:'portrait-primary',angle:0}),'portrait','orientation sensor wins during transition');
+ assert.equal(arLayoutOrientation({width:390,height:844,visualWidth:844,visualHeight:390}),'landscape');
 });
 
 test('a resize reflows AR controls in place without leaving the AR session',()=>{
@@ -36,4 +39,6 @@ test('landscape AR toolbars take separate left and right lanes',()=>{
  assert.match(css,/#overlay\[data-ui-orientation="landscape"\]\.floor-ready \.ar-dock\{[\s\S]*?flex-direction:column!important/);
  assert.match(css,/#overlay\[data-ui-orientation="landscape"\]\.floor-ready \.ar-tool-sheet\{[\s\S]*?left:auto!important;right:/);
  assert.match(css,/#overlay\[data-ui-orientation="landscape"\]\.floor-ready \.ar-bottom\.compact\{[\s\S]*?left:auto!important;right:/);
+ assert.match(css,/#overlay\[data-ui-orientation="portrait"\]\.floor-ready \.ar-dock\{[\s\S]*?flex-direction:row!important/);
+ assert.match(css,/#overlay\[data-ui-orientation="landscape"\]\.floor-ready \.ar-bottom\.compact\{[\s\S]*?overflow-x:auto!important/);
 });

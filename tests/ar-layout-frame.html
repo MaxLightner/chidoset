@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="../style.css?v=0.16.7">
+<style>
+html,body{margin:0!important;width:100%!important;height:100%!important;max-width:none!important;overflow:hidden!important}
+#overlay{display:block!important;background:#d6dfdb!important}
+#overlay[hidden]{display:block!important}
+.ar-sim-world{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;color:#768d83;font:24px Arial}
+.ar-sim-world::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent 49.8%,#92ab9a22 50%,transparent 50.2%),linear-gradient(transparent 49.8%,#92ab9a22 50%,transparent 50.2%)}
+.ar-sim-world span{background:#eef4ecaa;padding:18px;border-radius:12px}
+#arToolSheet{display:block!important}
+</style>
+</head>
+<body>
+<div id="overlay" class="floor-ready" data-ui-orientation="landscape">
+ <div class="ar-sim-world"><span>صحنه AR</span></div>
+ <div class="ar-top"><div class="ar-nav-actions"><button>منوی چیدو</button><button>اسکن مجدد</button></div><span id="arIdentity">فروشگاه</span><span id="arStatus">کف ثابت شد</span><div class="wide-view-panel"><select><option>Wide · 84°</option></select><label class="wide-natural-label">نمای طبیعی</label></div></div>
+ <nav id="arDock" class="ar-dock">
+  <button>＋<span>افزودن</span></button><button>◩<span>رنگ</span></button><button>▤<span>اشیا</span></button><button>⌗<span>خط‌کش</span></button><button>▱<span>فضا</span></button><button>A—B<span>مقیاس</span></button><button>⚙<span>تنظیمات</span></button><button>◎<span>عکس</span></button>
+ </nav>
+ <aside id="arToolSheet" class="ar-tool-sheet"><div class="ar-sheet-head"><strong>افزودن مدل</strong><button>×</button></div><div class="ar-category-tabs"><button>مبلمان</button><button>میز</button><button>دکوری</button></div><div class="ar-object-grid"><button class="catalog-tile">مبل یک</button><button class="catalog-tile">مبل دو</button><button class="catalog-tile">صندلی</button><button class="catalog-tile">میز</button><button class="catalog-tile">چراغ</button><button class="catalog-tile">گلدان</button></div></aside>
+ <section id="arMiniMap" class="ar-minimap"><div class="map-title">نقشه چیدمان</div></section>
+ <div class="ar-bottom compact"><div class="ar-bottom-actions"><button>ذخیره رسمی</button><button>چیدمان‌های رسمی</button><button>رنگ‌بندی</button><button>نمایش زنده</button></div></div>
+</div>
+<script>
+const type=new URLSearchParams(location.search).get('mode')==='portrait'?'portrait':'landscape';
+document.querySelector('#overlay').dataset.uiOrientation=type;
+addEventListener('load',()=>setTimeout(()=>{
+ const q=s=>document.querySelector(s).getBoundingClientRect();
+ const overlaps=(a,b)=>Math.min(a.right,b.right)-Math.max(a.left,b.left)>3&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>3;
+ const dock=q('#arDock'),sheet=q('#arToolSheet'),bottom=q('.ar-bottom'),top=q('.ar-top');
+ const result={width:innerWidth,height:innerHeight,type,overlapDockSheet:overlaps(dock,sheet),overlapDockBottom:overlaps(dock,bottom),overlapSheetBottom:overlaps(sheet,bottom),overlapTopDock:overlaps(top,dock),overlapTopSheet:overlaps(top,sheet),dock:{x:Math.round(dock.left),y:Math.round(dock.top),width:Math.round(dock.width)},sheet:{x:Math.round(sheet.left),y:Math.round(sheet.top),width:Math.round(sheet.width)}};
+ parent.postMessage({chidoArPreview:result},location.origin);
+},200));
+</script>
+</body>
+</html>
