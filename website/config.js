@@ -1,6 +1,6 @@
 // Marketing/storefront demo data stays separate from the real company workspace.
 // Workspace and application links share the backend configured in ../backend-config.js.
-import {CHIDO_URLS, deployedChidoHost} from '../chido-urls.js';
+import {CHIDO_URLS, deployedChidoHost} from '../chido-urls.js?v=20261110';
 const hosted = deployedChidoHost() || globalThis.location?.hostname.endsWith('.chatgpt.site');
 const applicationRoot = hosted ? CHIDO_URLS.application : new URL('../', import.meta.url).href;
 export const CHIDO_CONFIG = Object.freeze({

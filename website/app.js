@@ -1,4 +1,4 @@
-import { CHIDO_CONFIG, SAMPLE_PRODUCTS } from './config.js?v=0.12.6';
+import { CHIDO_CONFIG, SAMPLE_PRODUCTS } from './config.js?v=0.12.7';
 import { mountHero, createProductImages, mountViewer, startAR } from './scene.js?v=0.12.5';
 
 const $ = selector => document.querySelector(selector);

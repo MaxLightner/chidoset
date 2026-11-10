@@ -1,6 +1,6 @@
 export const CHIDO_URLS = Object.freeze({
   website: 'https://chidoset.ir/',
-  application: 'https://app.chidoset.ir/',
+  application: 'https://chidoset.ir/index.html',
   central: 'https://admin.chidoset.ir/',
 });
 export function deployedChidoHost(hostname = globalThis.location?.hostname || '') {
