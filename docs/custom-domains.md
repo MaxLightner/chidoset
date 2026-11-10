@@ -1,21 +1,26 @@
 # Chido production domains
 
-- `https://chidoset.ir/`: marketing website.
-- `https://app.chidoset.ir/`: AR application and company workspace.
-- `https://admin.chidoset.ir/`: central administration, with a separate browser session.
+- `https://chidoset.ir/`: opens the marketing website at `/website/`.
+- `https://chidoset.ir/index.html`: AR application. Login and company pages use the same origin.
+- `https://admin.chidoset.ir/`: planned central-administration hostname; its independent GitHub Pages publication is not configured yet.
 - `www.chidoset.ir`: canonical redirect to the marketing website.
 
-Source repository: `MaxLightner/chidoset`. The repository stores code; Cloudflare Pages serves production.
+Source and hosting: `MaxLightner/chidoset`, GitHub Pages, `main`, repository root.
+Cloudflare manages DNS. The Cloudflare Pages hosting project was deleted; do not recreate it or migrate hosting away from GitHub Pages.
 
 ## Pages configuration
 
-Use the `main` branch, no framework preset, build command `npm run build:cloudflare`, output directory `dist`, and Node 22 or later. Associate all four production hostnames with the same Pages project. `deploy/cloudflare-worker.mjs` routes each hostname to its correct entry point. The source still runs as an ordinary static checkout for local QA.
+In GitHub Settings → Pages, use “Deploy from a branch”, `main`, `/ (root)`, custom domain `chidoset.ir`, and enforce HTTPS. The root `CNAME` file must contain `chidoset.ir`. GitHub automatically deploys pushes to `main`.
 
-The build uses only Node's standard library and tracked public files. It excludes database code, operational scripts, tests, documentation, Git metadata and environment files. Models larger than the Pages per-file limit stop the build rather than silently disappear.
+The bare-domain entry redirects to the existing marketing directory. Explicit `/index.html` remains the application, preserving its relative assets and navigation. A single Pages publication does not provide independent app/admin host routing. Merely creating their DNS records does not publish those applications.
+
+`deploy/cloudflare-worker.mjs` and `scripts/build-cloudflare.mjs` are inactive legacy deployment files. Their host routing does not run on GitHub Pages.
+
+The branch-based Pages publication serves tracked static files. Never commit credentials or private customer data. Existing client libraries are vendored locally so startup and QR generation do not depend on a separate JavaScript CDN.
 
 ## Identity
 
-Administration, application and marketing have distinct browser origins. Authentication tokens are never transferred in query strings or fragments. Central administrators enter through the admin hostname. Existing server-side role checks remain authoritative; a hostname never grants a role.
+Authentication tokens are never transferred in query strings or fragments. Existing server-side role checks remain authoritative; a hostname never grants a role. The intended central-admin origin remains separate, but its publication must be completed before treating that hostname as live.
 
 If Supabase email confirmation, password reset or OAuth is enabled, configure exact production callback URLs in Auth URL Configuration. Do not authorize arbitrary store subdomains as authentication callbacks. Current username/password login uses `chido-login` and does not require an OAuth callback.
 

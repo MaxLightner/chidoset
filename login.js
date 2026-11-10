@@ -1,7 +1,7 @@
 import {accountLogin} from './account-login.js';
 import {rememberAccount,accountName} from './auth-storage.js';
-import {supabase,getMembership} from './chido-cloud.js?v=0.15.0';
-import {centralAuth} from './central-service.js?v=0.12.2';
+import {supabase,getMembership} from './chido-cloud.js?v=0.16.10';
+import {centralAuth} from './central-service.js?v=0.16.10';
 import {CHIDO_URLS,deployedChidoHost} from './chido-urls.js';
 const centralHost=location.hostname==='admin.chidoset.ir';
 if(deployedChidoHost()){

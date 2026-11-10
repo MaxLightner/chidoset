@@ -1,0 +1,2 @@
+# The upstream bundle contains significant trailing whitespace in template literals.
+vendor/supabase-js-2.119.0.mjs whitespace=-blank-at-eol

@@ -1,6 +1,6 @@
 import {authStorage} from './auth-storage.js';
 import {configureTelemetry} from './telemetry.js';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.119.0';
+import { createClient } from './vendor/supabase-js-2.119.0.mjs';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, CHIDO_API_URL } from './backend-config.js';
 import {registerCloudProducts,getCloudProduct} from './cloud-product-registry.js';
 

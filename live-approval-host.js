@@ -1,6 +1,6 @@
-import {pendingHostViews,changeLiveViewRequest,endHostViews} from './live-approval.js?v=0.16.1';
+import {pendingHostViews,changeLiveViewRequest,endHostViews} from './live-approval.js?v=0.16.10';
 import {recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.16.1';
-import {supabase} from './chido-cloud.js?v=0.16.1';
+import {supabase} from './chido-cloud.js?v=0.16.10';
 import {approvedLiveTopic} from './live-broadcast.js?v=0.16.3';
 export class LiveApprovalHost{
  constructor({getStudio,publish,onEnd}){

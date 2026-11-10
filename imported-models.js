@@ -46,7 +46,7 @@ function loadFabric(file,repeat=4){
  if(!fabricCache.has(key)){
   let resolve,reject,timer;const ready=new Promise((ok,fail)=>{resolve=ok;reject=fail;});ready.catch(()=>{});
   const fail=error=>{clearTimeout(timer);if(fabricCache.get(key)===texture)fabricCache.delete(key);reject(error);};
-  const texture=textureLoader.load(new URL('./assets/chido/'+file+'?v=0.13.0',import.meta.url).href,value=>{clearTimeout(timer);resolve(value);},undefined,fail);
+  const texture=textureLoader.load(new URL('./assets/chido/'+file+'?v=0.16.10',import.meta.url).href,value=>{clearTimeout(timer);resolve(value);},undefined,fail);
   timer=setTimeout(()=>fail(Error('مهلت بارگذاری پارچه تمام شد؛ متریال اصلی مدل حفظ شد.')),45000);
   texture.userData.ready=ready;
   configureSofaTexture(texture,file,repeat);
@@ -98,7 +98,7 @@ export const isImportedLight=index=>index===28||index===29;
 export const isImportedNoShadow=index=>[28,29,30,31].includes(index);
 const source=(file)=>{
  if(!cache.has(file)){
-  const url=file.startsWith('https://')?file:new URL('./assets/chido/'+file+(file==='SheenChair.glb'?'?v=0.14.2':['sofaA1.glb','SofaC1.glb','sofab1.glb'].includes(file)?'?v=0.15.0':''),import.meta.url).href;
+  const url=file.startsWith('https://')?file:new URL('./assets/chido/'+file+'?v=0.16.10',import.meta.url).href;
   cache.set(file,loadModelBytes(url).then(bytes=>loader.parseAsync(bytes,new URL('.',url).href)).catch(error=>{cache.delete(file);throw error;}));
  }
  return cache.get(file);

@@ -1,0 +1,68 @@
+[
+  {
+    "file": "assets\\chido\\decor1.glb",
+    "before": 1820148,
+    "after": 847964,
+    "images": 2
+  },
+  {
+    "file": "assets\\chido\\desks1.glb",
+    "before": 856276,
+    "after": 795844,
+    "images": 3
+  },
+  {
+    "file": "assets\\chido\\desks2.glb",
+    "before": 858904,
+    "after": 798476,
+    "images": 3
+  },
+  {
+    "file": "assets\\chido\\lamp1.glb",
+    "before": 3592184,
+    "after": 3470112,
+    "images": 3
+  },
+  {
+    "file": "assets\\chido\\Lamp2.glb",
+    "before": 674556,
+    "after": 579444,
+    "images": 2
+  },
+  {
+    "file": "assets\\chido\\minidesk1.glb",
+    "before": 3463600,
+    "after": 3170364,
+    "images": 3
+  },
+  {
+    "file": "assets\\chido\\rug.glb",
+    "before": 467976,
+    "after": 95596,
+    "images": 1
+  },
+  {
+    "file": "assets\\chido\\SheenChair.glb",
+    "before": 3290648,
+    "after": 1421812,
+    "images": 6
+  },
+  {
+    "file": "assets\\chido\\sofaA1.glb",
+    "before": 768644,
+    "after": 695492,
+    "images": 2
+  },
+  {
+    "file": "assets\\chido\\sofab1.glb",
+    "before": 585204,
+    "after": 517296,
+    "images": 2
+  },
+  {
+    "file": "assets\\chido\\SofaC1.glb",
+    "before": 700568,
+    "after": 618996,
+    "images": 2
+  }
+]

@@ -1,5 +1,5 @@
-import {supabase,withLiveTimeout} from './chido-cloud.js?v=0.16.1';
-import {requestLiveView,readLiveViewRequest,changeLiveViewRequest} from './live-approval.js?v=0.16.1';
+import {supabase,withLiveTimeout} from './chido-cloud.js?v=0.16.10';
+import {requestLiveView,readLiveViewRequest,changeLiveViewRequest} from './live-approval.js?v=0.16.10';
 import {recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.16.1';
 import * as THREE from './vendor/three.module.js';
 import {LiveViewCamera} from './live-view-camera.js?v=0.16.4';

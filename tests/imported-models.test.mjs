@@ -61,7 +61,9 @@ test('SheenChair can be placed using the + marker, resized by catalog metadata, 
  assert.ok(document.materials.some(material=>material.extensions?.KHR_materials_sheen));
  assert.ok(document.extensionsUsed.includes('KHR_materials_variants'));
  assert.deepEqual(document.extensions.KHR_materials_variants.variants.map(v=>v.name),['Mango Velvet','Peacock Velvet']);
- assert.ok(readFileSync(fileURLToPath(new URL('../assets/chido/thumbs/1000.jpg',import.meta.url))).byteLength>10000);
+ const thumbnail=readFileSync(fileURLToPath(new URL('../assets/chido/thumbs/1000.jpg',import.meta.url)));
+ assert.equal(thumbnail.readUInt16BE(0),0xffd8,'thumbnail must be JPEG');
+ assert.ok(thumbnail.byteLength<20000,'a catalog thumbnail should stay under 20 KB');
 });
 
 test('external AO follows the native GLB UV orientation, not a vertically flipped atlas',()=>{

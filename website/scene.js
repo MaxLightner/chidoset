@@ -105,7 +105,7 @@ function makeRoza(color) {
 
 const factories = [makeAria, makeNava, makeRoza];
 const defaults = ['#d7c6ad', '#345f69', '#bb7960'];
-const fallbackAssets = ['./sofa-aria.webp', './sofa-nava.webp', './sofa-roza.webp'];
+const fallbackAssets = ['./sofa-aria.webp?v=0.16.10', './sofa-nava.webp?v=0.16.10', './sofa-roza.webp?v=0.16.10'];
 export function createSofa(variant = 0, color) {
   return factories[variant % 3](color || defaults[variant % 3]);
 }

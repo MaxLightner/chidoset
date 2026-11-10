@@ -1,0 +1,171 @@
+[
+  {
+    "file": "assets\\living.webp",
+    "before": 124418,
+    "after": 57242,
+    "from": [
+      1280,
+      853
+    ],
+    "to": [
+      960,
+      640
+    ]
+  },
+  {
+    "file": "assets\\welcome.webp",
+    "before": 55560,
+    "after": 23782,
+    "from": [
+      853,
+      1280
+    ],
+    "to": [
+      640,
+      960
+    ]
+  },
+  {
+    "file": "assets\\chido\\creme-fabric.jpg",
+    "before": 304308,
+    "after": 153824,
+    "from": [
+      1024,
+      1024
+    ],
+    "to": [
+      768,
+      768
+    ]
+  },
+  {
+    "file": "assets\\chido\\dark-fabric.jpg",
+    "before": 356087,
+    "after": 172442,
+    "from": [
+      1024,
+      1024
+    ],
+    "to": [
+      768,
+      768
+    ]
+  },
+  {
+    "file": "assets\\chido\\gray-fabric.jpg",
+    "before": 319725,
+    "after": 162257,
+    "from": [
+      1024,
+      1024
+    ],
+    "to": [
+      768,
+      768
+    ]
+  },
+  {
+    "file": "assets\\chido\\sofa-1-ao.jpg",
+    "before": 108393,
+    "after": 30661,
+    "from": [
+      1024,
+      1024
+    ],
+    "to": [
+      512,
+      512
+    ]
+  },
+  {
+    "file": "assets\\chido\\sofa-2-ao.jpg",
+    "before": 111851,
+    "after": 31147,
+    "from": [
+      1024,
+      1024
+    ],
+    "to": [
+      512,
+      512
+    ]
+  },
+  {
+    "file": "assets\\chido\\sofa-3-ao.jpg",
+    "before": 125471,
+    "after": 33958,
+    "from": [
+      1024,
+      1024
+    ],
+    "to": [
+      512,
+      512
+    ]
+  },
+  {
+    "file": "assets\\chido\\sofa-ao.jpg",
+    "before": 125471,
+    "after": 33958,
+    "from": [
+      1024,
+      1024
+    ],
+    "to": [
+      512,
+      512
+    ]
+  },
+  {
+    "file": "assets\\chido\\thumbs\\1000.jpg",
+    "before": 316185,
+    "after": 6286,
+    "from": [
+      1280,
+      1003
+    ],
+    "to": [
+      320,
+      251
+    ]
+  },
+  {
+    "file": "website\\sofa-aria.webp",
+    "before": 148628,
+    "after": 87176,
+    "from": [
+      1100,
+      733
+    ],
+    "to": [
+      960,
+      640
+    ]
+  },
+  {
+    "file": "website\\sofa-nava.webp",
+    "before": 39708,
+    "after": 30112,
+    "from": [
+      1100,
+      550
+    ],
+    "to": [
+      960,
+      480
+    ]
+  },
+  {
+    "file": "website\\sofa-roza.webp",
+    "before": 98562,
+    "after": 58658,
+    "from": [
+      1100,
+      563
+    ],
+    "to": [
+      960,
+      491
+    ]
+  }
+]

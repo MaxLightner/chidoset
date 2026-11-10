@@ -1,6 +1,6 @@
 import {accountLogin} from './account-login.js';
 import {conversation,labels as workspaceLabels} from './workspace-ui.js';
-import {centralAuth,centralRequest,writeCentral} from './central-service.js?v=0.12.2';
+import {centralAuth,centralRequest,writeCentral} from './central-service.js?v=0.16.10';
 import {validateWrite,validateGlb,CATEGORIES,builtInCategory} from './central-domain.mjs';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fa=v=>Number(v||0).toLocaleString('fa-IR');

@@ -1,5 +1,5 @@
 import {accountLogin} from './account-login.js';
-import {companyAuth,companyRequest,companyWrite,activateCompanyAdmin,requestCompanyAccess,uploadCompanyPhotos} from './company-service.js?v=0.12.2';
+import {companyAuth,companyRequest,companyWrite,activateCompanyAdmin,requestCompanyAccess,uploadCompanyPhotos} from './company-service.js?v=0.16.10';
 import {esc,fa,date,labels,status,table,empty,field,select,action,conversation} from './workspace-ui.js';
 const $=s=>document.querySelector(s);
 const nav=[['overview','نمای کلی'],['sets','ست‌ها و چیدمان‌ها'],['media','عکس‌ها'],['requests','درخواست‌ها'],['support','پشتیبانی'],['branches','نمایشگاه‌ها'],['users','کاربران نمایشگاه'],['subscription','اشتراک'],['notifications','اعلان‌ها'],['settings','اطلاعات مجموعه']];

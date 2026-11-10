@@ -1,5 +1,5 @@
 import { CHIDO_CONFIG, SAMPLE_PRODUCTS } from './config.js?v=0.12.7';
-import { mountHero, createProductImages, mountViewer, startAR } from './scene.js?v=0.12.5';
+import { mountHero, createProductImages, mountViewer, startAR } from './scene.js?v=0.16.10';
 
 const $ = selector => document.querySelector(selector);
 document.querySelector('[data-open-app]')?.setAttribute('href', CHIDO_CONFIG.applicationUrl);

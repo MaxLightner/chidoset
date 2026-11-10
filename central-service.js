@@ -1,6 +1,6 @@
 import {authStorage} from './auth-storage.js';
 import {configureTelemetry} from './telemetry.js';
-import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.119.0';
+import {createClient} from './vendor/supabase-js-2.119.0.mjs';
 import {SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY} from './backend-config.js';
 export const centralAuth=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,storage:authStorage('chido-central-auth-v1'),autoRefreshToken:true,detectSessionInUrl:false,storageKey:'chido-central-auth-v1'}});
 export async function centralRequest(path,body){

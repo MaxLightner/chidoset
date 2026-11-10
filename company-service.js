@@ -1,5 +1,5 @@
 import {lightweightPhoto} from './image-utils.js';
-import {supabase,activateCompanyAdmin,requestCompanyAccess} from './chido-cloud.js?v=0.12.2';
+import {supabase,activateCompanyAdmin,requestCompanyAccess} from './chido-cloud.js?v=0.16.10';
 import {SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY} from './backend-config.js';
 import {validateWorkspace} from './workspace-domain.mjs';
 export const companyAuth=supabase;

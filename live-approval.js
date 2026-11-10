@@ -1,4 +1,4 @@
-import {supabase,withLiveTimeout} from './chido-cloud.js?v=0.16.1';
+import {supabase,withLiveTimeout} from './chido-cloud.js?v=0.16.10';
 const fields='id,session_id,requester_id,client_id,status,host_client_id,host_message,created_at';
 const checked=async query=>{const {data,error}=await withLiveTimeout(query);if(error)throw error;if(!data)throw Error('درخواست نمایش در دسترس نیست.');return data;};
 export const requestLiveView=(sessionId,userId,clientId)=>checked(supabase.from('live_view_requests').insert({session_id:sessionId,requester_id:userId,client_id:clientId}).select(fields).single());
