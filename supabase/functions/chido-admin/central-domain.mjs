@@ -34,3 +34,4 @@ export function validateGlb(buffer){
  for(const resource of [...(json.buffers||[]),...(json.images||[])])if(resource.uri&&!resource.uri.startsWith('data:'))throw Error('مدل باید مستقل باشد؛ فایل‌های بیرونی را داخل GLB قرار بده.');
  return true;
 }
+
