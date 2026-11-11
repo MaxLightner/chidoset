@@ -1,4 +1,4 @@
-import {prepareUploadPhoto} from './image-utils.js?v=0.16.15';
+import {prepareUploadPhoto} from './image-utils.js?v=0.16.17';
 import {supabase,activateCompanyAdmin,requestCompanyAccess} from './chido-cloud.js?v=0.16.10';
 import {SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY} from './backend-config.js';
 import {validateWorkspace} from './workspace-domain.mjs';
@@ -14,7 +14,7 @@ export async function uploadCompanyPhotos(files,membership,onProgress=()=>{}){
  if(files.length>8)throw Error('در هر بار حداکثر ۸ عکس انتخاب کن.');
  const result=[];
  for(const original of files){
-  if(!['image/jpeg','image/png','image/webp'].includes(original.type)||!original.size)throw Error('عکس باید از نوع JPEG، PNG یا WebP باشد.');
+  if(!['image/jpeg','image/png','image/webp','image/heic','image/heif','image/avif'].includes(original.type)||!original.size)throw Error('فرمت عکس پشتیبانی نمی‌شود؛ JPEG، PNG، WebP، HEIC یا AVIF انتخاب کن.');
   if(original.size>100*1024*1024)throw Error('این فایل برای پردازش روی گوشی بیش از حد بزرگ است. عکس کوچک‌تری انتخاب کن.');
   onProgress(result.length,files.length,'preparing');
   const photo=await prepareUploadPhoto(original);
