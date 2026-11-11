@@ -1,4 +1,4 @@
-import {esc,fa,date,status,empty,action} from './workspace-ui.js';
+import {esc,fa,date,status,empty,action} from './workspace-ui.js?v=0.16.18';
 
 const byDate=(a,b)=>String(b.updated_at||b.created_at||'').localeCompare(String(a.updated_at||a.created_at||''));
 const latestSub=data=>(data.subscriptions||[]).slice().sort(byDate)[0];
