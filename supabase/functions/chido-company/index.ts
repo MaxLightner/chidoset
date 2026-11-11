@@ -6,6 +6,13 @@ const admin=createClient(url,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{p
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Content-Type':'application/json; charset=utf-8'};
 const response=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:cors});
 const checked=(r:any)=>{if(r.error)throw r.error;return r.data;};
+async function capacity(companyId:string){
+ const subscriptions=checked(await admin.from('subscriptions').select('plan_code,status,starts_at,ends_at').eq('company_id',companyId).order('starts_at',{ascending:false}).limit(20));
+ const current=subscriptions.find((s:any)=>['trial','active'].includes(s.status)&&Date.parse(s.ends_at)>Date.now());
+ const code=String(current?.plan_code||'trial').toLowerCase();
+ const agents=/annual|year|yearly|lifetime|10year|12m|1y/.test(code)?20:/half|6month|6month|6m|semi/.test(code)?10:3;
+ return {max_agents:agents,max_branches:agents===3?5:agents};
+}
 const hash=async(s:string)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s))),b=>b.toString(16).padStart(2,'0')).join('');
 async function member(req:Request){
  const token=req.headers.get('Authorization')?.replace(/^Bearer\s+/i,'')||'';
@@ -17,7 +24,7 @@ async function member(req:Request){
 }
 async function snapshot(m:any){
  const company=checked(await admin.from('companies').select('*').eq('id',m.company_id).single());
- const result:any={company,membership:{id:m.id,company_id:m.company_id,user_id:m.user_id,role:m.role,display_name:m.display_name,email:m.user.email},enabled:checked(await admin.rpc('chido_activation_company_enabled',{p_company_id:m.company_id}))};
+ const result:any={company,membership:{id:m.id,company_id:m.company_id,user_id:m.user_id,role:m.role,display_name:m.display_name,email:m.user.email},enabled:checked(await admin.rpc('chido_activation_company_enabled',{p_company_id:m.company_id})),limits:await capacity(m.company_id)};
  const tables=['branches','branch_devices','company_memberships','activation_codes','subscriptions','sets','company_media','company_requests','support_tickets','company_messages','showroom_accounts','company_notifications','activity_events'];
  const fields:any={activation_codes:'id,company_id,branch_id,role,expires_at,redeemed_at,revoked_at,created_at'};
  await Promise.all(tables.map(async table=>{
@@ -56,6 +63,31 @@ async function showroomLogin(req:Request){
 }
 async function write(req:Request,m:any){
  const body=await req.json();let data:any;try{data=validateWorkspace(body.action,body.data);}catch(e){return response({error:e.message},400);}
+ if(body.action==='request.review'){
+  const request=checked(await admin.from('company_requests').select('id,kind,status,set_id').eq('id',data.id).eq('company_id',m.company_id).maybeSingle());
+  if(!request||request.kind!=='model'||request.status!=='completed')return response({error:'مدل هنوز برای بررسی آماده نیست.'},409);
+  if(data.decision==='approve'){
+   const set=request.set_id?checked(await admin.from('sets').select('id,status,set_products(product_id)').eq('id',request.set_id).eq('company_id',m.company_id).maybeSingle()):null;
+   if(!set||set.status!=='published'||!set.set_products?.length)return response({error:'مدل تأییدشدنی هنوز در کتابخانه منتشر نشده است.'},409);
+  }
+  const next=data.decision==='approve'?'approved':'needs_info';
+  const rows=checked(await admin.from('company_requests').update({status:next,updated_at:new Date().toISOString()}).eq('id',data.id).eq('company_id',m.company_id).eq('status','completed').select('id'));
+  if(!rows.length)return response({error:'وضعیت درخواست تغییر کرده است؛ صفحه را تازه‌سازی کن.'},409);
+  const note=data.decision==='approve'?'مدل سه‌بعدی توسط مدیر مجموعه تأیید شد.':data.body;
+  await admin.from('company_messages').insert({company_id:m.company_id,request_id:data.id,author_id:m.user_id,sender:'company',body:note,media_ids:[]});
+  await admin.from('activity_events').insert({company_id:m.company_id,user_id:m.user_id,event_type:'workspace.request.review',payload:{id:data.id,decision:data.decision}});
+  return response({id:data.id,status:next});
+ }
+ if(body.action==='branch.save'&&!data.id){
+  const limits=await capacity(m.company_id);
+  // For head requests, count is separate from the data payload.
+  const r=await admin.from('branches').select('id',{count:'exact',head:true}).eq('company_id',m.company_id);
+  if(r.error)throw r.error;if((r.count||0)>=limits.max_branches)return response({error:'سقف شعبه‌های اشتراک تکمیل شده است.'},409);
+ }
+ if(body.action==='showroom.create'){
+  const limits=await capacity(m.company_id);const r=await admin.from('showroom_accounts').select('id',{count:'exact',head:true}).eq('company_id',m.company_id);
+  if(r.error)throw r.error;if((r.count||0)>=limits.max_agents)return response({error:'سقف عاملان فروش اشتراک تکمیل شده است.'},409);
+ }
  if(body.action==='showroom.create'||body.action==='showroom.update'){
   const branch=checked(await admin.from('branches').select('id').eq('id',data.branch_id).eq('company_id',m.company_id).maybeSingle());
   if(!branch)return response({error:'این نمایشگاه متعلق به مجموعه نیست.'},403);
@@ -95,3 +127,4 @@ Deno.serve(async req=>{
   return response({error:'مسیر درخواست معتبر نیست.'},404);
  }catch(e){console.error('chido-company',e.code||e.status||'error');return response({error:e.status?e.message:'ارتباط با فضای مجموعه انجام نشد. دوباره تلاش کن.'},e.status||500);}
 });
+
