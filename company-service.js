@@ -1,4 +1,4 @@
-import {prepareUploadPhoto} from './image-utils.js?v=0.16.14';
+import {prepareUploadPhoto} from './image-utils.js?v=0.16.15';
 import {supabase,activateCompanyAdmin,requestCompanyAccess} from './chido-cloud.js?v=0.16.10';
 import {SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY} from './backend-config.js';
 import {validateWorkspace} from './workspace-domain.mjs';
@@ -15,10 +15,10 @@ export async function uploadCompanyPhotos(files,membership,onProgress=()=>{}){
  const result=[];
  for(const original of files){
   if(!['image/jpeg','image/png','image/webp'].includes(original.type)||!original.size)throw Error('عکس باید از نوع JPEG، PNG یا WebP باشد.');
-  if(original.size>40*1024*1024)throw Error('حجم عکس اولیه نباید بیشتر از ۴۰ مگابایت باشد.');
+  if(original.size>100*1024*1024)throw Error('این فایل برای پردازش روی گوشی بیش از حد بزرگ است. عکس کوچک‌تری انتخاب کن.');
   onProgress(result.length,files.length,'preparing');
   const photo=await prepareUploadPhoto(original);
-  if(photo.size>8*1024*1024)throw Error('حجم عکس پس از بهینه‌سازی باید حداکثر ۸ مگابایت باشد.');
+  if(photo.size>=1_000_000)throw Error('فشرده‌سازی عکس به زیر یک مگابایت انجام نشد.');
   const ext={'image/jpeg':'jpg','image/png':'png','image/webp':'webp'}[photo.type];
   const file=new File([photo],original.name.replace(/\.[^.]+$/,'')+'.'+ext,{type:photo.type});
   onProgress(result.length,files.length,'uploading');
