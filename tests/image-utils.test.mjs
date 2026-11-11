@@ -15,6 +15,12 @@ test('keeps source photographs under one megabyte unchanged',async()=>{
  assert.equal(await prepareUploadPhoto(original),original);
 });
 
+test('normalizes small HEIC photos to a browser-ready image',async()=>{
+ const mock=mockCanvas();
+ try{const heic=new Blob([new Uint8Array(400_000)],{type:'image/heic'}),ready=await prepareUploadPhoto(heic);assert.equal(ready.type,'image/webp');assert.equal(ready.size,300_000);}
+ finally{mock.restore();}
+});
+
 test('converts large photos to WebP under one megabyte and releases the decoded image',async()=>{
  const mock=mockCanvas();
  try{
