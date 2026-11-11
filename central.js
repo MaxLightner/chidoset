@@ -1,5 +1,5 @@
 import {accountLogin} from './account-login.js';
-import {conversation,labels as workspaceLabels} from './workspace-ui.js';
+import {conversation,labels as workspaceLabels} from './workspace-ui.js?v=0.16.18';
 import {centralAuth,centralRequest,writeCentral} from './central-service.js?v=0.16.10';
 import {validateWrite,validateGlb,CATEGORIES,builtInCategory} from './central-domain.mjs';
 import {downloadRequestPhotos} from './download-zip.js?v=0.16.15';
