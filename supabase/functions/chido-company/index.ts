@@ -6,6 +6,43 @@ const admin=createClient(url,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{p
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Content-Type':'application/json; charset=utf-8'};
 const response=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:cors});
 const checked=(r:any)=>{if(r.error)throw r.error;return r.data;};
+const sandboxBase='https://sandbox.zarinpal.com';
+// Sandbox permits an arbitrary UUID merchant id. No production merchant credentials are used.
+const sandboxMerchant=Deno.env.get('CHIDO_SANDBOX_MERCHANT_ID')||'cb3b20d2-1cec-4008-87c8-f90d4d087f68';
+const sandboxPlans:Record<string,number>={quarter:50_000_000,half:100_000_000,annual:200_000_000,lifetime:500_000_000};
+async function sandboxRequest(endpoint:string,body:any){
+ const result=await fetch(sandboxBase+endpoint,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)});
+ if(!result.ok)throw Error('sandbox HTTP '+result.status);
+ return await result.json();
+}
+async function sandboxStart(req:Request,m:any){
+ const input=await req.json();const plan=String(input?.plan||'');
+ if(!Object.hasOwn(sandboxPlans,plan))return response({error:'پلن تستی معتبر نیست.'},400);
+ const amount=sandboxPlans[plan],id=crypto.randomUUID();
+ checked(await admin.from('chido_sandbox_payment_attempts').insert({id,company_id:m.company_id,user_id:m.user_id,plan_code:plan,amount_rials:amount}));
+ try{
+  const result=await sandboxRequest('/pg/v4/payment/request.json',{merchant_id:sandboxMerchant,amount,currency:'IRR',description:'CHIDO sandbox '+plan,callback_url:'https://chidoset.ir/company.html?payment_attempt='+id,metadata:{order_id:id}});
+  const authority=String(result?.data?.authority||'');
+  if(Number(result?.data?.code)!==100||!/^S[A-Za-z0-9_-]{10,90}$/.test(authority))throw Error('invalid sandbox authority');
+  checked(await admin.from('chido_sandbox_payment_attempts').update({authority,status:'redirected'}).eq('id',id));
+  return response({sandbox:true,attempt_id:id,redirect_url:sandboxBase+'/pg/StartPay/'+encodeURIComponent(authority)});
+ }catch(e){await admin.from('chido_sandbox_payment_attempts').update({status:'failed'}).eq('id',id);console.error('chido-sandbox-start',String(e).slice(0,120));return response({error:'سرویس آزمایشی زرین‌پال پاسخ نداد. کمی بعد دوباره امتحان کن.'},503);}
+}
+async function sandboxVerify(req:Request,m:any){
+ const input=await req.json(),attemptId=String(input?.attempt_id||''),authority=String(input?.authority||''),status=String(input?.status||'');
+ if(!/^[0-9a-f-]{36}$/i.test(attemptId)||!/^S[A-Za-z0-9_-]{10,90}$/.test(authority)||!['OK','NOK'].includes(status))return response({error:'اطلاعات بازگشت پرداخت معتبر نیست.'},400);
+ const attempt=checked(await admin.from('chido_sandbox_payment_attempts').select('*').eq('id',attemptId).eq('company_id',m.company_id).eq('user_id',m.user_id).maybeSingle());
+ if(!attempt||attempt.authority!==authority)return response({error:'تراکنش آزمایشی به این حساب تعلق ندارد.'},403);
+ if(attempt.status==='verified')return response({sandbox:true,verified:true,ref_id:attempt.ref_id,plan:attempt.plan_code});
+ if(attempt.status!=='redirected')return response({error:'این تراکنش آزمایشی قابل بررسی نیست.'},409);
+ if(status==='NOK'){checked(await admin.from('chido_sandbox_payment_attempts').update({status:'cancelled',verified_at:new Date().toISOString()}).eq('id',attemptId));return response({sandbox:true,verified:false,cancelled:true});}
+ try{
+  const result=await sandboxRequest('/pg/v4/payment/verify.json',{merchant_id:sandboxMerchant,amount:attempt.amount_rials,authority});
+  const verified=[100,101].includes(Number(result?.data?.code)),ref=verified?String(result.data.ref_id||''):null;
+  checked(await admin.from('chido_sandbox_payment_attempts').update({status:verified?'verified':'failed',ref_id:ref,verified_at:new Date().toISOString()}).eq('id',attemptId));
+  return response({sandbox:true,verified,ref_id:ref,plan:attempt.plan_code});
+ }catch(e){console.error('chido-sandbox-verify',String(e).slice(0,120));return response({error:'استعلام از سرویس آزمایشی زرین‌پال انجام نشد. دوباره امتحان کن.'},503);}
+}
 async function capacity(companyId:string){
  const subscriptions=checked(await admin.from('subscriptions').select('plan_code,status,starts_at,ends_at').eq('company_id',companyId).order('starts_at',{ascending:false}).limit(20));
  const current=subscriptions.find((s:any)=>['trial','active'].includes(s.status)&&Date.parse(s.ends_at)>Date.now());
@@ -123,6 +160,8 @@ Deno.serve(async req=>{
   if(req.method==='POST'&&path.endsWith('/showroom/login'))return await showroomLogin(req);
   const m=await member(req);
   if(req.method==='GET'&&path.endsWith('/snapshot'))return response({data:await snapshot(m),server_time:new Date().toISOString()});
+  if(req.method==='POST'&&path.endsWith('/sandbox-payment/start'))return await sandboxStart(req,m);
+  if(req.method==='POST'&&path.endsWith('/sandbox-payment/verify'))return await sandboxVerify(req,m);
   if(req.method==='POST'&&path.endsWith('/write'))return await write(req,m);
   return response({error:'مسیر درخواست معتبر نیست.'},404);
  }catch(e){console.error('chido-company',e.code||e.status||'error');return response({error:e.status?e.message:'ارتباط با فضای مجموعه انجام نشد. دوباره تلاش کن.'},e.status||500);}
