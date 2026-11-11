@@ -197,12 +197,14 @@ void main(){
    this.snapToSupport(mesh);
   }
    if(isImportedModel(index)){
-    mesh.userData.onModelReady=()=>{if(isSofaShadowProduct(index,cloud||product)){const visual=mesh.getObjectByName('imported-visual');if(visual){const box=modelLocalBounds(mesh,visual),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());if(!box.isEmpty())this.addContactShadow(mesh,size.x,size.z,-box.min.y*2,.30,{bottom:box.min.y,x:center.x,z:center.z});}}if(mesh.userData.tint)this.tintItem(mesh,mesh.userData.tint);this.enableShadowCasting(mesh);if([22,23,24].includes(index))this.setSofaFabric(mesh.userData.fabric,mesh,{preserveRoles:true});if(isLamp(index))this.initializeLamp(mesh,mesh.userData.lampOn);this.restoreMaterialStyles(mesh);this.changed();};
+    mesh.userData.onModelReady=()=>{if(isSofaShadowProduct(index,cloud||product)){const visual=mesh.getObjectByName('imported-visual');if(visual){const bakedShadow=visual.getObjectByName('CHIDO_SHADOW_PLANE');
+      if(bakedShadow?.userData.chidoBakedShadow){const fallback=mesh.getObjectByName('contact-shadow');if(fallback){mesh.remove(fallback);fallback.geometry.dispose();fallback.material.dispose();}}
+      else{const box=modelLocalBounds(mesh,visual),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());if(!box.isEmpty())this.addContactShadow(mesh,size.x,size.z,-box.min.y*2,.30,{bottom:box.min.y,x:center.x,z:center.z});}}}if(mesh.userData.tint)this.tintItem(mesh,mesh.userData.tint);this.enableShadowCasting(mesh);if([22,23,24].includes(index))this.setSofaFabric(mesh.userData.fabric,mesh,{preserveRoles:true});if(isLamp(index))this.initializeLamp(mesh,mesh.userData.lampOn);this.restoreMaterialStyles(mesh);this.changed();};
     mesh.userData.onModelError=()=>this.onHint?.('بارگذاری '+product.name+' ناموفق بود؛ اتصال مدل‌های کتابخانه را بررسی کن.');
    }
   if(!options.silentSelect)this.select(mesh);this.setGuides();return mesh;
  }
- enableShadowCasting(mesh){mesh.traverse(node=>{if(node.isMesh&&node.visible&&node.material?.opacity!==0&&node.name!=='chido-contact-shadow'&&node.name!=='contact-shadow'&&node.name!=='contact-shadow-receiver')node.castShadow=true;});}
+ enableShadowCasting(mesh){mesh.traverse(node=>{if(node.isMesh&&node.visible&&node.material?.opacity!==0&&node.name!=='chido-contact-shadow'&&node.name!=='contact-shadow'&&node.name!=='contact-shadow-receiver'&&!node.userData.chidoBakedShadow)node.castShadow=true;});}
  addContactShadow(mesh,w,d,h,opacity,bounds={}){
   const previous=mesh.getObjectByName('contact-shadow');if(previous){mesh.remove(previous);previous.geometry.dispose();previous.material.dispose();}
   mesh.add(createSofaShadow(w,d,bounds.bottom??-h/2,bounds.x||0,bounds.z||0));
