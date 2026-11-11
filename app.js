@@ -1,6 +1,8 @@
 import {LiveApprovalHost} from './live-approval-host.js?v=0.16.10';
 import {bindAROrientation} from './ar-orientation.js?v=0.16.9';
 import {liveSession} from './live-approval.js?v=0.16.10';
+import {mountMaterialPanel} from './material-panel.js?v=0.16.2';
+import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.16.2';
 import {rememberAccount,accountName} from './auth-storage.js';
 import {readRecovery,saveRecovery,clearRecovery,filterPublishedScene} from './app-recovery.js';
 import {runtimeHealth,recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.16.1';
@@ -10,11 +12,14 @@ import {accountLogin} from './account-login.js';
 import {explainXR,requestARSession} from './xr.js?v=0.5.4';
 import {photos,savePhoto,removePhoto} from './storage.js?v=0.12.2';
 import {CAMERA_RATIOS,CAMERA_PHOTO_KIND,isCameraPhoto,effectiveCameraRatio} from './camera-capture.js?v=0.5.4';
+import {RUG_STYLES,rugPreviewDataUrl} from './rug-textures.js?v=0.5.4';
 import {allowedCapacities,layoutOptions,buildLayout,layoutSummary,layoutPreviewSvg} from './layout-templates.js?v=0.5.4';
 import {readDraft,saveDraft,clearDraft,listCustomLayouts,saveCustomLayout,overwriteCustomLayout,removeCustomLayout} from './layout-storage.js?v=0.5.4';
-import {ASSET_CATEGORIES,RUG_SIZE_PRESETS,isLamp,isSofa,isTable,isWallArt,variantsFor,categoryForIndex,SHEEN_CHAIR_SAMPLE} from './asset-metadata.js?v=0.16.12';
-import {savedPlanSvg} from './saved-plan.js?v=0.16.12';
-import {LiveMiniMap} from './minimap.js?v=0.5.4';
+import {ASSET_CATEGORIES,RUG_SIZE_PRESETS,isLamp,isSofa,isTable,isWallArt,variantsFor,categoryForIndex,SHEEN_CHAIR_SAMPLE} from './asset-metadata.js?v=0.14.2';
+import {savedPlanSvg} from './saved-plan.js?v=0.8.0';
+import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-materials.js';
+import {LiveMiniMap} from './minimap.js?v=0.16.15';
+import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
 import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList} from './cloud-product-registry.js';
 import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,loadDemoLibrary,saveOfficialLayout,saveOfficialColorway,createLiveSession,findActiveLiveSession,getLiveShareLink,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.16.10';
 const studioCache=new StudioCache();
@@ -22,8 +27,6 @@ const studioOwner=()=>cloudMembership?cloudMembership.company_id+':'+cloudMember
 const $=s=>document.querySelector(s),app=$('#app'),fa=n=>n.toLocaleString('fa-IR');
 bindAROrientation($('#overlay'));
 let studio,Scene,palette,space='پذیرایی',layout='empty',supported=false,routeVersion=0,photoURLs=[],savedItems=[],arReport=null,sceneMemory=null,arStarting=false,lastXRErrorReport='',activeSavedLayoutId=null;
-let mountMaterialPanel,instanceMaterialMap,applyInstanceMaterialMap,RUG_STYLES,rugPreviewDataUrl;
-let FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl,CUSHION_PRESETS;
 const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio);
 let chidoMenuOpen=false;
 let pendingARSession=null,calibrationPrompted=false;
@@ -103,26 +106,7 @@ function heading(step,title,sub,back){return `<div class="page-heading"><div><sp
 async function full(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(!document.documentElement.requestFullscreen){toast('مرورگر شما تمام‌صفحه را پشتیبانی نمی‌کند.');return;}try{await document.documentElement.requestFullscreen();}catch{toast('ورود به تمام‌صفحه ممکن نشد؛ می‌توانی ادامه بدهی.');}}
 $('#fullscreen').onclick=full;document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'خروج از تمام‌صفحه ↙':'تمام‌صفحه ⛶');
 async function support(){try{supported=!!(isSecureContext&&navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar'));}catch{supported=false;}return supported;}
-async function loadScene(){
- if(Scene)return;
- // None of these AR-only modules (or their Three.js dependencies) are part of
- // the initial login/room-picker download. Load them when opening the studio.
- const [scene,materialPanel,materials,rugs,finishes,cushions]=await Promise.all([
-  import('./scene.js?v=0.16.10'),
-  import('./material-panel.js?v=0.16.2'),
-  import('./material-roles.js?v=0.16.2'),
-  import('./rug-textures.js?v=0.5.4'),
-  import('./architecture-materials.js'),
-  import('./sofa-cushions.js?v=0.5.4')
- ]);
- mountMaterialPanel=materialPanel.mountMaterialPanel;
- instanceMaterialMap=materials.instanceMaterialMap;
- applyInstanceMaterialMap=materials.applyInstanceMaterialMap;
- RUG_STYLES=rugs.RUG_STYLES;rugPreviewDataUrl=rugs.rugPreviewDataUrl;
- FLOOR_FINISHES=finishes.FLOOR_FINISHES;WALL_FINISHES=finishes.WALL_FINISHES;finishPreviewDataUrl=finishes.finishPreviewDataUrl;
- CUSHION_PRESETS=cushions.CUSHION_PRESETS;
- Scene=scene.Studio;palette=scene.palette;
-}
+async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.16.10');Scene=m.Studio;palette=m.palette;}}
 let draftTimer=null;
 function currentSceneRecord(){
  if(!studio)return null;
@@ -167,7 +151,6 @@ function openLayoutForScanning(kind,record=null){
  location.hash='studio';
 }
 let membershipCheckedAt=0;
-let catalogCheckedAt=0;
 function updateAccountHeader(){
  const identity=$('#appIdentity'),member=cloudMembership;
  identity.hidden=!member;
@@ -229,15 +212,7 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
  }
  if(route==='spaces'){
   const rooms=[['living','پذیرایی','برای کنار هم بودن'],['dining','ناهارخوری','دور یک میز، کنار هم'],['dining','آشپزخانه','میز غذاخوری و دورهمی'],['bedroom','اتاق خواب','گوشه‌ای برای آرامش'],['office','فضای کار','جایی برای ایده‌های تازه']];
-  if(!reuseCatalog&&Date.now()-catalogCheckedAt>45000){
-   // Show the destination immediately while the catalog request completes.
-   app.innerHTML='<section class="page rooms-page" role="status"><h1>انتخاب فضای چیدمان</h1><p>در حال دریافت محصولات فروشگاه…</p></section>';
-   try{
-    cloudSets=await loadCompanySets(cloudMembership.company_id);
-    demoLibrary=await loadDemoLibrary(cloudMembership);
-    catalogCheckedAt=Date.now();
-   }catch(error){console.warn('Chido company catalog unavailable',error);cloudSets=[];demoLibrary=[];toast('دریافت کتابخانه مدل‌ها انجام نشد.');}
-  }
+  try{cloudSets=await loadCompanySets(cloudMembership.company_id);demoLibrary=await loadDemoLibrary(cloudMembership);}catch(error){console.warn('Chido company catalog unavailable',error);cloudSets=[];demoLibrary=[];toast('دریافت کتابخانه مدل‌ها انجام نشد.');}
   if(version!==routeVersion)return;
   if(activeCloudSetId&&!cloudSets.some(item=>item.id===activeCloudSetId))activeCloudSetId=null;
   const activeSet=cloudSets.find(item=>item.id===activeCloudSetId)||null;
