@@ -1,7 +1,7 @@
 import {accountLogin} from './account-login.js';
 import {companyAuth,companyRequest,companyWrite,activateCompanyAdmin,requestCompanyAccess,uploadCompanyPhotos} from './company-service.js?v=0.16.17';
-import {esc,fa,date,labels,status,table,empty,field,select,action,conversation} from './workspace-ui.js';
-import {dashboardHtml,modelRequestPhotos,requestProgress} from './company-dashboard.js?v=0.16.16';
+import {esc,fa,date,labels,status,table,empty,field,select,action,conversation} from './workspace-ui.js?v=0.16.18';
+import {dashboardHtml,modelRequestPhotos,requestProgress} from './company-dashboard.js?v=0.16.18';
 const $=s=>document.querySelector(s);
 const nav=[['overview','نمای کلی'],['sets','ست‌ها و چیدمان‌ها'],['agents','عاملان فروش'],['followups','پیگیری و پشتیبانی']];
 let state=null,search='',section='overview',editor=null,busy=false;
@@ -86,7 +86,7 @@ async function clicked(e){const n=e.target.closest('[data-new]');if(n){openEdito
   if(!revision&&!confirm('مدل را تأیید نهایی می‌کنی؟ پس از تأیید درخواست ۱۰۰٪ می‌شود.'))return;
   b.disabled=true;try{await companyWrite('request.review',{id,decision:revision?'revision':'approve',body});await load();openThread('request',id);$('#companyEditorStatus').textContent=revision?'درخواست اصلاح ارسال شد.':'مدل تأیید نهایی شد.';}catch(error){$('#companyEditorStatus').textContent=error.message;}finally{b.disabled=false;}return;
  }
- try{if(a==='notification'){const n=find('company_notifications',id);await companyWrite('notification.read',{id});await load();location.hash=n.section;if(n.entity_id)openThread(n.section==='requests'?'request':'ticket',n.entity_id);return;}
+ try{if(a==='notification'){const n=find('company_notifications',id);await companyWrite('notification.read',{id});await load();location.hash='#followups';if(n.entity_id)openThread(n.section==='requests'?'request':'ticket',n.entity_id);return;}
   if(!confirm('این تغییر را ثبت می‌کنی؟'))return;b.disabled=true;
   if(a==='request-cancel')await companyWrite('request.status',{id,status:'cancelled'});else if(a==='ticket-toggle')await companyWrite('ticket.status',{id,status:editor.record.status==='closed'?'open':'closed'});else await companyWrite(a,{id});
   const thread=editor?.kind==='thread'?{...editor}:null;await load();if(thread)openThread(thread.parentKind,id);$('#companyStatus').textContent='تغییر ثبت شد.';
