@@ -6,6 +6,8 @@ export class LiveMiniMap {
   this.panel=panel;this.getStudio=getStudio;this.svg=panel.querySelector('svg');
   this.expanded=false;this.drag=null;this.bounds=null;
   panel.querySelector('[data-map-expand]').onclick=()=>{this.setExpanded(!this.expanded);};
+  panel.querySelector('[data-map-add]').onclick=()=>{this.collapse();document.querySelector('#arAddTool')?.click();};
+  panel.querySelector('[data-map-remove]').onclick=()=>{const s=getStudio();if(!s?.selected)return;if(confirm('آبجکت انتخاب‌شده از چیدمان حذف شود؟'))s.remove();this.render();};
   panel.querySelector('[data-map-left]').onclick=()=>{const s=getStudio();if(s?.selected)s.rotate(s.selected.rotation.y*180/Math.PI-45);};
   panel.querySelector('[data-map-right]').onclick=()=>{const s=getStudio();if(s?.selected)s.rotate(s.selected.rotation.y*180/Math.PI+45);};
   this.angleInput=panel.querySelector('[data-map-angle]');
@@ -23,7 +25,8 @@ export class LiveMiniMap {
  setExpanded(value){
   this.expanded=!!value;
   this.panel.classList.toggle('expanded',this.expanded);
-  this.panel.querySelector('[data-map-expand]').textContent=this.expanded?'کوچک کردن':'بزرگ کردن';
+  this.panel.querySelector('[data-map-expand]').textContent=this.expanded?'بستن نقشه':'•••';
+  this.panel.querySelector('[data-map-expand]').setAttribute('aria-label',this.expanded?'بستن نقشه دوبعدی':'بازکردن نقشه دوبعدی');
   this.svg.setAttribute('aria-label',this.expanded?'پلان بزرگ؛ آبجکت‌ها را لمس یا جابه‌جا کن':'نمای بالای زنده از تمام آبجکت‌ها');
   this.drag=null;
   this.render();
@@ -45,13 +48,19 @@ export class LiveMiniMap {
   const point=this.point(event);if(!mesh||!point)return;
   studio.select(mesh);
   const pos=studio.planPosition(mesh);
-  this.drag={id:mesh.userData.id,dx:pos.x-point.x,dz:pos.z-point.z};
+  if(event.target.closest('[data-rotate-id]'))this.drag={type:'rotate',id:mesh.userData.id,cx:pos.x,cz:pos.z,start:Math.atan2(point.z-pos.z,point.x-pos.x),rotation:mesh.rotation.y};
+  else this.drag={type:'move',id:mesh.userData.id,dx:pos.x-point.x,dz:pos.z-point.z};
   event.preventDefault();this.svg.setPointerCapture(event.pointerId);
  }
  move(event){
   if(!this.drag)return;
   const studio=this.getStudio(),point=this.point(event);if(!studio||!point)return;
-  event.preventDefault();studio.moveObjectFromPlan(this.drag.id,point.x+this.drag.dx,point.z+this.drag.dz);
+  event.preventDefault();
+  if(this.drag.type==='rotate'){
+   const current=Math.atan2(point.z-this.drag.cz,point.x-this.drag.cx);
+   let delta=current-this.drag.start;while(delta>Math.PI)delta-=Math.PI*2;while(delta< -Math.PI)delta+=Math.PI*2;
+   studio.rotate((this.drag.rotation+delta)*180/Math.PI);
+  }else studio.moveObjectFromPlan(this.drag.id,point.x+this.drag.dx,point.z+this.drag.dz);
  }
  render(){
   const studio=this.getStudio();if(!studio||!this.svg)return;
@@ -83,8 +92,9 @@ export class LiveMiniMap {
    const color=selected?'#478a80':wall?'#a47b63':isRug?'#e2caa9':[0,1,3].includes(index)?'#bda691':'#879d8d';
    const caption=esc(mesh.userData.product.name);
    const label=this.expanded?'<text text-anchor="middle" y="'+(-d*50-8)+'" font-size="16" fill="#655749" transform="rotate('+(-angle*180/Math.PI)+')">'+caption+' · '+Math.round(w*100)+'×'+Math.round(d*100)+'</text>':'';
+   const handle=this.expanded&&selected?'<path d="M0 '+(-d*50)+'V'+(-d*50-27)+'" stroke="#175e50" stroke-width="3"/><circle data-rotate-id="'+id+'" cx="0" cy="'+(-d*50-30)+'" r="14" fill="#f1c77b" stroke="#175e50" stroke-width="3"/><text x="0" y="'+(-d*50-24)+'" font-size="16" text-anchor="middle" fill="#175e50" pointer-events="none">↻</text>':'';
    return '<g data-object-id="'+id+'" aria-label="'+caption+'" transform="translate('+(x*100)+' '+(z*100)+') rotate('+(angle*180/Math.PI)+')" style="cursor:pointer;opacity:'+(mesh.visible?'1':'.4')+'">'+
-    '<rect x="'+(-w*50)+'" y="'+(-d*50)+'" width="'+(w*100)+'" height="'+Math.max(wall?6:4,d*100)+'" rx="'+(isRug?1:4)+'" fill="'+color+'" stroke="'+(selected?'#245b53':'#786b60')+'" stroke-width="'+(selected?3:1.6)+'"'+(mesh.visible?'':' stroke-dasharray="4 3"')+'/>'+label+'</g>';
+    '<rect x="'+(-w*50)+'" y="'+(-d*50)+'" width="'+(w*100)+'" height="'+Math.max(wall?6:4,d*100)+'" rx="'+(isRug?1:4)+'" fill="'+color+'" stroke="'+(selected?'#245b53':'#786b60')+'" stroke-width="'+(selected?3:1.6)+'"'+(mesh.visible?'':' stroke-dasharray="4 3"')+'/>'+handle+label+'</g>';
   }).join('');
   this.svg.innerHTML='<rect x="'+(left*100)+'" y="'+(top*100)+'" width="'+(width*100)+'" height="'+(height*100)+'" fill="#f4efe7"/>'+grid+marks+objects;
   const measure=this.panel.querySelector('[data-map-measure]');
@@ -94,6 +104,7 @@ export class LiveMiniMap {
   this.angleInput.value=String(angle);
   this.angleInput.disabled=!selected;
   for(const key of ['[data-map-left]','[data-map-right]'])this.panel.querySelector(key).disabled=!selected;
+  this.panel.querySelector('[data-map-remove]').disabled=!selected;
   this.panel.querySelector('[data-map-angle-value]').textContent=angle.toLocaleString('fa-IR')+'°';
   this.panel.querySelector('[data-map-selected]').textContent=selected?'انتخاب‌شده: '+selected.userData.product.name:'برای چرخش، یک آبجکت را در نقشه انتخاب کن';
  }
