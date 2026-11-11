@@ -1,7 +1,7 @@
 import {accountLogin} from './account-login.js';
 import {companyAuth,companyRequest,companyWrite,activateCompanyAdmin,requestCompanyAccess,uploadCompanyPhotos} from './company-service.js?v=0.16.15';
 import {esc,fa,date,labels,status,table,empty,field,select,action,conversation} from './workspace-ui.js';
-import {dashboardHtml,modelRequestPhotos,requestProgress} from './company-dashboard.js?v=0.16.15';
+import {dashboardHtml,modelRequestPhotos,requestProgress} from './company-dashboard.js?v=0.16.16';
 const $=s=>document.querySelector(s);
 const nav=[['overview','نمای کلی'],['sets','ست‌ها و چیدمان‌ها'],['agents','عاملان فروش'],['followups','پیگیری و پشتیبانی']];
 let state=null,search='',section='overview',editor=null,busy=false;
@@ -75,7 +75,11 @@ $('#companyEditor').addEventListener('change',e=>{if(e.target.name!=='photos')re
 $('#companyEditor').addEventListener('close',()=>{previewUrls.forEach(URL.revokeObjectURL);previewUrls=[];});
 async function clicked(e){const n=e.target.closest('[data-new]');if(n){openEditor(n.dataset.new);return;}if(e.target.closest('[data-close]')){closeEditor();return;}const b=e.target.closest('[data-action]');if(!b)return;const a=b.dataset.action,id=b.dataset.id;
  if(a==='open-request'||a==='open-ticket'){openThread(a==='open-request'?'request':'ticket',id);return;}if(a==='edit-agent'){openEditor('agent',find('showroom_accounts',id));return;}if(a==='edit-branch'||a==='edit-showroom'){openEditor(a==='edit-branch'?'branch':'showroom',find(a==='edit-branch'?'branches':'showroom_accounts',id));return;}
- if(a==='test-payment'){const plans={trial:'آزمایشی',quarter:'سه‌ماهه',half:'شش‌ماهه',annual:'سالانه',lifetime:'بلندمدت'};$('#companyEditorTitle').textContent='پیش‌نمایش فرایند پرداخت';$('#companyEditorBody').innerHTML=`<div class="test-payment"><span class="test-ribbon">محیط آزمایشی · بدون برداشت وجه</span><h3>انتخاب طرح ${esc(plans[id]||id)}</h3><p>صفحه تست خرید آماده شده است. برای تراکنش واقعی باید درخواست پرداخت، بازگشت از درگاه و تأیید مبلغ در سرور انجام شود. تا آن زمان هیچ اشتراکی از این صفحه فعال نمی‌شود.</p><button class="secondary" data-close>بازگشت به پلن‌ها</button></div>`;$('#companyEditorStatus').textContent='';$('#companyEditor').showModal();return;}
+ if(a==='test-payment'){
+  if(!confirm('ورود به محیط آزمایشی زرین‌پال؟ در این تست هیچ مبلغ واقعی پرداخت نمی‌شود و اشتراک تغییر نمی‌کند.'))return;
+  b.disabled=true;$('#companyStatus').textContent='در حال دریافت لینک درگاه آزمایشی زرین‌پال…';
+  try{const result=await companyRequest('/sandbox-payment/start',{plan:id}),url=new URL(result.redirect_url);if(url.origin!=='https://sandbox.zarinpal.com')throw Error('نشانی درگاه آزمایشی معتبر نیست.');location.assign(url.href);}catch(error){$('#companyStatus').textContent=error.message;b.disabled=false;}return;
+ }
  if(a==='review-approve'||a==='review-revision'){
   const revision=a==='review-revision',body=$('#reviewMessage')?.value.trim()||'';
   if(revision&&body.length<5){$('#companyEditorStatus').textContent='لطفاً توضیح اصلاحات را با جزئیات بنویس.';return;}
@@ -97,5 +101,11 @@ function authTab(activate){$('#companyLoginForm').hidden=activate;$('#companyAct
 $('#companyLoginTab').onclick=()=>authTab(false);$('#companyActivationTab').onclick=()=>authTab(true);
 for(const selector of ['#companyLoginForm','#companyActivationForm'])$(selector).onsubmit=async e=>{e.preventDefault();const activate=selector==='#companyActivationForm',email=$(activate?'#companyAdminEmail':'#loginEmail').value,password=$(activate?'#companyAdminPassword':'#loginPassword').value,message=$(activate?'#activationMessage':'#loginMessage'),button=e.submitter;button.disabled=true;message.textContent='در حال ورود…';try{if(activate)await activateCompanyAdmin($('#companyInviteCode').value,email,password);const login=await accountLogin(email,password);if(login.role!=='company_admin')throw Error('این حساب مدیر مجموعه نیست.');const result=await companyAuth.auth.setSession(login.session);if(result.error)throw result.error;await load();e.target.reset();}catch(error){message.textContent=error.message;}finally{button.disabled=false;}};
 $('#accessRequestForm').onsubmit=async e=>{e.preventDefault();try{await requestCompanyAccess({contact_name:$('#requestContact').value,company_name:$('#requestCompany').value,email:$('#requestEmail').value,phone:$('#requestPhone').value,message:$('#requestMessage').value});$('#requestStatus').textContent='درخواست ثبت شد.';e.target.reset();}catch(error){$('#requestStatus').textContent=error.message;}};
-async function start(){const {data:{session}}=await companyAuth.auth.getSession();if(session)try{await load();return;}catch{location.replace('login.html?retry=1');return;}if(new URLSearchParams(location.search).has('activate')){$('#auth').hidden=false;authTab(true);}else location.replace('login.html');}
+async function verifySandboxCallback(){
+ const query=new URLSearchParams(location.search),attempt=query.get('payment_attempt');if(!attempt)return;
+ const authority=query.get('Authority'),paymentStatus=query.get('Status');let message='';
+ try{if(!authority||!paymentStatus)throw Error('اطلاعات بازگشت از درگاه آزمایشی ناقص است.');const result=await companyRequest('/sandbox-payment/verify',{attempt_id:attempt,authority,status:paymentStatus});message=result.verified?`تراکنش آزمایشی زرین‌پال با موفقیت تأیید شد (کد ${result.ref_id||'—'}). اشتراک واقعی تغییر نکرد.`:result.cancelled?'پرداخت آزمایشی لغو شد؛ هیچ تغییری در اشتراک ایجاد نشد.':'تراکنش آزمایشی تأیید نشد؛ اشتراک بدون تغییر است.';}catch(error){message=error.message;}
+ query.delete('payment_attempt');query.delete('Authority');query.delete('Status');const remaining=query.toString();history.replaceState(null,'',location.pathname+(remaining?'?'+remaining:'')+'#billing');render();$('#companyStatus').textContent=message;
+}
+async function start(){const {data:{session}}=await companyAuth.auth.getSession();if(session)try{await load();await verifySandboxCallback();return;}catch{location.replace('login.html?retry=1');return;}if(new URLSearchParams(location.search).has('activate')){$('#auth').hidden=false;authTab(true);}else location.replace('login.html');}
 window.addEventListener('focus',()=>{if(state&&!busy&&!$('#companyEditor').open)void load().catch(()=>{});});void start();
