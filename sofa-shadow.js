@@ -10,7 +10,7 @@ export function roundedShadowAlpha(x,z,width,depth){
 }
 export function modelLocalBounds(root,visual){
  root.updateWorldMatrix(true,true);const inverse=new THREE.Matrix4().copy(root.matrixWorld).invert(),box=new THREE.Box3(),point=new THREE.Vector3();
- visual.traverse(node=>{if(!node.isMesh||!node.geometry||!node.visible)return;node.geometry.computeBoundingBox();const bounds=node.geometry.boundingBox;if(!bounds)return;const matrix=new THREE.Matrix4().multiplyMatrices(inverse,node.matrixWorld);for(const x of [bounds.min.x,bounds.max.x])for(const y of [bounds.min.y,bounds.max.y])for(const z of [bounds.min.z,bounds.max.z])box.expandByPoint(point.set(x,y,z).applyMatrix4(matrix));});
+ visual.traverse(node=>{if(!node.isMesh||!node.geometry||!node.visible||node.userData.chidoBakedShadow)return;node.geometry.computeBoundingBox();const bounds=node.geometry.boundingBox;if(!bounds)return;const matrix=new THREE.Matrix4().multiplyMatrices(inverse,node.matrixWorld);for(const x of [bounds.min.x,bounds.max.x])for(const y of [bounds.min.y,bounds.max.y])for(const z of [bounds.min.z,bounds.max.z])box.expandByPoint(point.set(x,y,z).applyMatrix4(matrix));});
  return box;
 }
 export function createSofaShadow(width,depth,bottom,centerX=0,centerZ=0){
