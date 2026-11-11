@@ -1,5 +1,44 @@
 import { CHIDO_CONFIG, SAMPLE_PRODUCTS } from './config.js?v=0.12.7';
-import { mountHero, createProductImages, mountViewer, startAR } from './scene.js?v=0.16.10';
+
+// Three.js is intentionally outside the initial module graph. The landing page
+// can paint and accept clicks while the optional 3D viewer loads in the background.
+const productPhotos = ['./sofa-aria.webp?v=0.16.10', './sofa-nava.webp?v=0.16.10', './sofa-roza.webp?v=0.16.10'];
+let scenePromise = null;
+const loadScene = () => scenePromise ||= import('./scene.js?v=0.16.12').catch(error => {
+  scenePromise = null;
+  throw error;
+});
+function createProductImages() {
+  document.querySelectorAll('img[data-sofa-image]').forEach(img => {
+    const photo = productPhotos[Number(img.dataset.sofaImage || 0) % productPhotos.length];
+    if (img.getAttribute('src') !== photo) img.setAttribute('src', photo);
+    img.loading = img.closest('.product-viewer-container') ? 'eager' : 'lazy';
+    img.decoding = 'async';
+  });
+}
+
+let heroStarted = false;
+async function startHeroInBackground() {
+  if (heroStarted || document.hidden || navigator.connection?.saveData || /(^|-)2g$/.test(navigator.connection?.effectiveType || '')) return;
+  heroStarted = true;
+  try {
+    const { mountHero } = await loadScene();
+    mountHero(document.querySelector('#hero-3d'), () => currentProgress);
+  } catch (error) {
+    heroStarted = false;
+    console.warn('3D preview unavailable; using the lightweight image.', error);
+  }
+}
+const scheduleHero = () => {
+  // Give the document, fonts and product photos network and main-thread priority.
+  const later = () => {
+    if ('requestIdleCallback' in window) requestIdleCallback(startHeroInBackground, { timeout: 7000 });
+    else setTimeout(startHeroInBackground, 1800);
+  };
+  setTimeout(later, 1400);
+};
+if (document.readyState === 'complete') scheduleHero();
+else window.addEventListener('load', scheduleHero, { once: true });
 
 const $ = selector => document.querySelector(selector);
 document.querySelectorAll('[data-open-app]').forEach(link => link.setAttribute('href', CHIDO_CONFIG.applicationUrl));
@@ -12,8 +51,8 @@ function prefetchApplication() {
   appPrefetchStarted = true;
   [
     CHIDO_CONFIG.applicationUrl,
-    new URL('../app-bootstrap.js?v=0.16.10', import.meta.url).href,
-    new URL('../app.js?v=0.16.10', import.meta.url).href,
+    new URL('../app-bootstrap.js?v=0.16.12', import.meta.url).href,
+    new URL('../app.js?v=0.16.12', import.meta.url).href,
   ].forEach(href => {
     const link = document.createElement('link');
     link.rel = 'prefetch';
@@ -27,8 +66,12 @@ document.querySelectorAll('[data-open-app]').forEach(link => {
   link.addEventListener('focus', prefetchApplication, { once: true });
 });
 const scheduleAppPrefetch = () => {
-  if ('requestIdleCallback' in window) requestIdleCallback(prefetchApplication, { timeout: 3500 });
-  else setTimeout(prefetchApplication, 2300);
+  // Do not compete with the first paint or the optional 3D download on a cold visit.
+  const defer = () => {
+    if ('requestIdleCallback' in window) requestIdleCallback(prefetchApplication, { timeout: 10000 });
+    else setTimeout(prefetchApplication, 3500);
+  };
+  setTimeout(defer, 5500);
 };
 if (document.readyState === 'complete') scheduleAppPrefetch();
 else window.addEventListener('load', scheduleAppPrefetch, { once: true });
@@ -225,7 +268,7 @@ function onScroll() {
 }
 window.addEventListener('scroll', onScroll, { passive: true });
 window.addEventListener('resize', onScroll);
-mountHero($('#hero-3d'), () => currentProgress);
+// The hero starts only after first paint and idle time (see scheduleHero).
 
 const revealObserver = new IntersectionObserver(entries => { entries.forEach(entry => { if (entry.isIntersecting) { entry.target.classList.add('visible'); revealObserver.unobserve(entry.target); } }); }, { rootMargin: '0px 0px -45px 0px', threshold: 0.1 });
 function watchReveals() { $$('.reveal:not(.visible)').forEach(node => revealObserver.observe(node)); }
@@ -304,11 +347,17 @@ function closeModal() {
   $('#modal-content').replaceChildren();
   document.body.classList.remove('modal-open');
 }
-function openViewer(id) {
+async function openViewer(id) {
   const p = state.products.find(item => item.id === id);
   if (!p) return;
-  openModal(`<div class="viewer-modal-grid"><div class="product-viewer-container" id="viewer-slot"></div><div class="viewer-details"><p class="eyebrow">نمایش سه‌بعدی محصول</p><h2 id="modal-title">${escapeHtml(p.name)}</h2><p>${escapeHtml(p.subtitle)} — مدل سه‌بعدی نمونه برای طراحی سایت</p><div class="product-price">${money(p.price)}</div><p>رنگ پارچه را انتخاب کنید:</p><div class="viewer-color-list">${p.colors.map(c=>`<button data-action="viewer-color" data-color="${c}" class="${(p.color||p.colors[0])===c?'active':''}" style="background:${c}" aria-label="انتخاب رنگ"></button>`).join('')}</div><p class="viewer-hint">با کشیدن انگشت یا ماوس، مدل را بچرخانید.</p><button class="pill-btn primary" data-action="ar" data-id="${p.id}">نمایش محصول در فضای واقعی <span>↗</span></button></div></div>`);
-  viewer = mountViewer($('#viewer-slot'), p.variant, p.color);
+  openModal(`<div class="viewer-modal-grid"><div class="product-viewer-container" id="viewer-slot"><div class="viewer-static"><img src="${productPhotos[p.variant % 3]}" alt="${escapeHtml(p.name)}"/><p>در حال آماده‌سازی نمای سه‌بعدی…</p></div></div><div class="viewer-details"><p class="eyebrow">نمایش سه‌بعدی محصول</p><h2 id="modal-title">${escapeHtml(p.name)}</h2><p>${escapeHtml(p.subtitle)} — مدل سه‌بعدی نمونه برای طراحی سایت</p><div class="product-price">${money(p.price)}</div><p>رنگ پارچه را انتخاب کنید:</p><div class="viewer-color-list">${p.colors.map(c=>`<button data-action="viewer-color" data-color="${c}" class="${(p.color||p.colors[0])===c?'active':''}" style="background:${c}" aria-label="انتخاب رنگ"></button>`).join('')}</div><p class="viewer-hint">با کشیدن انگشت یا ماوس، مدل را بچرخانید.</p><button class="pill-btn primary" data-action="ar" data-id="${p.id}">نمایش محصول در فضای واقعی <span>↗</span></button></div></div>`);
+  const slot = $('#viewer-slot');
+  try {
+    const { mountViewer } = await loadScene();
+    if (slot?.isConnected) viewer = mountViewer(slot, p.variant, p.color);
+  } catch {
+    if (slot?.isConnected) slot.querySelector('p').textContent = 'نمایش سه‌بعدی در دسترس نیست؛ تصویر محصول نمایش داده می‌شود.';
+  }
 }
 function openEditProduct(id) {
   const p = state.products.find(item => item.id === id);
@@ -412,7 +461,13 @@ async function showAR(id) {
   const shell = $('#ar-shell'); shell.hidden = false; arProduct = p;
   $('#ar-message').textContent = 'دوربین را به سمت کف بگیرید.';
   $('#ar-colors').innerHTML = p.colors.map(c=>`<button style="background:${c}" data-color="${c}" aria-label="انتخاب رنگ"></button>`).join('');
-  arController = await startAR(shell, p.variant, p.color, text => { $('#ar-message').textContent = text; },()=>{arController=null;shell.hidden=true;});
+  try {
+    const { startAR } = await loadScene();
+    if (shell.hidden) return;
+    arController = await startAR(shell, p.variant, p.color, text => { $('#ar-message').textContent = text; },()=>{arController=null;shell.hidden=true;});
+  } catch {
+    arController = null;
+  }
   if (!arController) { shell.hidden = true; openViewer(id); toast('AR روی این دستگاه در دسترس نبود؛ نمای سه‌بعدی باز شد.'); }
 }
 $('#ar-exit').addEventListener('click', async()=>{ await arController?.stop(); arController=null; $('#ar-shell').hidden=true; });

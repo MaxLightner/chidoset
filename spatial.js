@@ -1,38 +1,6 @@
 import * as THREE from './vendor/three.module.js';
-export const CATALOG=Object.freeze([
- Object.freeze({name:'کاناپه',size:Object.freeze([2.1,.85,.9]),price:4200000}),
- Object.freeze({name:'تک‌نفره',size:Object.freeze([.9,.85,.9]),price:2800000}),
- Object.freeze({name:'میز',size:Object.freeze([1.1,.4,.6]),price:1900000}),
- Object.freeze({name:'تک‌نفره دوم',size:Object.freeze([.9,.85,.9]),price:2800000}),
- Object.freeze({name:'گلدان سرامیکی',size:Object.freeze([.25,.4,.25]),price:0}),
- Object.freeze({name:'کوسن دکوراتیو',size:Object.freeze([.46,.18,.4]),price:0}),
- Object.freeze({name:'آباژور ایستاده',size:Object.freeze([.45,1.55,.45]),price:0}),
- Object.freeze({name:'فرش مینیمال',size:Object.freeze([2.4,.015,1.7]),price:0}),
- Object.freeze({name:'تخت دو نفره',size:Object.freeze([1.65,.95,2.08]),price:0}),
- Object.freeze({name:'میز کار',size:Object.freeze([1.4,.74,.67]),price:0}),
- Object.freeze({name:'میز ناهارخوری',size:Object.freeze([1.7,.75,.86]),price:0}),
- Object.freeze({name:'صندلی ناهارخوری',size:Object.freeze([.48,.90,.47]),price:0}),
- Object.freeze({name:'میز عسلی مربعی',size:Object.freeze([.48,.48,.48]),price:0}),
- Object.freeze({name:'میز جلو مبلی مربعی',size:Object.freeze([1.15,.42,1.15]),price:0}),
- Object.freeze({name:'آباژور رومیزی',size:Object.freeze([.35,.55,.35]),price:0}),
- Object.freeze({name:'آباژور سه‌پایه',size:Object.freeze([.55,1.6,.55]),price:0}),
- Object.freeze({name:'تابلو عمودی کوچک',size:Object.freeze([.45,.68,.045]),price:0}),
- Object.freeze({name:'تابلو افقی کوچک',size:Object.freeze([.70,.44,.045]),price:0}),
- Object.freeze({name:'تابلو مربعی متوسط',size:Object.freeze([.65,.65,.045]),price:0}),
- Object.freeze({name:'تابلو افقی بزرگ',size:Object.freeze([1.20,.68,.045]),price:0}),
- Object.freeze({name:'تابلو عمودی بزرگ',size:Object.freeze([.78,1.15,.045]),price:0}),
- Object.freeze({name:'تابلو سه‌تکه',size:Object.freeze([1.25,.75,.045]),price:0}),
- Object.freeze({name:'مبل سه‌نفره پارچه‌ای تیره',size:Object.freeze([1.8934,.7744,.8930]),price:0}),
- Object.freeze({name:'مبل دونفره پارچه‌ای تیره',size:Object.freeze([1.6778,.7700,.9029]),price:0}),
- Object.freeze({name:'مبل تک‌نفره پارچه‌ای تیره',size:Object.freeze([1.1458,.7781,.9081]),price:0}),
- Object.freeze({name:'میز جلو مبلی چوب و فلز',size:Object.freeze([1.19,.353,.6]),price:0}),
- Object.freeze({name:'میز عسلی چوب و فلز',size:Object.freeze([.49,.351,.489]),price:0}),
- Object.freeze({name:'میز دکوری شیشه‌ای',size:Object.freeze([.571,.731,.535]),price:0}),
- Object.freeze({name:'آباژور رومیزی کریستالی',size:Object.freeze([.391,.4,.393]),price:0}),
- Object.freeze({name:'چراغ ایستاده فلزی',size:Object.freeze([.338,1.7,.33]),price:0}),
- Object.freeze({name:'شمعدان دکوری',size:Object.freeze([.428,.54,.19]),price:0}),
- Object.freeze({name:'فرش پتینه طوسی',size:Object.freeze([3,.01,2]),price:0})
-]);
+import {CATALOG} from './catalog-data.js?v=0.16.12';
+export {CATALOG};
 export const wrappedAngle=a=>Math.atan2(Math.sin(a),Math.cos(a));
 export function pairAngle(a,b){return Math.atan2(-(b.z-a.z),b.x-a.x);}
 export class SpatialState{

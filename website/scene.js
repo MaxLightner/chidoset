@@ -212,7 +212,7 @@ export function mountHero(canvas, progressGetter) {
   const animateFallback = now => {
     if (!fallbackAlive) return;
     const { index, angle } = nextPose(now);
-    if (index !== previousIndex) {
+    if (index !== previousIndex && fallbackItems.length > 1) {
       fallbackItems.forEach((item, i) => item.classList.toggle('is-current', i === index));
       previousIndex = index;
     }
@@ -228,7 +228,8 @@ export function mountHero(canvas, progressGetter) {
     requestAnimationFrame(animateFallback);
     return () => { fallbackAlive = false; };
   }
-  stage?.classList.add('has-webgl');
+  // Don't hide the image until WebGL has produced an actual frame.
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.4));
   const scene = baseScene();
   const camera = cameraFor();
   const pivot = new THREE.Group();
@@ -236,9 +237,15 @@ export function mountHero(canvas, progressGetter) {
   const models = [0, 1, 2].map(i => createSofa(i));
   models.forEach(({ group }, i) => { group.visible = i === 0; pivot.add(group); });
   let alive = true;
-  let lastW = 0, lastH = 0;
+  let lastW = 0, lastH = 0, lastRenderedAt = 0, firstFrame = true;
   const animate = now => {
     if (!alive) return;
+    // A decorative model does not need 60fps, especially on mobile GPUs.
+    if (document.hidden || now - lastRenderedAt < 32) {
+      requestAnimationFrame(animate);
+      return;
+    }
+    lastRenderedAt = now;
     const width = canvas.clientWidth || 900, height = canvas.clientHeight || 600;
     if (width !== lastW || height !== lastH) {
       renderer.setSize(width, height, false);
@@ -257,6 +264,10 @@ export function mountHero(canvas, progressGetter) {
     pivot.position.y = 0.04;
     pivot.scale.setScalar(lastW < 700 ? 0.88 : 1.02);
     renderer.render(scene, camera);
+    if (firstFrame) {
+      firstFrame = false;
+      stage?.classList.add('has-webgl');
+    }
     requestAnimationFrame(animate);
   };
   requestAnimationFrame(animate);

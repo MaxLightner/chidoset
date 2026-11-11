@@ -1,4 +1,4 @@
-import {CATALOG} from './spatial.js?v=0.6.0';
+import {CATALOG} from './catalog-data.js?v=0.16.12';
 import {getCloudProduct,cloudProductList} from './cloud-product-registry.js';
 export const SHEEN_CHAIR_SAMPLE=Object.freeze({name:'صندلی شین (SheenChair)',size:Object.freeze([.85,.9,.85]),price:0});
 const categoryByIndex=index=>[0,1,3,22,23,24,1000].includes(index)?'seating':[2,12,13,25,26,27].includes(index)?'low-tables':[10,11].includes(index)?'dining':index===9?'workspace':index===8?'bedroom':[7,31].includes(index)?'rugs':index>=16&&index<=21?'wall-art':'decor';

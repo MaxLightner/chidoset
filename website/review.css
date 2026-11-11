@@ -301,3 +301,12 @@ h2 { font-size: clamp(29px, 3.05vw, 46px); }
   backface-visibility: hidden;
   transition: none;
 }
+
+/* A single small image paints first; WebGL fades in after its first frame. */
+.hero-scene-wrap #hero-3d { opacity: 0; transition: opacity .38s ease-out; }
+.hero-scene-wrap.has-webgl #hero-3d { opacity: 1; }
+.hero-scene-wrap.has-webgl .hero-fallback {
+  display: block;
+  opacity: 0;
+  transition: opacity .38s ease-out;
+}
