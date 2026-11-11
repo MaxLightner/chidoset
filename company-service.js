@@ -1,4 +1,4 @@
-import {lightweightPhoto} from './image-utils.js';
+import {prepareUploadPhoto} from './image-utils.js?v=0.16.14';
 import {supabase,activateCompanyAdmin,requestCompanyAccess} from './chido-cloud.js?v=0.16.10';
 import {SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY} from './backend-config.js';
 import {validateWorkspace} from './workspace-domain.mjs';
@@ -14,13 +14,17 @@ export async function uploadCompanyPhotos(files,membership,onProgress=()=>{}){
  if(files.length>8)throw Error('در هر بار حداکثر ۸ عکس انتخاب کن.');
  const result=[];
  for(const original of files){
-  let file=original;
-  if(!['image/jpeg','image/png','image/webp'].includes(file.type)||!file.size||file.size>8*1024*1024)throw Error('عکس باید JPEG، PNG یا WebP و حداکثر ۸ مگابایت باشد.');
-  file=new File([await lightweightPhoto(file)],file.name.replace(/\.[^.]+$/,'')+'.webp',{type:'image/webp'});
-  const ext={'image/jpeg':'jpg','image/png':'png','image/webp':'webp'}[file.type];
+  if(!['image/jpeg','image/png','image/webp'].includes(original.type)||!original.size)throw Error('عکس باید از نوع JPEG، PNG یا WebP باشد.');
+  if(original.size>40*1024*1024)throw Error('حجم عکس اولیه نباید بیشتر از ۴۰ مگابایت باشد.');
+  onProgress(result.length,files.length,'preparing');
+  const photo=await prepareUploadPhoto(original);
+  if(photo.size>8*1024*1024)throw Error('حجم عکس پس از بهینه‌سازی باید حداکثر ۸ مگابایت باشد.');
+  const ext={'image/jpeg':'jpg','image/png':'png','image/webp':'webp'}[photo.type];
+  const file=new File([photo],original.name.replace(/\.[^.]+$/,'')+'.'+ext,{type:photo.type});
+  onProgress(result.length,files.length,'uploading');
   const object_path=membership.company_id+'/'+membership.user_id+'/'+crypto.randomUUID()+'.'+ext;
   const {error}=await supabase.storage.from('company-media').upload(object_path,file,{contentType:file.type,upsert:false,cacheControl:'3600'});if(error)throw Error('بارگذاری عکس انجام نشد. اتصال و دسترسی حساب را بررسی کن.');
-  try{const record=await companyWrite('media.register',{object_path,filename:file.name.slice(0,180),mime_type:file.type,bytes:file.size,caption:''});result.push(record.id);onProgress(result.length,files.length);}catch(error){await supabase.storage.from('company-media').remove([object_path]);throw error;}
+  try{const record=await companyWrite('media.register',{object_path,filename:file.name.slice(0,180),mime_type:file.type,bytes:file.size,caption:''});result.push(record.id);onProgress(result.length,files.length,'done');}catch(error){await supabase.storage.from('company-media').remove([object_path]);throw error;}
  }
  return result;
 }
