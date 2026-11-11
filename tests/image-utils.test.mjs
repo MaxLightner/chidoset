@@ -10,12 +10,12 @@ function mockCanvas({webp=true,sizes=[300_000]}={}){
  return {stats:()=>({calls,closed}),restore(){globalThis.createImageBitmap=originalBitmap;globalThis.document=originalDocument;}};
 }
 
-test('keeps small source photographs unchanged',async()=>{
+test('keeps source photographs under one megabyte unchanged',async()=>{
  const original=new Blob([new Uint8Array(500_000)],{type:'image/jpeg'});
  assert.equal(await prepareUploadPhoto(original),original);
 });
 
-test('converts large photos to WebP and releases the decoded image',async()=>{
+test('converts large photos to WebP under one megabyte and releases the decoded image',async()=>{
  const mock=mockCanvas();
  try{
   const original=new Blob([new Uint8Array(10_000_000)],{type:'image/jpeg'});
@@ -35,16 +35,16 @@ test('falls back to JPEG when browser cannot encode WebP',async()=>{
 });
 
 test('retries with smaller images until the output meets the upload limit',async()=>{
- const mock=mockCanvas({sizes:[9_000_000,5_000_000]});
+ const mock=mockCanvas({sizes:[1_200_000,850_000]});
  try{
   const original=new Blob([new Uint8Array(12_000_000)],{type:'image/jpeg'});
   const output=await prepareUploadPhoto(original);
-  assert.equal(output.size,5_000_000);assert.equal(mock.stats().calls,2);
+  assert.equal(output.size,850_000);assert.equal(mock.stats().calls,2);
  }finally{mock.restore();}
 });
 
 test('reports a clear error when even the compressed image is too large',async()=>{
- const mock=mockCanvas({sizes:[9_000_000]});
+ const mock=mockCanvas({sizes:[1_200_000]});
  try{
   const original=new Blob([new Uint8Array(12_000_000)],{type:'image/jpeg'});
   await assert.rejects(prepareUploadPhoto(original),/حجم عکس پس از فشرده‌سازی/);
