@@ -46,11 +46,24 @@ async function snapshot(){
  return result;
 }
 async function workspace(req:Request,user:any){
- const body=await req.json();if(!['request.status','ticket.status','message.send'].includes(body.action))return respond({error:'این عملیات پشتیبانی مجاز نیست.'},400);
+ const body=await req.json();if(!['request.status','request.link_set','ticket.status','message.send'].includes(body.action))return respond({error:'این عملیات پشتیبانی مجاز نیست.'},400);
  let input:any;try{input=validateWorkspace(body.action,body.data);}catch(e){return respond({error:e.message},400);}
+ if(body.action==='request.link_set'){
+  const request=checked(await admin.from('company_requests').select('company_id,kind').eq('id',input.id).maybeSingle());
+  if(!request||request.kind!=='model')return respond({error:'درخواست مدل‌سازی معتبر نیست.'},404);
+  const set=checked(await admin.from('sets').select('id').eq('id',input.set_id).eq('company_id',request.company_id).maybeSingle());
+  if(!set)return respond({error:'ست انتخاب‌شده به این مجموعه تعلق ندارد.'},403);
+  checked(await admin.from('company_requests').update({set_id:set.id,updated_at:new Date().toISOString()}).eq('id',input.id).eq('company_id',request.company_id));
+  await admin.from('platform_audit_events').insert({actor_id:user.id,action:'workspace.request.link_set',entity_id:input.id,company_id:request.company_id,details:{set_id:set.id}});
+  return respond({id:input.id,set_id:set.id});
+ }
  const kind=body.action==='message.send'?input.parent_kind:body.action==='request.status'?'request':'ticket';const id=body.action==='message.send'?input.parent_id:input.id;
- const record=checked(await admin.from(kind==='request'?'company_requests':'support_tickets').select('company_id').eq('id',id).maybeSingle());
+ const record=checked(await admin.from(kind==='request'?'company_requests':'support_tickets').select(kind==='request'?'company_id,kind,set_id':'company_id').eq('id',id).maybeSingle());
  if(!record)return respond({error:'درخواست یا تیکت پیدا نشد.'},404);
+ if(body.action==='request.status'&&input.status==='completed'&&record.kind==='model'){
+  const set=record.set_id?checked(await admin.from('sets').select('id,status,set_products(product_id)').eq('id',record.set_id).eq('company_id',record.company_id).maybeSingle()):null;
+  if(!set||set.status!=='published'||!set.set_products?.length)return respond({error:'ابتدا مدل را به ست مجموعه وصل و ست را منتشر کن؛ سپس برای تأیید مشتری بفرست.'},409);
+ }
  const result=await admin.rpc('chido_company_write',{p_actor:user.id,p_company:record.company_id,p_action:body.action,p_data:input,p_central:true});
  if(result.error)return respond({error:'ثبت پاسخ یا وضعیت انجام نشد. دوباره تلاش کن.'},400);
  return respond(result.data);
@@ -88,3 +101,4 @@ Deno.serve(async req=>{
   return respond({error:'مسیر درخواست معتبر نیست.'},404);
  }catch(error){console.error('chido-admin',error.code||error.status||'error');return respond({error:error.status?error.message:'سرویس موقتاً در دسترس نیست. دوباره تلاش کن.'},error.status||500);}
 });
+
