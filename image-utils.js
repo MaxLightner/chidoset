@@ -12,8 +12,8 @@ export async function lightweightPhoto(blob,maxSide=1920){
 
 // Keep the original when it is already small, otherwise optimize before upload.
 // A photo can be much larger than the storage limit as long as its output fits.
-export async function prepareUploadPhoto(original,{maxBytes=8*1024*1024,maxSide=3200}={}){
- if(original.size<=2*1024*1024)return original;
+export async function prepareUploadPhoto(original,{maxBytes=1_000_000,maxSide=4096}={}){
+ if(original.size<maxBytes)return original;
  let image;
  try{image=await createImageBitmap(original);}catch{throw Error('این تصویر قابل خواندن نیست. لطفاً عکس دیگری انتخاب کن.');}
  try{
@@ -21,7 +21,7 @@ export async function prepareUploadPhoto(original,{maxBytes=8*1024*1024,maxSide=
   const context=canvas.getContext('2d');
   if(!context)throw Error('آماده‌سازی تصویر در این مرورگر ممکن نیست.');
   const encode=(type,quality)=>new Promise(resolve=>canvas.toBlob(resolve,type,quality));
-  const attempts=[[maxSide,.88],[2880,.82],[2400,.76],[2000,.70]];
+  const attempts=[[maxSide,.86],[maxSide,.76],[maxSide,.65],[3840,.68],[3200,.7],[2880,.65],[2560,.62],[2200,.59],[1920,.57],[1600,.53],[1280,.48],[1024,.43],[768,.38]];
   let smallest=null;
   for(const [side,quality] of attempts){
    const scale=Math.min(1,side/Math.max(image.width,image.height));
@@ -33,10 +33,10 @@ export async function prepareUploadPhoto(original,{maxBytes=8*1024*1024,maxSide=
    if(!encoded||encoded.type!=='image/webp')encoded=await encode('image/jpeg',quality);
    if(!encoded||!['image/webp','image/jpeg'].includes(encoded.type))throw Error('فشرده‌سازی عکس در این مرورگر امکان‌پذیر نیست.');
    if(!smallest||encoded.size<smallest.size)smallest=encoded;
-   if(encoded.size<=maxBytes)break;
+   if(encoded.size<maxBytes)break;
   }
-  if(original.size<=maxBytes&&original.size<=smallest.size)return original;
-  if(smallest.size>maxBytes)throw Error('حجم عکس پس از فشرده‌سازی هنوز زیاد است. لطفاً عکس کوچک‌تری انتخاب کن.');
+  if(original.size<maxBytes&&original.size<=smallest.size)return original;
+  if(smallest.size>=maxBytes)throw Error('حجم عکس پس از فشرده‌سازی هنوز زیاد است. لطفاً عکس کوچک‌تری انتخاب کن.');
   return smallest;
  }finally{image.close();}
 }
