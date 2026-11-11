@@ -111,6 +111,23 @@ function configureMeshes(model,index){
   object.geometry=object.geometry.clone();
   if(Array.isArray(object.material))object.material=object.material.map(m=>m.clone());
   else if(object.material)object.material=object.material.clone();
+  // The packed JPEG shadow texture in Tripo Prep's glTF is exposed as a
+  // baseColor map; remap it to alphaMap on an unlit black surface in Chido.
+  if(/^CHIDO_SHADOW_PLANE(?:\\.\\d+)?$/i.test(object.name)){
+   const previous=Array.isArray(object.material)?object.material[0]:object.material;
+   const mask=previous?.map;
+   if(!mask){object.visible=false;console.warn('Baked shadow mask not found:',object.name);return;}
+   mask.colorSpace=THREE.NoColorSpace;mask.flipY=false;
+   mask.wrapS=mask.wrapT=THREE.ClampToEdgeWrapping;mask.needsUpdate=true;
+   object.material=new THREE.MeshBasicMaterial({name:'Chido Baked Shadow',color:0x000000,
+    alphaMap:mask,transparent:true,opacity:1,depthWrite:false,
+    side:THREE.DoubleSide,toneMapped:false});
+   previous?.dispose();
+   object.userData.chidoBakedShadow=true;
+   object.castShadow=false;object.receiveShadow=false;
+   object.renderOrder=-1;
+   return;
+  }
   if(index===29&&/sphere/i.test(object.name)){
    const prior=Array.isArray(object.material)?object.material[0]:object.material;
    // Frosted, visibly solid glass: the previous 96% transmission made the
@@ -174,6 +191,9 @@ export function createImportedModel(index,size,fabric='dark'){
   if(proxy.userData.disposed)return;
   const visual=gltf.scene.clone(true);
   configureMeshes(visual,index);
+  // Do not include the intentionally padded shadow plane in model bounds.
+  const bakedShadows=[];
+  visual.traverse(node=>{if(node.userData.chidoBakedShadow){bakedShadows.push(node);node.visible=false;}});
   visual.userData.legacyFabric=!!SOFA_AO[index];
   visual.rotation.y=spec.yaw;
   visual.updateMatrixWorld(true);
@@ -194,6 +214,7 @@ export function createImportedModel(index,size,fabric='dark'){
   visual.position.y-=box.min.y+size[1]/2;
   visual.name='imported-visual';
   proxy.add(visual);
+  for(const shadow of bakedShadows)shadow.visible=true;
   if(SOFA_AO[index])applySofaFabric(visual,proxy.userData.fabric||'dark',index);
   if(isImportedLight(index))addLampLight(proxy,index,size);
   proxy.userData.modelLoaded=true;proxy.userData.loadDurationMs=performance.now()-proxy.userData.loadStartedAt;
