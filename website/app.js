@@ -2,8 +2,36 @@ import { CHIDO_CONFIG, SAMPLE_PRODUCTS } from './config.js?v=0.12.7';
 import { mountHero, createProductImages, mountViewer, startAR } from './scene.js?v=0.16.10';
 
 const $ = selector => document.querySelector(selector);
-document.querySelector('[data-open-app]')?.setAttribute('href', CHIDO_CONFIG.applicationUrl);
+document.querySelectorAll('[data-open-app]').forEach(link => link.setAttribute('href', CHIDO_CONFIG.applicationUrl));
 document.querySelectorAll('[data-site-login]').forEach(link=>link.setAttribute('href', CHIDO_CONFIG.workspaceUrl));
+// Warm the app's entry files while the visitor reads the website. This is only
+// a browser-cache hint: the 3D application does not run until it is opened.
+let appPrefetchStarted = false;
+function prefetchApplication() {
+  if (appPrefetchStarted || navigator.connection?.saveData || /(^|-)2g$/.test(navigator.connection?.effectiveType || '')) return;
+  appPrefetchStarted = true;
+  [
+    CHIDO_CONFIG.applicationUrl,
+    new URL('../app-bootstrap.js?v=0.16.10', import.meta.url).href,
+    new URL('../app.js?v=0.16.10', import.meta.url).href,
+  ].forEach(href => {
+    const link = document.createElement('link');
+    link.rel = 'prefetch';
+    link.href = href;
+    document.head.append(link);
+  });
+}
+document.querySelectorAll('[data-open-app]').forEach(link => {
+  link.addEventListener('pointerenter', prefetchApplication, { once: true, passive: true });
+  link.addEventListener('touchstart', prefetchApplication, { once: true, passive: true });
+  link.addEventListener('focus', prefetchApplication, { once: true });
+});
+const scheduleAppPrefetch = () => {
+  if ('requestIdleCallback' in window) requestIdleCallback(prefetchApplication, { timeout: 3500 });
+  else setTimeout(prefetchApplication, 2300);
+};
+if (document.readyState === 'complete') scheduleAppPrefetch();
+else window.addEventListener('load', scheduleAppPrefetch, { once: true });
 const $$ = selector => Array.from(document.querySelectorAll(selector));
 const money = number => Number(number).toLocaleString('fa-IR') + ' تومان';
 const clamp01 = number => Math.max(0, Math.min(1, number));
@@ -71,12 +99,20 @@ function updateStory() {
   return p;
 }
 
-// A time-paced, scroll-directed deck. A large wheel gesture may jump the
-// destination, but it cannot skip any individual sheet landing.
+// A scroll-directed deck with committed, whole-card transitions. Every sheet
+// finishes entering or leaving before the next scroll direction is considered.
 let deckVisualPosition = 0;
 let deckTargetPosition = 0;
 let deckAnimationFrame = 0;
 let deckPreviousFrameTime = 0;
+let deckSegmentStart = 0;
+let deckSegmentEnd = 0;
+let deckSegmentProgress = 0;
+let deckLastScrollY = window.scrollY;
+let deckLastScrollAt = performance.now();
+let deckScrollVelocity = 0;
+const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+const easeInCubic = t => t * t * t;
 
 function paintFallingCards() {
   const cards = $$('[data-fall-card]');
@@ -86,8 +122,7 @@ function paintFallingCards() {
     // Only the current sheet can be moving. Earlier sheets stay flat,
     // and later sheets are completely hidden until their turn arrives.
     const t = clamp01(deckVisualPosition - i);
-    const inv = t - 1;
-    const sheetLanding = t === 0 ? 0 : 1 + 2.4 * inv * inv * inv + 1.4 * inv * inv;
+    const sheetLanding = t;
     card.style.setProperty('--fall-y', `${(-255 * (1 - sheetLanding)).toFixed(2)}px`);
     card.style.setProperty('--fall-rotate', `${(85 * (1 - sheetLanding)).toFixed(2)}deg`);
     card.style.setProperty('--fall-tilt', `${((i % 2 ? 1 : -1) * 8 * (1 - sheetLanding)).toFixed(2)}deg`);
@@ -106,16 +141,30 @@ function paintFallingCards() {
 }
 
 function animateFallingCards(now) {
-  const elapsed = deckPreviousFrameTime ? Math.min(.065, (now - deckPreviousFrameTime) / 1000) : 1 / 60;
+  const elapsed = deckPreviousFrameTime ? Math.min(.05, (now - deckPreviousFrameTime) / 1000) : 1 / 60;
   deckPreviousFrameTime = now;
-  const distance = deckTargetPosition - deckVisualPosition;
-  // Around 400ms per complete sheet, forward AND backward. This rate limit
-  // is independent of mouse-wheel speed and the operating system's motion setting.
-  const maxStep = elapsed * 2.5;
-  deckVisualPosition += Math.max(-maxStep, Math.min(maxStep, distance));
-  if (Math.abs(deckTargetPosition - deckVisualPosition) < .0005) deckVisualPosition = deckTargetPosition;
+  if (deckSegmentStart === deckSegmentEnd && deckVisualPosition !== deckTargetPosition) {
+    deckSegmentStart = Math.round(deckVisualPosition);
+    deckSegmentEnd = deckSegmentStart + Math.sign(deckTargetPosition - deckVisualPosition);
+    deckSegmentProgress = 0;
+  }
+  if (deckSegmentStart !== deckSegmentEnd) {
+    const pendingCards = Math.abs(deckTargetPosition - deckVisualPosition);
+    const activeGesture = Math.max(0, 1 - (now - deckLastScrollAt) / 650);
+    // Fast scroll gestures and a long queued deck accelerate sequential
+    // sheets, but even a sudden reversal cannot interrupt the active sheet.
+    const cardsPerSecond = 2.5 + Math.min(7, Math.max(0, pendingCards - 1) * .85 + deckScrollVelocity * activeGesture * 1.8);
+    deckSegmentProgress = Math.min(1, deckSegmentProgress + elapsed * cardsPerSecond);
+    const entering = deckSegmentEnd > deckSegmentStart;
+    const eased = entering ? easeOutCubic(deckSegmentProgress) : easeInCubic(deckSegmentProgress);
+    deckVisualPosition = deckSegmentStart + (deckSegmentEnd - deckSegmentStart) * eased;
+    if (deckSegmentProgress >= 1) {
+      deckVisualPosition = deckSegmentEnd;
+      deckSegmentStart = deckSegmentEnd;
+    }
+  }
   paintFallingCards();
-  if (deckVisualPosition !== deckTargetPosition) {
+  if (deckSegmentStart !== deckSegmentEnd || deckVisualPosition !== deckTargetPosition) {
     deckAnimationFrame = requestAnimationFrame(animateFallingCards);
   } else {
     deckAnimationFrame = 0;
@@ -138,7 +187,13 @@ function updateFallingCards() {
   const progress = clamp01((
     (pinnedLayout ? 78 : innerHeight * .8) - position
   ) / travel);
-  deckTargetPosition = progress * count;
+  // Snap the destination to whole cards; no sheet is stranded half-visible.
+  deckTargetPosition = Math.round(progress * count);
+  const now = performance.now();
+  const elapsed = Math.max(16, now - deckLastScrollAt);
+  deckScrollVelocity = Math.min(5, Math.abs(window.scrollY - deckLastScrollY) / elapsed);
+  deckLastScrollY = window.scrollY;
+  deckLastScrollAt = now;
   if (!deckAnimationFrame) deckAnimationFrame = requestAnimationFrame(animateFallingCards);
 }
 
@@ -270,7 +325,7 @@ const legalDocs = {
     ['۱. ماهیت خدمات', 'چیدو بستری برای نمایش و مدیریت محتوای سه‌بعدی محصولات مبلمان است. امکانات و حدود سرویس در قرارداد نهایی اشتراک تعیین می‌شوند.'],
     ['۲. حساب کاربری', 'ثبت‌نام نهایی نیازمند تأیید مالکیت شماره تماس و رعایت دستورالعمل‌های امنیت حساب خواهد بود. صاحب حساب مسئول دسترسی‌های کاربران زیرمجموعه فروشگاه است.'],
     ['۳. مالکیت تصاویر و مدل‌ها', 'فروشگاه باید مجاز به استفاده از تصاویر، نام تجاری و مشخصات محصولاتی باشد که بارگذاری می‌کند. شرایط استفاده از مدل‌های تولیدشده در قرارداد جداگانه مشخص می‌شود.'],
-    ['۴. اشتراک و دوره آزمایشی', 'مدت دوره آزمایشی، تعداد محصولات مجاز، تعرفه‌ها، تمدید و لغو اشتراک پیش از شروع فروش عمومی اعلام خواهند شد.'],
+    ['۴. اشتراک و دوره آزمایشی', 'تعرفه‌های سال ۱۴۰۵ در بخش اشتراک سایت اعلام شده‌اند؛ طرح یک‌ماهه رایگان و نرخ تخفیفی سالانه فقط در جشنواره معتبرند. جزئیات تمدید، بازپرداخت و مدل‌سازی مطابق قرارداد نهایی هر فروشگاه است.'],
     ['۵. فروش و سفارش', 'قیمت‌ها، موجودی، تحویل، گارانتی و تعهدات فروشگاه در فروش آنلاین مطابق قرارداد فروشگاه و شرایط نهایی پلتفرم مشخص می‌شوند.'],
   ] },
   privacy: { title: 'حریم خصوصی', sections: [

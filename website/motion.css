@@ -68,7 +68,7 @@ h2 { font-size: clamp(32px, 3.8vw, 59px); }
 .registration-strip { padding-top: 47px; padding-bottom: 47px; }
 .shop-products { padding-top: 75px; }
 
-/* Each feature sheet lands with a tiny spring overshoot and reverses on scroll up. */
+/* Feature sheets settle without overshoot; JS completes each entry/exit. */
 .extras-grid .extra-card {
   --hover-shift: 0px;
   opacity: var(--fall-opacity, 1);

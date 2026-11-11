@@ -31,13 +31,14 @@
     </nav>
     <div class="header-actions">
       <a class="quiet-btn login-trigger" data-site-login href="https://chidoset.ir/login.html">ورود به حساب <span class="arrow-icon">↗</span></a>
-      <a class="pill-btn primary header-start" data-open-app href="https://chidoset.ir/index.html">ورود به اپلیکیشن <span>↗</span></a>
+      <a class="pill-btn primary header-start" data-open-app href="https://chidoset.ir/index.html" aria-label="باز کردن اپلیکیشن چیدو">باز کردن اپ <span>↗</span></a>
       <button class="menu-toggle" id="menu-toggle" aria-expanded="false" aria-label="باز کردن منو"><span></span><span></span></button>
     </div>
   </header>
   <div class="mobile-nav" id="mobile-nav" hidden>
     <a href="#/">معرفی چیدو</a><a href="#/shop">فروشگاه‌ساز</a><a href="#/dashboard">مدیریت مرکزی</a><a href="#/terms">قوانین</a>
     <a data-site-login href="https://chidoset.ir/login.html">ورود به حساب</a>
+    <a data-open-app href="https://chidoset.ir/index.html">باز کردن اپلیکیشن ↗</a>
   </div>
 
   <main id="home-page" class="page active-page">
@@ -103,7 +104,36 @@
 
     <section class="section extras-section" id="extras-stage"><div class="extras-pin"><div class="extras-heading-row"><div class="section-head reveal"><p class="eyebrow"><span class="eyebrow-line"></span> فراتر از نمایش سه‌بعدی</p><h2>ابزارهایی برای تمام<br /><em>مسیر فروش.</em></h2><p>امکانات تکمیلی چیدو، در مسیر توسعه یک پلتفرم یکپارچه فروش مبلمان.</p></div><div class="extras-meter" aria-hidden="true"><div class="extras-meter-top"><span>CHIDO / YOUR BUSINESS</span><strong id="extras-number">۰۰ / ۰۸</strong></div><div class="extras-meter-line"><span id="extras-meter-fill"></span></div><small>هر کارت، یک امکان تازه برای کسب‌وکار شما</small></div></div><div class="extras-grid" id="extras-grid"></div><div class="extras-action"><a href="#/shop" class="pulse-button"><span>ورود به فروشگاه‌ساز</span><b>↗</b></a></div></div></section>
 
-    <section class="section pricing-section"><div class="pricing-intro reveal"><p class="eyebrow">اشتراک متناسب با کسب‌وکار شما</p><h2>کوچک شروع کنید.<br /><em>بزرگ‌تر بفروشید.</em></h2><p>دوره آزمایشی برای بررسی عملیِ کاربرد چیدو روی محصولات پرفروش شما طراحی شده است. مبالغ نهایی پس از تعیین بسته‌ها اعلام می‌شود.</p></div><div class="pricing-cards"><article class="pricing-card reveal"><span class="plan-tag">برای آشنایی</span><h3>یک‌ماهه</h3><p>تجربه واقعی چیدو با چند محصول منتخب فروشگاه</p><div class="pricing-placeholder">تعرفه به‌زودی</div><a href="#/signup" class="outline-pill">درخواست تست <span>↗</span></a></article><article class="pricing-card featured reveal"><span class="plan-tag">پیشنهاد رشد</span><h3>شش‌ماهه</h3><p>فرصت کافی برای تکمیل کتابخانه و سنجش بازخورد مشتریان</p><div class="pricing-placeholder">تعرفه به‌زودی</div><a href="#/signup" class="pill-btn primary">درخواست مشاوره <span>↗</span></a></article><article class="pricing-card reveal"><span class="plan-tag">برای کسب‌وکار پایدار</span><h3>سالانه و بیشتر</h3><p>توسعه نمایشگاه و فروشگاه اختصاصی در مقیاس بزرگ‌تر</p><div class="pricing-placeholder">تعرفه به‌زودی</div><a href="#/signup" class="outline-pill">بررسی شرایط <span>↗</span></a></article></div></section>
+    <section class="section pricing-section" id="pricing" aria-labelledby="pricing-title">
+      <div class="pricing-intro reveal"><div><p class="eyebrow">تعرفه اشتراک ۱۴۰۵</p><h2 id="pricing-title">کوچک شروع کنید.<br /><em>بزرگ‌تر بفروشید.</em></h2></div><p>چهار مسیر همکاری، از تست جشنواره تا قرارداد بلندمدت. هزینه ساخت مدل‌های سه‌بعدی جدا از حق اشتراک محاسبه می‌شود؛ شرایط جشنواره محدود است.</p></div>
+      <div class="pricing-cards">
+        <article class="pricing-card trial reveal">
+          <span class="plan-tag">جشنواره · ۵۰ فروشگاه اول</span><h3>یک‌ماهه آزمایشی</h3><p>برای تجربه چیدو در فروشگاه واقعی</p>
+          <div class="plan-price"><strong>رایگان</strong><small>۱ ماه</small></div>
+          <ul class="plan-details"><li>حساب مدیر + حداکثر ۳ فروشنده</li><li>یک ست پریمیوم تا ۵ المان، هدیه</li><li>انتشار ست هدیه در کتابخانه عمومی</li></ul>
+          <a href="#/signup" class="outline-pill">درخواست شرکت در جشنواره <span>↗</span></a>
+        </article>
+        <article class="pricing-card reveal">
+          <span class="plan-tag">برای توسعه تدریجی</span><h3>شش‌ماهه</h3><p>فرصت کافی برای آماده‌سازی کاتالوگ</p>
+          <div class="plan-price"><strong>۱۰ میلیون</strong><small>تومان / ۶ ماه</small></div>
+          <ul class="plan-details"><li>تا ۱۰ فروشنده</li><li>تا ۵۰ ست محصول</li><li>تمدید یا ارتقا طبق قرارداد</li></ul>
+          <a href="#/signup" class="outline-pill">درخواست اشتراک <span>↗</span></a>
+        </article>
+        <article class="pricing-card featured reveal">
+          <span class="plan-tag">پیشنهاد ویژه جشنواره</span><h3>سالیانه</h3><p>برای نمایشگاه‌های در حال رشد</p>
+          <div class="plan-price"><strong>۱۲ میلیون</strong><small>تومان / سال اول جشنواره</small><del>تعرفه عادی: ۲۰ میلیون تومان</del></div>
+          <ul class="plan-details"><li>تا ۲۰ فروشنده</li><li>تا ۱۰۰ ست محصول</li><li>نرخ ویژه فقط در جشنواره</li></ul>
+          <a href="#/signup" class="pill-btn primary">استفاده از طرح جشنواره <span>↗</span></a>
+        </article>
+        <article class="pricing-card reveal">
+          <span class="plan-tag">قرارداد ۱۰ ساله</span><h3>بلندمدت</h3><p>برنامه‌ریزی پایدار برای مجموعه‌های بزرگ</p>
+          <div class="plan-price"><strong>۵۰ میلیون</strong><small>تومان / ۱۰ سال</small></div>
+          <ul class="plan-details"><li>تا ۵۰ فروشنده</li><li>تا ۱۰۰ ست محصول</li><li>قرارداد جدید پس از پایان دوره</li></ul>
+          <a href="#/signup" class="outline-pill">درخواست همکاری <span>↗</span></a>
+        </article>
+      </div>
+      <p class="pricing-footnote">مبالغ مربوط به تعرفه ۱۴۰۵ است. پرداخت اشتراک فعلاً به‌صورت غیردرگاهی و مطابق قرارداد انجام می‌شود؛ مدل‌سازی و خدمات اضافه تعرفه مستقل دارند.</p>
+    </section>
 
     <section class="final-cta reveal" id="consult"><div class="final-orbit" aria-hidden="true"></div><p class="eyebrow">فرصت ساخت تجربه متفاوت همین حالاست</p><h2 class="cta-heading" aria-label="همین امروز شروع کنید؛ در اوج بازار دیر است."><span class="typewriter-line" aria-hidden="true"><span class="typewriter-measure">همین امروز شروع کنید؛</span><span class="typewriter-text" id="cta-typewriter" data-copy="همین امروز شروع کنید؛">همین امروز شروع کنید؛</span></span><em class="cta-type-second" aria-hidden="true">در اوج بازار دیر است.</em></h2><p>برای فروشگاه یا کارخانه شما، یک مسیر ساده و قابل آزمایش طراحی می‌کنیم.</p><a href="#/signup" class="pulse-button"><span>مشاوره رایگان برای فروشگاه شما</span><b>↗</b></a><div class="big-contact"><span>ارتباط مستقیم با چیدو</span><strong>شماره تماس پس از تأیید درج می‌شود</strong></div></section>
 
@@ -136,6 +166,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="./navigation.js?v=0.12.4" defer></script>
-  <script type="module" src="./app.js?v=0.16.10"></script>
+  <script type="module" src="./app.js?v=0.16.11"></script>
 </body>
 </html>
