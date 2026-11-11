@@ -13,7 +13,8 @@ export async function lightweightPhoto(blob,maxSide=1920){
 // Keep the original when it is already small, otherwise optimize before upload.
 // A photo can be much larger than the storage limit as long as its output fits.
 export async function prepareUploadPhoto(original,{maxBytes=1_000_000,maxSide=4096}={}){
- if(original.size<maxBytes)return original;
+ const browserReady=['image/jpeg','image/png','image/webp'].includes(original.type);
+ if(original.size<maxBytes&&browserReady)return original;
  let image;
  try{image=await createImageBitmap(original);}catch{throw Error('این تصویر قابل خواندن نیست. لطفاً عکس دیگری انتخاب کن.');}
  try{
@@ -35,7 +36,7 @@ export async function prepareUploadPhoto(original,{maxBytes=1_000_000,maxSide=40
    if(!smallest||encoded.size<smallest.size)smallest=encoded;
    if(encoded.size<maxBytes)break;
   }
-  if(original.size<maxBytes&&original.size<=smallest.size)return original;
+  if(browserReady&&original.size<maxBytes&&original.size<=smallest.size)return original;
   if(smallest.size>=maxBytes)throw Error('حجم عکس پس از فشرده‌سازی هنوز زیاد است. لطفاً عکس کوچک‌تری انتخاب کن.');
   return smallest;
  }finally{image.close();}
