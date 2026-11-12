@@ -46,7 +46,15 @@ test('baked material roles preserve lighting map while a separate tiled map is i
  const shader={uniforms:{},vertexShader:'#include <common>\n#include <uv_vertex>',fragmentShader:'#include <common>\n#include <map_fragment>'};m.onBeforeCompile(shader);
  assert.equal(shader.uniforms.chidoRoleMap.value,cloth);assert.match(shader.vertexShader,/chidoTileUv/);assert.match(shader.fragmentShader,/diffuseColor \*= texture2D/);
 });
-test('three bundled wood textures are lightweight JPEGs and available without canvas',()=>{
+test('three color-only wood textures are genuine 1024px JPEGs within a mobile budget',()=>{
  const presets=materialPresets('wood');assert.equal(presets.length,3);
- for(const p of presets){const b=readFileSync(new URL('../'+p.url,import.meta.url));assert.equal(b.readUInt16BE(0),0xffd8);assert.ok(b.length<20000);}
+ for(const p of presets){
+  const b=readFileSync(new URL('../'+p.url,import.meta.url));
+  assert.equal(b.readUInt16BE(0),0xffd8);
+  assert.ok(b.length<200000,'color texture should stay below 200 KB');
+  const marker=b.indexOf(Buffer.from([0xff,0xc0]));
+  assert.ok(marker>=0,'JPEG baseline frame missing');
+  assert.equal(b.readUInt16BE(marker+5),1024);
+  assert.equal(b.readUInt16BE(marker+7),1024);
+ }
 });

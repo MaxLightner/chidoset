@@ -1,0 +1,28 @@
+name: Generate 1024px Chido wood textures
+on:
+  push:
+    paths:
+      - 'scripts/generate-wood-textures.py'
+      - '.github/workflows/generate-wood-textures.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  wood:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check numpy pillow
+      - run: python scripts/generate-wood-textures.py
+      - name: Commit compressed wood textures
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/chido/wood-oak.jpg assets/chido/wood-walnut.jpg assets/chido/wood-black.jpg
+          if ! git diff --cached --quiet; then
+            git commit -m "Replace tiny swatches with 1024px wood color textures"
+            git push
+          fi
