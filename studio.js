@@ -1,10 +1,10 @@
 import * as THREE from './vendor/three.module.js';
-import {copyMaterialStyles,applyRoleMaterial,disposeRoleMaterials} from './material-roles.js?v=0.16.16';
+import {copyMaterialStyles,applyRoleMaterial,disposeRoleMaterials} from './material-roles.js?v=0.16.17';
 import {getCloudProduct,getCloudProductInfo,registerCloudProducts,cloudProductList} from './cloud-product-registry.js';
 import {ArchitectureLayer} from './architecture.js?v=0.9.0';
 import {createFurniture,furnitureHit} from './furniture.js?v=0.5.4';
 import {createDecor} from './decor.js?v=0.5.4';
-import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.16.16';
+import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.16.17';
 import {applyRugStyle} from './rug-textures.js?v=0.5.4';
 import {MeasureTool} from './measure-tool.js?v=0.5.4';
 import {bindXRExit} from './xr-lifecycle.js?v=0.14.0';
@@ -167,7 +167,7 @@ void main(){
  }
  add(index=this.serial%4,position,options={}){
   const cloud=getCloudProduct(index),sheenChair=index===1000;
-  if(index>=32&&!cloud&&!sheenChair)throw Error('مدل این محصول در دسترس نیست؛ کتابخانه شرکت را دوباره دریافت کن.');
+  if(index>=32&&!cloud&&!sheenChair&&!isImportedModel(index))throw Error('مدل این محصول در دسترس نیست؛ کتابخانه شرکت را دوباره دریافت کن.');
   if(!cloud&&!sheenChair)index=((index%CATALOG.length)+CATALOG.length)%CATALOG.length;
   const baseProduct=cloud?{name:cloud.name,size:cloud.size_m,price:0}:sheenChair?SHEEN_CHAIR_SAMPLE:{...CATALOG[index],name:getCloudProductInfo(index)?.name||CATALOG[index].name},product=options.size?{...baseProduct,size:options.size}:baseProduct,id=++this.serial,[w,h,d]=product.size;
   const color=palette[index]||'#c6b7a3';const mesh=isImportedModel(index)?createImportedModel(index,product.size,options.fabric||'dark'):index<4?createFurniture(index,product.size,color,options.seats):createDecor(index,product.size,color);
@@ -175,7 +175,20 @@ void main(){
   const dimensions=`${product.name} · ${product.size.map(v=>fa(v*100)).join(' × ')} cm`;const label=this.makeLabel(dimensions);label.position.y=h/2+.18;label.scale.set(1.5,.22,1);mesh.add(label);
   mesh.userData={...mesh.userData,id,index,height:h,price:product.price,product,edges,label,fabric:options.fabric||'dark',materialStyles:copyMaterialStyles(options.materialStyles),
   asset:assetMetadata(index,product.size),seats:options.seats||(index===0?3:1),cushionPreset:'none',
-  collisionBox:new THREE.Box3(new THREE.Vector3(-w/2,-h/2,-d/2),new THREE.Vector3(w/2,h/2,d/2))};const defaults=[[0,h/2,-2.1],[2,h/2,-2.1],[.6,h/2,-.9],[2,h/2,-.6],[.3,h/2,-.75],[.3,h/2,-2.1],[2,h/2,-.65],[.9,h/2,-1.5],[.5,h/2,-1.8],[.5,h/2,-1.8],[.5,h/2,-1.7],[.5,h/2,-1.2]];
+  collisionBox:new THREE.Box3(new THREE.Vector3(-w/2,-h/2,-d/2),new THREE.Vector3(w/2,h/2,d/2))};
+  const loadingModel=isImportedModel(index)&&!mesh.userData.modelLoaded;let loadFill=null;
+  if(loadingModel){
+   loadFill=new THREE.Mesh(new THREE.BoxGeometry(w*.94,h*.94,d*.94),new THREE.MeshBasicMaterial({color:0x58a5cf,transparent:true,opacity:.18,depthWrite:false,side:THREE.DoubleSide}));
+   loadFill.name='chido-model-load-fill';loadFill.scale.y=.015;loadFill.position.y=-h/2+(h*.015)/2;loadFill.renderOrder=5;mesh.add(loadFill);
+   mesh.userData.loadFill=loadFill;mesh.userData.edges.material.color.set(0x58a5cf);mesh.userData.edges.material.opacity=.62;mesh.material.color.set(0x58a5cf);mesh.material.opacity=.025;
+   mesh.userData.onLoadProgress=state=>{
+    mesh.userData.loadProgress=state;if(!loadFill?.parent)return;
+    if(state?.progress===null||!Number.isFinite(state?.progress)){mesh.userData.loadIndeterminate=true;return;}
+    const progress=THREE.MathUtils.clamp(state.progress,0,1);mesh.userData.loadIndeterminate=false;loadFill.scale.y=Math.max(.015,progress);loadFill.position.y=-h/2+(h*loadFill.scale.y)/2;
+   };
+   if(mesh.userData.loadProgress)mesh.userData.onLoadProgress(mesh.userData.loadProgress);
+  }
+  const defaults=[[0,h/2,-2.1],[2,h/2,-2.1],[.6,h/2,-.9],[2,h/2,-.6],[.3,h/2,-.75],[.3,h/2,-2.1],[2,h/2,-.65],[.9,h/2,-1.5],[.5,h/2,-1.8],[.5,h/2,-1.8],[.5,h/2,-1.7],[.5,h/2,-1.2]];
   mesh.position.fromArray(defaults[index]||[0,h/2,-1.65]);if(position)mesh.position.copy(position);
   mesh.position.y=isWallArt(index)?(position?.y>1?position.y:1.55):h/2;
   if(isSofa(index))installSofaCushions(mesh,options.cushionPreset||'none');
@@ -197,10 +210,18 @@ void main(){
    this.snapToSupport(mesh);
   }
    if(isImportedModel(index)){
-    mesh.userData.onModelReady=()=>{if(isSofaShadowProduct(index,cloud||product)){const visual=mesh.getObjectByName('imported-visual');if(visual){let bakedShadow;visual.traverse(node=>{if(node.userData.chidoBakedShadow)bakedShadow=node;});
+    let readyHandled=false;
+    const finishLoading=()=>{
+     if(readyHandled)return;readyHandled=true;
+     const fill=mesh.getObjectByName('chido-model-load-fill');if(fill){mesh.remove(fill);fill.geometry.dispose();fill.material.dispose();}
+     mesh.userData.loadFill=null;mesh.userData.loadIndeterminate=false;mesh.material.opacity=0;
+     mesh.userData.edges.material.color.set(mesh===this.selected?'#d3a66e':'#8d7e6d');mesh.userData.edges.material.opacity=mesh===this.selected?.48:.13;
+    };
+    mesh.userData.onModelReady=()=>{finishLoading();if(isSofaShadowProduct(index,cloud||product)){const visual=mesh.getObjectByName('imported-visual');if(visual){let bakedShadow;visual.traverse(node=>{if(node.userData.chidoBakedShadow)bakedShadow=node;});
       if(bakedShadow?.userData.chidoBakedShadow){const fallback=mesh.getObjectByName('contact-shadow');if(fallback){mesh.remove(fallback);fallback.geometry.dispose();fallback.material.dispose();}}
       else{const box=modelLocalBounds(mesh,visual),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());if(!box.isEmpty())this.addContactShadow(mesh,size.x,size.z,-box.min.y*2,.30,{bottom:box.min.y,x:center.x,z:center.z});}}}if(mesh.userData.tint)this.tintItem(mesh,mesh.userData.tint);this.enableShadowCasting(mesh);if([22,23,24].includes(index))this.setSofaFabric(mesh.userData.fabric,mesh,{preserveRoles:true});if(isLamp(index))this.initializeLamp(mesh,mesh.userData.lampOn);this.restoreMaterialStyles(mesh);this.changed();};
-    mesh.userData.onModelError=()=>this.onHint?.('بارگذاری '+product.name+' ناموفق بود؛ اتصال مدل‌های کتابخانه را بررسی کن.');
+    mesh.userData.onModelError=error=>{const fill=mesh.getObjectByName('chido-model-load-fill');if(fill){fill.material.color.set('#cf654b');fill.material.opacity=.24;}mesh.material.color.set('#cf654b');mesh.material.opacity=.035;mesh.userData.edges.material.color.set('#cf654b');mesh.userData.edges.material.opacity=.78;this.onHint?.('بارگذاری '+product.name+' ناموفق بود: '+(error?.message||'خطای دریافت فایل'));};
+    if(mesh.userData.modelLoaded)mesh.userData.onModelReady();
    }
   if(!options.silentSelect)this.select(mesh);this.setGuides();return mesh;
  }
@@ -841,6 +862,10 @@ safeObjectMotion(mesh,desired){
  }
  frame(time,frame){
   if(this.suspended||this.exitToHome)return;
+  for(const item of this.items)if(item.userData.loadIndeterminate&&item.userData.loadFill?.parent){
+   const fill=item.userData.loadFill,h=item.userData.height,band=.16,phase=(time%1150)/1150;
+   fill.scale.y=band;fill.position.y=-h/2+((phase*(1-band)+band/2)*h);fill.material.opacity=.10+.10*(.5+.5*Math.sin(time*.008));
+  }
   if(!this.session&&this.host.classList.contains('ar-launch-stage')&&!this.host.classList.contains('show-preview'))return;
   if(frame&&this.session){const space=this.renderer.xr.getReferenceSpace(),pose=frame.getViewerPose(space);if(this.wideView?.active)this.wideView.updatePose(pose);this.tracking=!!pose;
    if(!pose){this.cancelGesture();this.status('ردیابی قطع شد؛ چیدمان جابجا نمی‌شود. دوربین را آرام به محیط برگردان.');}

@@ -1,8 +1,8 @@
 import * as THREE from './vendor/three.module.js';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
 import {getCloudProduct} from './cloud-product-registry.js';
-import {materialRole} from './material-roles.js?v=0.16.16';
-import {loadModelBytes} from './model-asset-cache.js?v=0.16.2';
+import {materialRole} from './material-roles.js?v=0.16.17';
+import {loadModelBytes} from './model-asset-cache.js?v=0.16.17';
 
 // All units are metres. Native Blender GLB dimensions are preserved; the
 // quarter-turn only makes the long side of a sofa/table follow local X.
@@ -47,7 +47,7 @@ function loadFabric(file,repeat=4){
  if(!fabricCache.has(key)){
   let resolve,reject,timer;const ready=new Promise((ok,fail)=>{resolve=ok;reject=fail;});ready.catch(()=>{});
   const fail=error=>{clearTimeout(timer);if(fabricCache.get(key)===texture)fabricCache.delete(key);reject(error);};
-  const texture=textureLoader.load(new URL('./assets/chido/'+file+'?v=0.16.10',import.meta.url).href,value=>{clearTimeout(timer);resolve(value);},undefined,fail);
+  const texture=textureLoader.load(new URL('./assets/chido/'+file+'?v=0.16.17',import.meta.url).href,value=>{clearTimeout(timer);resolve(value);},undefined,fail);
   timer=setTimeout(()=>fail(Error('مهلت بارگذاری پارچه تمام شد؛ متریال اصلی مدل حفظ شد.')),45000);
   texture.userData.ready=ready;
   configureSofaTexture(texture,file,repeat);
@@ -78,6 +78,7 @@ export async function applySofaFabric(model,id='dark',index=22){
   // AO uses the native, untiled UV; cloth alone repeats 4 times on each axis.
   if(!object.geometry.attributes.uv2)object.geometry.setAttribute('uv2',object.geometry.attributes.uv.clone());
   const materials=Array.isArray(object.material)?object.material:[object.material];
+  markBakedRoleMaterials(materials,!!colorUV);
   for(const material of materials){
    if(!material?.isMeshStandardMaterial||(named&&materialRole(material.name)!=='fabric'))continue;
    material.map=loadFabric(fabric.file,4);
@@ -97,13 +98,26 @@ export async function applySofaFabric(model,id='dark',index=22){
 export const isImportedModel=index=>Object.hasOwn(IMPORTED_MODELS,index)||!!getCloudProduct(index);
 export const isImportedLight=index=>index===28||index===29;
 export const isImportedNoShadow=index=>[28,29,30,31].includes(index);
-const source=(file)=>{
- if(!cache.has(file)){
-  const url=file.startsWith('https://')?file:new URL('./assets/chido/'+file+'?v=0.16.10',import.meta.url).href;
-  cache.set(file,loadModelBytes(url).then(bytes=>loader.parseAsync(bytes,new URL('.',url).href)).catch(error=>{cache.delete(file);throw error;}));
+function source(file,onProgress){
+ let entry=cache.get(file);
+ if(!entry){
+  entry={listeners:new Set(),progress:null,promise:null};
+  if(onProgress)entry.listeners.add(onProgress);
+  const notify=state=>{entry.progress=state;for(const listener of entry.listeners)try{listener(state);}catch(error){console.warn('GLB progress listener failed',error);}};
+  const url=file.startsWith('https://')?file:new URL('./assets/chido/'+file+'?v=0.16.17',import.meta.url).href;
+  entry.promise=loadModelBytes(url,notify).then(bytes=>loader.parseAsync(bytes,new URL('.',url).href)).then(gltf=>{notify({loaded:entry.progress?.total||entry.progress?.loaded||1,total:entry.progress?.total||entry.progress?.loaded||1,progress:1,fromCache:!!entry.progress?.fromCache});return gltf;}).catch(error=>{cache.delete(file);throw error;});
+  cache.set(file,entry);
+ }else if(onProgress){
+  entry.listeners.add(onProgress);if(entry.progress)onProgress(entry.progress);
  }
- return cache.get(file);
-};
+ return entry.promise;
+}
+export function markBakedRoleMaterials(materials,hasPhysicalColorUV){
+ if(!hasPhysicalColorUV)return;
+ for(const material of materials||[]){
+  if(material?.isMeshBasicMaterial&&material.userData?.tripo_prep_role&&materialRole(material.userData.tripo_prep_role))material.userData.chido_baked_lighting_v1=true;
+ }
+}
 function configureMeshes(model,index){
  model.traverse(object=>{
   if(!object.isMesh)return;
@@ -195,7 +209,7 @@ export function createImportedModel(index,size,fabric='dark'){
  proxy.userData.assetSource=spec.file;
  if(SOFA_AO[index])void preloadSofaTextures(index,fabric).catch(()=>{});
  proxy.userData.loadStartedAt=performance.now();
- proxy.userData.loadPromise=source(spec.file).then(gltf=>{
+ proxy.userData.loadPromise=source(spec.file,state=>{proxy.userData.loadProgress=state;proxy.userData.onLoadProgress?.(state);}).then(gltf=>{
   if(proxy.userData.disposed)return;
   const visual=gltf.scene.clone(true);
   configureMeshes(visual,index);

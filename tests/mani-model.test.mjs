@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import * as THREE from '../vendor/three.module.js';
 import {roleMaterials,installBakedRoleTexture,materialPresets} from '../material-roles.js';
 import {isFloorSolid} from '../collision.js';
-import {IMPORTED_MODELS} from '../imported-models.js';
+import {IMPORTED_MODELS,markBakedRoleMaterials} from '../imported-models.js';
 test('Mani baked model includes authored shadow, collider, physical UV and independent roles',()=>{
  assert.equal(isFloorSolid(32),true);
  const b=readFileSync(new URL('../assets/chido/'+IMPORTED_MODELS[32].file,import.meta.url));
@@ -14,6 +14,16 @@ test('Mani baked model includes authored shadow, collider, physical UV and indep
  assert.ok(d.nodes.some(n=>n.extras?.chido_color_uv_v1?.tileCm===70));
  assert.ok(d.meshes.some(m=>m.primitives.some(p=>p.attributes.TEXCOORD_1!==undefined)));
  for(const role of ['Fabric','Wood'])assert.ok(d.materials.some(m=>m.extras?.tripo_prep_role===role&&m.extensions?.KHR_materials_unlit));
+});
+test('baked unlit Fabric and Wood materials are exposed as independent selectable roles',()=>{
+ const visual=new THREE.Group();
+ for(const role of ['Fabric','Wood']){
+  const material=new THREE.MeshBasicMaterial({map:new THREE.Texture()});material.userData={tripo_prep_role:role};
+  const geometry=new THREE.PlaneGeometry();geometry.setAttribute('chidoTileUv',geometry.getAttribute('uv').clone());
+  visual.add(new THREE.Mesh(geometry,material));
+  markBakedRoleMaterials([material],true);
+ }
+ assert.deepEqual(roleMaterials(visual).map(entry=>entry.role).sort(),['fabric','wood']);
 });
 test('baked material roles preserve lighting map while a separate tiled map is installed',()=>{
  const visual=new THREE.Group(),light=new THREE.Texture(),cloth=new THREE.Texture();
