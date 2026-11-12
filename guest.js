@@ -1,4 +1,4 @@
-import {Studio} from './scene.js?v=0.16.10';
+import {Studio} from './scene.js?v=0.16.18';
 import {supabase,authenticateGuest,guestStatus} from './chido-cloud.js?v=0.16.10';
 import {ApprovedLiveWatch} from './live-watch.js?v=0.16.10';
 import {watchMarkup,renderWatchState} from './live-watch-ui.js?v=0.16.1';

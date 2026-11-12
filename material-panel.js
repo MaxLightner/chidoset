@@ -1,6 +1,6 @@
-import {MATERIAL_ROLES,ROLE_LABELS,roleMaterials,materialPresets,materialImage} from './material-roles.js?v=0.16.17';
+import {MATERIAL_ROLES,ROLE_LABELS,roleMaterials,materialPresets,materialImage} from './material-roles.js?v=0.16.18';
 export function mountMaterialPanel(host,studio,mesh,{notify=()=>{}}={}){
- let active='fabric';
+ let active='fabric',renderVersion=0;
  const valid=()=>host.isConnected&&studio.items.includes(mesh)&&studio.selected===mesh&&!mesh.userData.disposed;
  const visual=()=>mesh.getObjectByName('imported-visual');
  const render=()=>{
@@ -11,9 +11,18 @@ export function mountMaterialPanel(host,studio,mesh,{notify=()=>{}}={}){
   const setStatus=text=>{if(host.isConnected)status.textContent=text;};
   const apply=async style=>{
    if(!valid()){setStatus('آبجکت انتخاب‌شده عوض شده؛ پنل متریال را دوباره باز کن.');return;}
+   const requestedRole=active,requestVersion=++renderVersion;
    setStatus('در حال بارگذاری تکسچر…');
-   try{const ok=await studio.setMaterialStyle(active,style,mesh);if(!ok){setStatus('تغییر انجام نشد؛ انتخاب یا بخش متریال تغییر کرده است.');return;}if(valid()){render();host.querySelector('[data-material-status]').textContent='فقط متریال همین آبجکت تغییر کرد.';}}
-   catch(error){setStatus(error.message||'بارگذاری تکسچر انجام نشد.');notify(error.message||'بارگذاری تکسچر انجام نشد.');}
+   try{
+    const ok=await studio.setMaterialStyle(requestedRole,style,mesh);
+    if(!valid()||requestVersion!==renderVersion||active!==requestedRole)return;
+    if(!ok){setStatus('تغییر انجام نشد؛ یک انتخاب جدیدتر در حال اعمال است.');return;}
+    render();host.querySelector('[data-material-status]').textContent='متریال همین آبجکت تغییر کرد؛ می‌توانی دوباره انتخاب کنی.';
+   }catch(error){
+    if(requestVersion!==renderVersion||!valid())return;
+    setStatus(error.message||'بارگذاری تکسچر انجام نشد.');
+    notify(error.message||'بارگذاری تکسچر انجام نشد.');
+   }
   };
   if(!visual())panel.innerHTML='<p class="sheet-tip">مدل هنوز آماده نشده است.</p>';
   else if(!matches.length)panel.innerHTML='<p class="sheet-tip">این مدل متریال «'+ROLE_LABELS[active]+'» ندارد. نام متریال در فایل مدل باید شامل '+active+' باشد و UV داشته باشد.</p>';
@@ -27,7 +36,7 @@ export function mountMaterialPanel(host,studio,mesh,{notify=()=>{}}={}){
    if(visual().userData.legacyFabric&&!groups.some(e=>e.role!=='fabric'&&e.role))setStatus('مدل‌های قدیمی ممکن است فقط یک بخش پارچه داشته باشند. تغییر فقط روی آبجکت انتخاب‌شده است.');
   }
   const tabs=[...host.querySelectorAll('[role=tab]')];
-  const choose=role=>{active=role;render();host.querySelector('[data-role='+role+']')?.focus();};
+  const choose=role=>{active=role;renderVersion++;render();host.querySelector('[data-role='+role+']')?.focus();};
   tabs.forEach((tab,i)=>{tab.onclick=()=>choose(tab.dataset.role);tab.onkeydown=event=>{let next;if(event.key==='ArrowLeft')next=(i+1)%MATERIAL_ROLES.length;else if(event.key==='ArrowRight')next=(i+MATERIAL_ROLES.length-1)%MATERIAL_ROLES.length;else if(event.key==='Home')next=0;else if(event.key==='End')next=MATERIAL_ROLES.length-1;if(next!==undefined){event.preventDefault();choose(MATERIAL_ROLES[next]);}};});
  };
  render();if(!visual())void mesh.userData.loadPromise?.then(()=>{if(valid())render();});

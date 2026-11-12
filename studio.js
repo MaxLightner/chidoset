@@ -1,10 +1,10 @@
 import * as THREE from './vendor/three.module.js';
-import {copyMaterialStyles,applyRoleMaterial,disposeRoleMaterials} from './material-roles.js?v=0.16.17';
+import {copyMaterialStyles,applyRoleMaterial,disposeRoleMaterials} from './material-roles.js?v=0.16.18';
 import {getCloudProduct,getCloudProductInfo,registerCloudProducts,cloudProductList} from './cloud-product-registry.js';
 import {ArchitectureLayer} from './architecture.js?v=0.9.0';
 import {createFurniture,furnitureHit} from './furniture.js?v=0.5.4';
 import {createDecor} from './decor.js?v=0.5.4';
-import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.16.17';
+import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.16.18';
 import {applyRugStyle} from './rug-textures.js?v=0.5.4';
 import {MeasureTool} from './measure-tool.js?v=0.5.4';
 import {bindXRExit} from './xr-lifecycle.js?v=0.14.0';
@@ -13,7 +13,6 @@ import {requestARSession,xrError} from './xr.js?v=0.5.4';
 import {WideViewRenderer,WIDE_VIEW_FOV} from './wide-view.js?v=0.13.3';
 import {SpatialState,CATALOG,pairAngle,wrappedAngle} from './spatial.js?v=0.16.16';
 import {FloorScanner,floorCandidates} from './surfaces.js?v=0.5.4';
-import {createSofaShadow,modelLocalBounds,isSofaShadowProduct} from './sofa-shadow.js?v=0.16.16';
 import {recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.15.0';
 import {rendererPolicy} from './renderer-policy.js';
 import {EnvironmentEffects} from './effects.js?v=0.15.0';
@@ -192,8 +191,6 @@ void main(){
   mesh.position.fromArray(defaults[index]||[0,h/2,-1.65]);if(position)mesh.position.copy(position);
   mesh.position.y=isWallArt(index)?(position?.y>1?position.y:1.55):h/2;
   if(isSofa(index))installSofaCushions(mesh,options.cushionPreset||'none');
-  // Transparent radial contact shadow: darkens the camera floor, not a black disc.
-  if(isSofaShadowProduct(index,cloud||product)){this.addContactShadow(mesh,w,d,h,.30);}
   this.root.add(mesh);this.items.push(mesh);
   if(!position&&index===4){
    const table=this.items.find(m=>m!==mesh&&isTable(m.userData.index));
@@ -217,19 +214,13 @@ void main(){
      mesh.userData.loadFill=null;mesh.userData.loadIndeterminate=false;mesh.material.opacity=0;
      mesh.userData.edges.material.color.set(mesh===this.selected?'#d3a66e':'#8d7e6d');mesh.userData.edges.material.opacity=mesh===this.selected?.48:.13;
     };
-    mesh.userData.onModelReady=()=>{finishLoading();if(isSofaShadowProduct(index,cloud||product)){const visual=mesh.getObjectByName('imported-visual');if(visual){let bakedShadow;visual.traverse(node=>{if(node.userData.chidoBakedShadow)bakedShadow=node;});
-      if(bakedShadow?.userData.chidoBakedShadow){const fallback=mesh.getObjectByName('contact-shadow');if(fallback){mesh.remove(fallback);fallback.geometry.dispose();fallback.material.dispose();}}
-      else{const box=modelLocalBounds(mesh,visual),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());if(!box.isEmpty())this.addContactShadow(mesh,size.x,size.z,-box.min.y*2,.30,{bottom:box.min.y,x:center.x,z:center.z});}}}if(mesh.userData.tint)this.tintItem(mesh,mesh.userData.tint);this.enableShadowCasting(mesh);if([22,23,24].includes(index))this.setSofaFabric(mesh.userData.fabric,mesh,{preserveRoles:true});if(isLamp(index))this.initializeLamp(mesh,mesh.userData.lampOn);this.restoreMaterialStyles(mesh);this.changed();};
+    mesh.userData.onModelReady=()=>{finishLoading();if(mesh.userData.tint)this.tintItem(mesh,mesh.userData.tint);this.enableShadowCasting(mesh);if([22,23,24].includes(index))this.setSofaFabric(mesh.userData.fabric,mesh,{preserveRoles:true});if(isLamp(index))this.initializeLamp(mesh,mesh.userData.lampOn);this.restoreMaterialStyles(mesh);this.changed();};
     mesh.userData.onModelError=error=>{const fill=mesh.getObjectByName('chido-model-load-fill');if(fill){fill.material.color.set('#cf654b');fill.material.opacity=.24;}mesh.material.color.set('#cf654b');mesh.material.opacity=.035;mesh.userData.edges.material.color.set('#cf654b');mesh.userData.edges.material.opacity=.78;this.onHint?.('بارگذاری '+product.name+' ناموفق بود: '+(error?.message||'خطای دریافت فایل'));};
     if(mesh.userData.modelLoaded)mesh.userData.onModelReady();
    }
   if(!options.silentSelect)this.select(mesh);this.setGuides();return mesh;
  }
- enableShadowCasting(mesh){mesh.traverse(node=>{if(node.isMesh&&node.visible&&node.material?.opacity!==0&&node.name!=='chido-contact-shadow'&&node.name!=='contact-shadow'&&node.name!=='contact-shadow-receiver'&&!node.userData.chidoBakedShadow)node.castShadow=true;});}
- addContactShadow(mesh,w,d,h,opacity,bounds={}){
-  const previous=mesh.getObjectByName('contact-shadow');if(previous){mesh.remove(previous);previous.geometry.dispose();previous.material.dispose();}
-  mesh.add(createSofaShadow(w,d,bounds.bottom??-h/2,bounds.x||0,bounds.z||0));
- }
+ enableShadowCasting(mesh){mesh.traverse(node=>{if(node.isMesh&&node.visible&&node.material?.opacity!==0&&node.name!=='chido-contact-shadow'&&node.name!=='contact-shadow-receiver'&&!node.userData.chidoBakedShadow)node.castShadow=true;});}
  refreshAttachments(){for(const item of this.items){const link=item.userData.attachment;if(!link)continue;const base=this.items.find(m=>m.userData.id===link.id);if(!base){item.userData.attachment=null;this.keepOnFloor(item);continue;}const offset=new THREE.Vector3(...link.offset).applyAxisAngle(new THREE.Vector3(0,1,0),base.rotation.y);item.position.copy(base.position).add(offset);}}
  seed(kind='conversation',room='پذیرایی',people=5){
   this.clear();
@@ -618,7 +609,7 @@ void main(){
    setDragOcclusion(disabled){
     this.originalAo??=new WeakMap();
     for(const item of this.items)item.traverse(obj=>{
-     if(obj.name==='contact-shadow'||obj.name==='chido-contact-shadow'){this.dragShadowMemory??=new WeakMap();if(disabled){if(!this.dragShadowMemory.has(obj))this.dragShadowMemory.set(obj,obj.visible);obj.visible=false;}else if(this.dragShadowMemory.has(obj)){obj.visible=this.dragShadowMemory.get(obj);this.dragShadowMemory.delete(obj);}return;}
+     if(obj.name==='chido-contact-shadow'){this.dragShadowMemory??=new WeakMap();if(disabled){if(!this.dragShadowMemory.has(obj))this.dragShadowMemory.set(obj,obj.visible);obj.visible=false;}else if(this.dragShadowMemory.has(obj)){obj.visible=this.dragShadowMemory.get(obj);this.dragShadowMemory.delete(obj);}return;}
      if(!obj.isMesh||item.userData.index!==22)return;
      for(const mat of Array.isArray(obj.material)?obj.material:[obj.material]){
       if(!mat?.aoMap)continue;

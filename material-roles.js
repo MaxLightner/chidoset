@@ -17,7 +17,7 @@ export function roleMaterials(visual){
  const named=entries.some(e=>SUPPORTED_ROLES.concat('body').some(role=>String(e.material.name||'').toLowerCase().includes(role)));
  return entries.map(e=>({...e,role:e.role||(!named&&visual?.userData.legacyFabric?'fabric':null)}));
 }
-const ownedMaterials=new WeakSet(),originals=new WeakMap(),states=new WeakMap(),presetTextures=new Map();
+const ownedMaterials=new WeakSet(),originals=new WeakMap(),states=new WeakMap(),presetTextures=new Map(),bakedRoleStates=new WeakMap();
 function targets(visual,role){
  const entries=roleMaterials(visual).filter(e=>e.role===role),result=[];
  for(const {node,material} of entries){
@@ -39,16 +39,37 @@ function textureFor(source,role){
  texture.flipY=false;texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.setScalar(role==='fabric'?4:1);texture.anisotropy=4;
  const entry={texture,ready,shared};ready.catch(()=>{if(presetTextures.get(key)===entry)presetTextures.delete(key);texture.dispose();});if(shared)presetTextures.set(key,entry);return entry;
 }
+// The GPU may retain the material's old shader uniforms even when onBeforeCompile
+// is reassigned. Update the SAME uniform object on every material swatch change.
 export function installBakedRoleTexture(material,texture){
- material.userData.chidoRoleTexture?.dispose();
+ let state=bakedRoleStates.get(material);
+ if(!state){
+  state={uniform:{value:texture},texture:null};
+  bakedRoleStates.set(material,state);
+  const uniform=state.uniform;
+  material.onBeforeCompile=shader=>{
+   shader.uniforms.chidoRoleMap=uniform;
+   shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nattribute vec2 chidoTileUv; varying vec2 vChidoTileUv;').replace('#include <uv_vertex>','#include <uv_vertex>\nvChidoTileUv=chidoTileUv;');
+   shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D chidoRoleMap; varying vec2 vChidoTileUv;').replace('#include <map_fragment>','#include <map_fragment>\ndiffuseColor *= texture2D(chidoRoleMap,vChidoTileUv);');
+  };
+  material.customProgramCacheKey=()=> 'chido-baked-role-v2';
+  material.needsUpdate=true;
+ }
+ const old=state.texture;
+ state.texture=texture;
+ state.uniform.value=texture;
  material.userData.chidoRoleTexture=texture;
- material.onBeforeCompile=shader=>{
-  shader.uniforms.chidoRoleMap={value:material.userData.chidoRoleTexture};
-  shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nattribute vec2 chidoTileUv; varying vec2 vChidoTileUv;').replace('#include <uv_vertex>','#include <uv_vertex>\nvChidoTileUv=chidoTileUv;');
-  shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D chidoRoleMap; varying vec2 vChidoTileUv;').replace('#include <map_fragment>','#include <map_fragment>\ndiffuseColor *= texture2D(chidoRoleMap,vChidoTileUv);');
- };
- material.customProgramCacheKey=()=> 'chido-baked-role-v1';
- material.needsUpdate=true;
+ if(old&&old!==texture)old.dispose();
+ return state.uniform;
+}
+function clearBakedRoleTexture(material){
+ const state=bakedRoleStates.get(material);
+ if(state){
+  state.uniform.value=null;
+  state.texture?.dispose();
+  bakedRoleStates.delete(material);
+ }
+ delete material.userData.chidoRoleTexture;
 }
 export async function applyRoleMaterial(visual,role,style){
  if(!SUPPORTED_ROLES.includes(role))return false;
@@ -58,7 +79,22 @@ export async function applyRoleMaterial(visual,role,style){
  const materials=targets(visual,role);if(!materials.length)return false;
  visual.userData.roleMaterialOverrides??={};visual.userData.roleMaterialOverrides[role]=true;
  if(role==='fabric')visual.userData.fabricRequest=(visual.userData.fabricRequest||0)+1;
- if(!style){delete visual.userData.roleMaterialOverrides[role];for(const m of materials){const ao=m.aoMap,intensity=m.aoMapIntensity;m.userData.chidoRoleTexture?.dispose();m.copy(originals.get(m));m.onBeforeCompile=originals.get(m).onBeforeCompile;m.customProgramCacheKey=originals.get(m).customProgramCacheKey;m.userData.chidoRoleTexture?.dispose();delete m.userData.chidoRoleTexture;if(!m.aoMap&&ao){m.aoMap=ao;m.aoMapIntensity=intensity;}m.needsUpdate=true;}if(request.active&&!request.active.shared)request.active.texture.dispose();request.active=null;return true;}
+ if(!style){
+  delete visual.userData.roleMaterialOverrides[role];
+  for(const m of materials){
+   const original=originals.get(m);if(!original)continue;
+   const ao=m.aoMap,intensity=m.aoMapIntensity;
+   clearBakedRoleTexture(m);
+   m.copy(original);
+   m.onBeforeCompile=original.onBeforeCompile;
+   m.customProgramCacheKey=original.customProgramCacheKey;
+   if(!m.aoMap&&ao){m.aoMap=ao;m.aoMapIntensity=intensity;}
+   m.needsUpdate=true;
+  }
+  if(request.active&&!request.active.shared)request.active.texture.dispose();
+  request.active=null;
+  return true;
+ }
  if(!validSource(style.source))throw Error('تصویر متریال معتبر نیست.');
  const entry=textureFor(style.source,role);request.entry=entry;
  try{await entry.ready;}catch(error){if(groups.get(role)===request)request.entry=null;throw error;}
@@ -66,7 +102,7 @@ export async function applyRoleMaterial(visual,role,style){
  for(const m of materials){if(m.isMeshBasicMaterial&&m.userData.chido_baked_lighting_v1){const texture=entry.texture.clone();texture.repeat.set(1,1);texture.needsUpdate=true;installBakedRoleTexture(m,texture);continue;}m.map=entry.texture;m.color.set(0xffffff);if(role==='fabric'){m.roughness=.88;m.metalness=0;m.normalMap=null;m.bumpMap=null;m.metalnessMap=null;m.roughnessMap=null;}else if(role==='wood'){m.roughness=.55;m.metalness=0;}else if(role==='metal'){m.metalness=.9;m.roughness=.3;}m.needsUpdate=true;}
  if(request.active&&!request.active.shared)request.active.texture.dispose();request.active=entry;return true;
 }
-export function disposeRoleMaterials(visual){if(!visual)return;visual.userData.disposed=true;const groups=states.get(visual);if(groups)for(const item of groups.values())for(const entry of new Set([item?.active,item?.entry]))if(entry&&!entry.shared)entry.texture.dispose();groups?.clear();visual.traverse(node=>{for(const m of Array.isArray(node.material)?node.material:[node.material])if(m){m.userData.chidoRoleTexture?.dispose();originals.get(m)?.dispose();originals.delete(m);}});}
+export function disposeRoleMaterials(visual){if(!visual)return;visual.userData.disposed=true;const groups=states.get(visual);if(groups)for(const item of groups.values())for(const entry of new Set([item?.active,item?.entry]))if(entry&&!entry.shared)entry.texture.dispose();groups?.clear();visual.traverse(node=>{for(const m of Array.isArray(node.material)?node.material:[node.material])if(m){clearBakedRoleTexture(m);originals.get(m)?.dispose();originals.delete(m);}});}
 export function instanceMaterialMap(items){return {version:2,items:items.map(m=>({itemId:m.userData.id,index:m.userData.index,color:'#'+m.material.color.getHexString(),tint:m.userData.tint||null,fabric:m.userData.fabric||null,materialStyles:copyMaterialStyles(m.userData.materialStyles)}))};}
 export async function applyInstanceMaterialMap(studio,map){
  let count=0;
