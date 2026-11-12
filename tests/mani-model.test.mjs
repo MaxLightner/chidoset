@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import * as THREE from '../vendor/three.module.js';
 import {roleMaterials,installBakedRoleTexture,materialPresets} from '../material-roles.js';
 import {isFloorSolid} from '../collision.js';
-import {IMPORTED_MODELS,markBakedRoleMaterials} from '../imported-models.js';
+import {IMPORTED_MODELS,markBakedRoleMaterials,normalizeBakedAO} from '../imported-models.js';
 test('Mani baked model includes authored shadow, collider, physical UV and independent roles',()=>{
  assert.equal(isFloorSolid(32),true);
  const b=readFileSync(new URL('../assets/chido/'+IMPORTED_MODELS[32].file,import.meta.url));
@@ -14,6 +14,18 @@ test('Mani baked model includes authored shadow, collider, physical UV and indep
  assert.ok(d.nodes.some(n=>n.extras?.chido_color_uv_v1?.tileCm===70));
  assert.ok(d.meshes.some(m=>m.primitives.some(p=>p.attributes.TEXCOORD_1!==undefined)));
  for(const role of ['Fabric','Wood'])assert.ok(d.materials.some(m=>m.extras?.tripo_prep_role===role&&m.extensions?.KHR_materials_unlit));
+});
+test('baked AO becomes a separate linear non-color map',()=>{
+ const tex=new THREE.Texture();tex.colorSpace=THREE.SRGBColorSpace;
+ const mat=new THREE.MeshBasicMaterial({color:0x555555,map:tex});mat.userData.tripo_prep_role='Fabric';
+ const pbr=normalizeBakedAO(mat,true);
+ assert.equal(pbr.isMeshStandardMaterial,true);
+ assert.equal(pbr.map,null);
+ assert.equal(pbr.aoMap.colorSpace,THREE.NoColorSpace);
+ assert.equal(pbr.aoMap.channel,0);
+ assert.equal(pbr.color.getHex(),0xffffff);
+ assert.equal(pbr.aoMapIntensity,1);
+ assert.equal(pbr.userData.chido_baked_ao_v1,true);
 });
 test('baked unlit Fabric and Wood materials are exposed as independent selectable roles',()=>{
  const visual=new THREE.Group();

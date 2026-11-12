@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.js';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
 import {getCloudProduct} from './cloud-product-registry.js';
-import {materialRole} from './material-roles.js?v=0.16.18';
+import {materialRole} from './material-roles.js?v=0.16.19';
 import {loadModelBytes} from './model-asset-cache.js?v=0.16.17';
 
 // All units are metres. Native Blender GLB dimensions are preserved; the
@@ -118,6 +118,15 @@ export function markBakedRoleMaterials(materials,hasPhysicalColorUV){
   if(material?.isMeshBasicMaterial&&material.userData?.tripo_prep_role&&materialRole(material.userData.tripo_prep_role))material.userData.chido_baked_lighting_v1=true;
  }
 }
+// The grayscale baked AO exported as Unlit baseColor is NOT the user's color.
+export function normalizeBakedAO(material,hasColorUV){
+ if(!hasColorUV||!material?.isMeshBasicMaterial||!material.map||!materialRole(material.userData?.tripo_prep_role))return material;
+ const mask=material.map.clone();mask.colorSpace=THREE.NoColorSpace;mask.channel=0;mask.wrapS=mask.wrapT=THREE.ClampToEdgeWrapping;mask.needsUpdate=true;
+ const role=materialRole(material.userData.tripo_prep_role);
+ const pbr=new THREE.MeshStandardMaterial({name:material.name,color:0xffffff,map:null,aoMap:mask,aoMapIntensity:1,metalness:0,roughness:role==='wood'?.58:.88,side:material.side,transparent:material.transparent,opacity:material.opacity,alphaTest:material.alphaTest,depthWrite:material.depthWrite});
+ pbr.userData={...material.userData,chido_baked_ao_v1:true};
+ material.dispose();return pbr;
+}
 function configureMeshes(model,index){
  model.traverse(object=>{
   if(!object.isMesh)return;
@@ -133,6 +142,9 @@ function configureMeshes(model,index){
   let uvOwner=object;while(uvOwner&&!uvOwner.userData.chido_color_uv_v1)uvOwner=uvOwner.parent;
   const colorUV=uvOwner?.userData.chido_color_uv_v1;
   if(colorUV){const attr=object.geometry.getAttribute(colorUV.uvSet===0?'uv':'uv'+colorUV.uvSet);if(attr)object.geometry.setAttribute('chidoTileUv',attr);}
+  const convert=m=>normalizeBakedAO(m,!!object.geometry.getAttribute('chidoTileUv'));
+  if(Array.isArray(object.material))object.material=object.material.map(convert);
+  else object.material=convert(object.material);
   // The packed JPEG shadow texture in Tripo Prep's glTF is exposed as a
   // baseColor map; remap it to alphaMap on an unlit black surface in Chido.
   if(/^CHIDO_SHADOW_PLANE(?:\\.\\d+)?$/i.test(object.name)){

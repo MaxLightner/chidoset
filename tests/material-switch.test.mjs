@@ -64,3 +64,20 @@ test('fabric and wood can be swapped repeatedly and reset independently',async()
   disposeRoleMaterials(visual);
  }
 });
+
+test('recoloring PBR with baked AO never changes AO or puts it in Base Color',async()=>{
+ const original=THREE.TextureLoader.prototype.load;
+ THREE.TextureLoader.prototype.load=function(url,done){const t=new THREE.Texture();queueMicrotask(()=>done(t));return t;};
+ try{
+  const ao=new THREE.Texture(),m=new THREE.MeshStandardMaterial({map:null,aoMap:ao,color:0xffffff});
+  m.userData={tripo_prep_role:'Wood',chido_baked_ao_v1:true};
+  const g=new THREE.PlaneGeometry();g.setAttribute('chidoTileUv',g.getAttribute('uv').clone());
+  const visual=new THREE.Group();visual.add(new THREE.Mesh(g,m));
+  for(const source of ['wood:oak','wood:walnut','wood:black'])assert.equal(await applyRoleMaterial(visual,'wood',{source}),true);
+  const active=roleMaterials(visual)[0].material;
+  assert.strictEqual(active.aoMap,ao);assert.equal(active.map,null);
+  assert.equal(await applyRoleMaterial(visual,'wood',null),true);
+  assert.strictEqual(active.aoMap,ao);assert.equal(active.map,null);
+  disposeRoleMaterials(visual);
+ }finally{THREE.TextureLoader.prototype.load=original;}
+});

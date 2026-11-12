@@ -1,6 +1,6 @@
-import {mountMaterialPanel} from './material-panel.js?v=0.16.18';
-import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.16.18';
-import {Studio} from './studio.js?v=0.16.18';
+import {mountMaterialPanel} from './material-panel.js?v=0.16.19';
+import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.16.19';
+import {Studio} from './studio.js?v=0.16.19';
 import {getMembership,loadCompanySets,saveOfficialLayout,saveOfficialColorway} from './chido-cloud.js?v=0.16.10';
 import {esc} from './workspace-ui.js';
 const $=s=>document.querySelector(s),params=new URLSearchParams(location.search);
