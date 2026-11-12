@@ -1,7 +1,7 @@
-import {CATALOG} from './catalog-data.js?v=0.16.12';
+import {CATALOG} from './catalog-data.js?v=0.16.16';
 import {getCloudProduct,cloudProductList} from './cloud-product-registry.js';
 export const SHEEN_CHAIR_SAMPLE=Object.freeze({name:'صندلی شین (SheenChair)',size:Object.freeze([.85,.9,.85]),price:0});
-const categoryByIndex=index=>[0,1,3,22,23,24,1000].includes(index)?'seating':[2,12,13,25,26,27].includes(index)?'low-tables':[10,11].includes(index)?'dining':index===9?'workspace':index===8?'bedroom':[7,31].includes(index)?'rugs':index>=16&&index<=21?'wall-art':'decor';
+const categoryByIndex=index=>[0,1,3,22,23,24,32,1000].includes(index)?'seating':[2,12,13,25,26,27].includes(index)?'low-tables':[10,11].includes(index)?'dining':index===9?'workspace':index===8?'bedroom':[7,31].includes(index)?'rugs':index>=16&&index<=21?'wall-art':'decor';
 export const RUG_SIZE_PRESETS=Object.freeze([
  {id:'170x240',label:'۱.۷ × ۲.۴ متر',size:[2.4,.015,1.7]},
  {id:'150x200',label:'۱.۵ × ۲ متر',size:[2,.015,1.5]},
@@ -10,7 +10,7 @@ export const RUG_SIZE_PRESETS=Object.freeze([
  {id:'300x400',label:'۳ × ۴ متر',size:[4,.015,3]}
 ]);
 export const ASSET_CATEGORIES=Object.freeze([
- {id:'seating',label:'مبل و نشیمن',indexes:[1,0,3,24,23,22,1000]},
+ {id:'seating',label:'مبل و نشیمن',indexes:[1,0,3,24,23,22,32,1000]},
  {id:'low-tables',label:'میز جلو مبلی و عسلی',indexes:[2,12,13,25,26,27]},
  {id:'dining',label:'میز ناهارخوری و صندلی',indexes:[10,11]},
  {id:'workspace',label:'میز کار و مطالعه',indexes:[9]},
@@ -43,4 +43,4 @@ export const isSofa=index=>[0,1,3].includes(index);
 export const isTable=index=>[2,9,10,12,13,25,26,27].includes(index);
 export const isWallArt=index=>index>=16&&index<=21;
 export function categoryForIndex(index){return getCloudProduct(index)?.metadata.category||ASSET_CATEGORIES.find(c=>c.indexes.includes(index))?.id||'decor';}
-export function variantsFor(index){const category=categoryForIndex(index);if(getCloudProduct(index))return cloudProductList().filter(p=>p.metadata.category===category).map(p=>p.catalog_index);if(category==='seating')return [1,0,3,24,23,22,1000];if(category==='low-tables')return [2,12,13,25,26,27];if(category==='dining')return index===10?[10]:[10,11];if(isLamp(index))return [6,14,15,28,29];if(isRug(index))return [7,31];if(isWallArt(index))return [16,17,18,19,20,21];return [index];}
+export function variantsFor(index){const category=categoryForIndex(index);if(getCloudProduct(index))return cloudProductList().filter(p=>p.metadata.category===category).map(p=>p.catalog_index);if(category==='seating')return [1,0,3,24,23,22,32,1000];if(category==='low-tables')return [2,12,13,25,26,27];if(category==='dining')return index===10?[10]:[10,11];if(isLamp(index))return [6,14,15,28,29];if(isRug(index))return [7,31];if(isWallArt(index))return [16,17,18,19,20,21];return [index];}

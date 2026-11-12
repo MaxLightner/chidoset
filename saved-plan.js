@@ -1,4 +1,4 @@
-import {CATALOG} from './catalog-data.js?v=0.16.12';
+import {CATALOG} from './catalog-data.js?v=0.16.16';
 export function savedFootprints(scene){
  if(!scene||!Array.isArray(scene.items))return [];
  return scene.items.filter(m=>m&&m.hidden!==true&&CATALOG[m.index]&&Array.isArray(m.position)).map(m=>{

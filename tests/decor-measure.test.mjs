@@ -6,7 +6,7 @@ import {MeasureTool} from '../measure-tool.js';
 import {CATALOG} from '../spatial.js';
 
 test('every room/decor catalog object has a sane metric size',()=>{
- assert.equal(CATALOG.length,32);
+ assert.equal(CATALOG.length,33);
  for(const item of CATALOG){
   assert.ok(item.size.length===3&&item.size.every(v=>Number.isFinite(v)&&v>0),item.name);
  }

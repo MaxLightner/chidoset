@@ -1,19 +1,19 @@
 import * as THREE from './vendor/three.module.js';
-import {copyMaterialStyles,applyRoleMaterial,disposeRoleMaterials} from './material-roles.js?v=0.16.2';
+import {copyMaterialStyles,applyRoleMaterial,disposeRoleMaterials} from './material-roles.js?v=0.16.16';
 import {getCloudProduct,getCloudProductInfo,registerCloudProducts,cloudProductList} from './cloud-product-registry.js';
 import {ArchitectureLayer} from './architecture.js?v=0.9.0';
 import {createFurniture,furnitureHit} from './furniture.js?v=0.5.4';
 import {createDecor} from './decor.js?v=0.5.4';
-import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.16.10';
+import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.16.16';
 import {applyRugStyle} from './rug-textures.js?v=0.5.4';
 import {MeasureTool} from './measure-tool.js?v=0.5.4';
 import {bindXRExit} from './xr-lifecycle.js?v=0.14.0';
 import {endXRSession} from './xr-end.js';
 import {requestARSession,xrError} from './xr.js?v=0.5.4';
 import {WideViewRenderer,WIDE_VIEW_FOV} from './wide-view.js?v=0.13.3';
-import {SpatialState,CATALOG,pairAngle,wrappedAngle} from './spatial.js?v=0.8.0';
+import {SpatialState,CATALOG,pairAngle,wrappedAngle} from './spatial.js?v=0.16.16';
 import {FloorScanner,floorCandidates} from './surfaces.js?v=0.5.4';
-import {createSofaShadow,modelLocalBounds,isSofaShadowProduct} from './sofa-shadow.js?v=0.13.3';
+import {createSofaShadow,modelLocalBounds,isSofaShadowProduct} from './sofa-shadow.js?v=0.16.16';
 import {recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.15.0';
 import {rendererPolicy} from './renderer-policy.js';
 import {EnvironmentEffects} from './effects.js?v=0.15.0';
@@ -21,9 +21,9 @@ import {AnchorStabilizer,transformPoint} from './anchor-rig.js?v=0.5.4';
 import {ARDebugView} from './ar-debug.js?v=0.5.4';
 import {buildLayout} from './layout-templates.js?v=0.5.4';
 import {captureInternalAR,canCaptureCamera,InternalCaptureUnavailable} from './internal-camera-capture.js?v=0.5.4';
-import {assetMetadata,isLamp,isSofa,isTable,isWallArt,SHEEN_CHAIR_SAMPLE} from './asset-metadata.js?v=0.14.2';
+import {assetMetadata,isLamp,isSofa,isTable,isWallArt,SHEEN_CHAIR_SAMPLE} from './asset-metadata.js?v=0.16.16';
 import {installSofaCushions} from './sofa-cushions.js?v=0.5.4';
-import {isFloorSolid,footprint,footprintsOverlap,moveWithoutOverlap,rotateWithoutOverlap,moveGroupWithoutOverlap,rotateGroupWithoutOverlap,nearestFreeFootprint,settleFootprintsBySize} from './collision.js?v=0.14.2';
+import {isFloorSolid,footprint,footprintsOverlap,moveWithoutOverlap,rotateWithoutOverlap,moveGroupWithoutOverlap,rotateGroupWithoutOverlap,nearestFreeFootprint,settleFootprintsBySize} from './collision.js?v=0.16.16';
 export const palette=['#b6bca2','#d5c4ad','#b9c4c6','#ba9380'];
 const fa=n=>n.toLocaleString('fa-IR',{maximumFractionDigits:1});
 export class Studio{
@@ -197,7 +197,7 @@ void main(){
    this.snapToSupport(mesh);
   }
    if(isImportedModel(index)){
-    mesh.userData.onModelReady=()=>{if(isSofaShadowProduct(index,cloud||product)){const visual=mesh.getObjectByName('imported-visual');if(visual){const bakedShadow=visual.getObjectByName('CHIDO_SHADOW_PLANE');
+    mesh.userData.onModelReady=()=>{if(isSofaShadowProduct(index,cloud||product)){const visual=mesh.getObjectByName('imported-visual');if(visual){let bakedShadow;visual.traverse(node=>{if(node.userData.chidoBakedShadow)bakedShadow=node;});
       if(bakedShadow?.userData.chidoBakedShadow){const fallback=mesh.getObjectByName('contact-shadow');if(fallback){mesh.remove(fallback);fallback.geometry.dispose();fallback.material.dispose();}}
       else{const box=modelLocalBounds(mesh,visual),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());if(!box.isEmpty())this.addContactShadow(mesh,size.x,size.z,-box.min.y*2,.30,{bottom:box.min.y,x:center.x,z:center.z});}}}if(mesh.userData.tint)this.tintItem(mesh,mesh.userData.tint);this.enableShadowCasting(mesh);if([22,23,24].includes(index))this.setSofaFabric(mesh.userData.fabric,mesh,{preserveRoles:true});if(isLamp(index))this.initializeLamp(mesh,mesh.userData.lampOn);this.restoreMaterialStyles(mesh);this.changed();};
     mesh.userData.onModelError=()=>this.onHint?.('بارگذاری '+product.name+' ناموفق بود؛ اتصال مدل‌های کتابخانه را بررسی کن.');
@@ -583,7 +583,7 @@ void main(){
  rootLocal(point){return this.root.worldToLocal(point.clone());}
  keepOnFloor(mesh){if(mesh&&!mesh.userData.attachment&&!isWallArt(mesh.userData.index))mesh.position.y=mesh.userData.height/2;}
   collisionShape(mesh,x=mesh.position.x,z=mesh.position.z,angle=mesh.rotation.y,size=mesh.userData.product.size){
-   return footprint(size,x,z,angle);
+   return footprint(mesh.userData.authoredCollisionSize||size,x,z,angle);
   }
   collisionObstacles(excluded=null,ignored=[]){
    return this.items.filter(m=>m!==excluded&&!ignored.includes(m)&&m.visible&&isFloorSolid(m.userData.index))

@@ -18,7 +18,7 @@ function fixture(){
  return s;
 }
 test('all 32 assets have physical sizes and collision footprint metadata',()=>{
- assert.equal(CATALOG.length,32);
+ assert.equal(CATALOG.length,33);
  for(let i=0;i<CATALOG.length;i++){
   const m=assetMetadata(i);assert.ok(m.collision.size.every(v=>v>0));assert.ok(m.footprint2D.width>0);
  }

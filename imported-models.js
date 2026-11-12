@@ -1,12 +1,13 @@
 import * as THREE from './vendor/three.module.js';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
 import {getCloudProduct} from './cloud-product-registry.js';
-import {materialRole} from './material-roles.js?v=0.16.2';
+import {materialRole} from './material-roles.js?v=0.16.16';
 import {loadModelBytes} from './model-asset-cache.js?v=0.16.2';
 
 // All units are metres. Native Blender GLB dimensions are preserved; the
 // quarter-turn only makes the long side of a sofa/table follow local X.
 export const IMPORTED_MODELS=Object.freeze({
+ 32:{file:'mani--maniset--tak--e3585876.glb',yaw:0,kind:'sofa'},
  1000:{file:'SheenChair.glb',yaw:0,kind:'chair'},
  22:{file:'sofaA1.glb',yaw:Math.PI/2,kind:'sofa'},
  23:{file:'SofaC1.glb',yaw:Math.PI/2,kind:'sofa'},
@@ -111,6 +112,13 @@ function configureMeshes(model,index){
   object.geometry=object.geometry.clone();
   if(Array.isArray(object.material))object.material=object.material.map(m=>m.clone());
   else if(object.material)object.material=object.material.clone();
+  if(object.userData.tripo_prep_collision){object.visible=false;object.userData.chidoCollider=true;return;}
+  if(object.userData.tripo_prep_contact_shadow){
+   object.userData.chidoBakedShadow=true;object.material.depthWrite=false;object.material.toneMapped=false;object.renderOrder=-1;return;
+  }
+  let uvOwner=object;while(uvOwner&&!uvOwner.userData.chido_color_uv_v1)uvOwner=uvOwner.parent;
+  const colorUV=uvOwner?.userData.chido_color_uv_v1;
+  if(colorUV){const attr=object.geometry.getAttribute(colorUV.uvSet===0?'uv':'uv'+colorUV.uvSet);if(attr)object.geometry.setAttribute('chidoTileUv',attr);}
   // The packed JPEG shadow texture in Tripo Prep's glTF is exposed as a
   // baseColor map; remap it to alphaMap on an unlit black surface in Chido.
   if(/^CHIDO_SHADOW_PLANE(?:\\.\\d+)?$/i.test(object.name)){
@@ -194,6 +202,8 @@ export function createImportedModel(index,size,fabric='dark'){
   // Do not include the intentionally padded shadow plane in model bounds.
   const bakedShadows=[];
   visual.traverse(node=>{if(node.userData.chidoBakedShadow){bakedShadows.push(node);node.visible=false;}});
+  const helpers=[];visual.traverse(node=>{if(node.userData.chidoBakedShadow||node.userData.chidoCollider)helpers.push([node,node.parent]);});
+  for(const [node,parent] of helpers)parent.remove(node);
   visual.userData.legacyFabric=!!SOFA_AO[index];
   visual.rotation.y=spec.yaw;
   visual.updateMatrixWorld(true);
@@ -213,7 +223,10 @@ export function createImportedModel(index,size,fabric='dark'){
   visual.position.z-=center.z;
   visual.position.y-=box.min.y+size[1]/2;
   visual.name='imported-visual';
+  for(const [node,parent] of helpers)parent.add(node);
   proxy.add(visual);
+  const collider=helpers.find(([node])=>node.userData.chidoCollider)?.[0];
+  if(collider){visual.updateMatrixWorld(true);const cb=new THREE.Box3().setFromObject(collider);proxy.userData.authoredCollisionSize=cb.getSize(new THREE.Vector3()).toArray();}
   for(const shadow of bakedShadows)shadow.visible=true;
   if(SOFA_AO[index])applySofaFabric(visual,proxy.userData.fabric||'dark',index);
   if(isImportedLight(index))addLampLight(proxy,index,size);

@@ -32,5 +32,6 @@ export const CATALOG=Object.freeze([
  Object.freeze({name:'آباژور رومیزی کریستالی',size:Object.freeze([.391,.4,.393]),price:0}),
  Object.freeze({name:'چراغ ایستاده فلزی',size:Object.freeze([.338,1.7,.33]),price:0}),
  Object.freeze({name:'شمعدان دکوری',size:Object.freeze([.428,.54,.19]),price:0}),
- Object.freeze({name:'فرش پتینه طوسی',size:Object.freeze([3,.01,2]),price:0})
+ Object.freeze({name:'فرش پتینه طوسی',size:Object.freeze([3,.01,2]),price:0}),
+ Object.freeze({name:'مبل مانی — تست بیک چوب و پارچه',size:Object.freeze([.887268,.942722,.885356]),price:0})
 ]);

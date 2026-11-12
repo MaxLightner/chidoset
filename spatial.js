@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three.module.js';
-import {CATALOG} from './catalog-data.js?v=0.16.12';
+import {CATALOG} from './catalog-data.js?v=0.16.16';
 export {CATALOG};
 export const wrappedAngle=a=>Math.atan2(Math.sin(a),Math.cos(a));
 export function pairAngle(a,b){return Math.atan2(-(b.z-a.z),b.x-a.x);}

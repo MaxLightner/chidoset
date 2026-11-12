@@ -5,13 +5,7 @@ export const ROLE_LABELS={fabric:'پارچه',wood:'چوب',metal:'فلز',glass
 export function materialRole(name){const lower=String(name||'').toLowerCase(),matches=MATERIAL_ROLES.filter(role=>lower.includes(role));if(!matches.length&&lower.includes('body'))return 'wood';if(!matches.length&&lower.includes('detail'))return 'detail';return matches.length===1?matches[0]:null;}
 const fabricPresets=[['dark','آبی تیره'],['creme','کرم'],['gray','خاکستری']].map(([id,label])=>({source:'fabric:'+id,label,url:'assets/chido/'+id+'-fabric.jpg'}));
 const woodColors={oak:[174,130,77],walnut:[95,58,35],black:[44,39,34]},woodLabels={oak:'بلوط روشن',walnut:'گردویی',black:'چوب تیره'},woodImages=new Map();
-function woodImage(id){
- if(!woodImages.has(id)){
-  const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d'),image=ctx.createImageData(256,256),base=woodColors[id];
-  for(let y=0;y<256;y++)for(let x=0;x<256;x++){const i=(y*256+x)*4,grain=Math.sin(x*.22+Math.sin(y*.025)*2)*8+Math.sin(x*.83+y*.013)*3;for(let k=0;k<3;k++)image.data[i+k]=Math.max(0,Math.min(255,base[k]+grain));image.data[i+3]=255;}
-  ctx.putImageData(image,0,0);woodImages.set(id,c.toDataURL('image/jpeg',.8));
- }return woodImages.get(id);
-}
+function woodImage(id){return 'assets/chido/wood-'+id+'.jpg';}
 const surfaceColors={silver:[186,190,193],brass:[167,128,63],black:[49,51,52],clear:[245,248,247],smoke:[139,151,153]};
 function surfaceImage(id){const key='surface:'+id;if(!woodImages.has(key)){const c=document.createElement('canvas');c.width=c.height=64;const ctx=c.getContext('2d');ctx.fillStyle='rgb('+surfaceColors[id].join(',')+')';ctx.fillRect(0,0,64,64);woodImages.set(key,c.toDataURL('image/jpeg',.8));}return woodImages.get(key);}
 export function materialPresets(role){if(role==='fabric')return fabricPresets;if(role==='metal')return [['silver','نقره‌ای'],['brass','برنجی'],['black','مشکی']].map(([id,label])=>({source:'surface:'+id,label,url:surfaceImage(id)}));if(role==='glass')return [['clear','شفاف روشن'],['smoke','دودی']].map(([id,label])=>({source:'surface:'+id,label,url:surfaceImage(id)}));const woods=Object.keys(woodColors).map(id=>({source:'wood:'+id,label:woodLabels[id],url:woodImage(id)}));return role==='wood'?woods:[...fabricPresets,...woods];}
@@ -19,7 +13,7 @@ const validSource=value=>typeof value==='string'&&(fabricPresets.some(p=>p.sourc
 export function copyMaterialStyles(styles){const out={};for(const role of SUPPORTED_ROLES){const style=styles?.[role]||(role==='wood'?styles?.body:null);if(validSource(style?.source))out[role]={source:style.source};}return out;}
 function sourceURL(source){if(source.startsWith('surface:'))return surfaceImage(source.slice(8));if(source.startsWith('wood:'))return woodImage(source.slice(5));return fabricPresets.find(p=>p.source===source)?.url||source;}
 export function roleMaterials(visual){
- const entries=[];visual?.traverse(node=>{if(node.isMesh&&node.geometry?.attributes.uv)for(const m of Array.isArray(node.material)?node.material:[node.material])if(m?.isMeshStandardMaterial)entries.push({node,material:m,role:materialRole(m.name)});});
+ const entries=[];visual?.traverse(node=>{if(node.isMesh&&node.geometry?.attributes.uv)for(const m of Array.isArray(node.material)?node.material:[node.material])if(m?.isMeshStandardMaterial||(m?.isMeshBasicMaterial&&m.userData.chido_baked_lighting_v1))entries.push({node,material:m,role:materialRole(m.userData.tripo_prep_role||m.name)});});
  const named=entries.some(e=>SUPPORTED_ROLES.concat('body').some(role=>String(e.material.name||'').toLowerCase().includes(role)));
  return entries.map(e=>({...e,role:e.role||(!named&&visual?.userData.legacyFabric?'fabric':null)}));
 }
@@ -45,22 +39,34 @@ function textureFor(source,role){
  texture.flipY=false;texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.setScalar(role==='fabric'?4:1);texture.anisotropy=4;
  const entry={texture,ready,shared};ready.catch(()=>{if(presetTextures.get(key)===entry)presetTextures.delete(key);texture.dispose();});if(shared)presetTextures.set(key,entry);return entry;
 }
+export function installBakedRoleTexture(material,texture){
+ material.userData.chidoRoleTexture?.dispose();
+ material.userData.chidoRoleTexture=texture;
+ material.onBeforeCompile=shader=>{
+  shader.uniforms.chidoRoleMap={value:material.userData.chidoRoleTexture};
+  shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nattribute vec2 chidoTileUv; varying vec2 vChidoTileUv;').replace('#include <uv_vertex>','#include <uv_vertex>\nvChidoTileUv=chidoTileUv;');
+  shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D chidoRoleMap; varying vec2 vChidoTileUv;').replace('#include <map_fragment>','#include <map_fragment>\ndiffuseColor *= texture2D(chidoRoleMap,vChidoTileUv);');
+ };
+ material.customProgramCacheKey=()=> 'chido-baked-role-v1';
+ material.needsUpdate=true;
+}
 export async function applyRoleMaterial(visual,role,style){
  if(!SUPPORTED_ROLES.includes(role))return false;
  let groups=states.get(visual);if(!groups){groups=new Map();states.set(visual,groups);}
  const previous=groups.get(role),request={active:previous?.active};groups.set(role,request);
+ const entries=roleMaterials(visual).filter(e=>e.role===role);if(style&&entries.some(e=>e.material.userData.chido_baked_lighting_v1&&!e.node.geometry.getAttribute('chidoTileUv')))throw Error('UV_COLOR در فایل این مدل موجود نیست.');
  const materials=targets(visual,role);if(!materials.length)return false;
  visual.userData.roleMaterialOverrides??={};visual.userData.roleMaterialOverrides[role]=true;
  if(role==='fabric')visual.userData.fabricRequest=(visual.userData.fabricRequest||0)+1;
- if(!style){delete visual.userData.roleMaterialOverrides[role];for(const m of materials){const ao=m.aoMap,intensity=m.aoMapIntensity;m.copy(originals.get(m));if(!m.aoMap&&ao){m.aoMap=ao;m.aoMapIntensity=intensity;}m.needsUpdate=true;}if(request.active&&!request.active.shared)request.active.texture.dispose();request.active=null;return true;}
+ if(!style){delete visual.userData.roleMaterialOverrides[role];for(const m of materials){const ao=m.aoMap,intensity=m.aoMapIntensity;m.userData.chidoRoleTexture?.dispose();m.copy(originals.get(m));m.onBeforeCompile=originals.get(m).onBeforeCompile;m.customProgramCacheKey=originals.get(m).customProgramCacheKey;m.userData.chidoRoleTexture?.dispose();delete m.userData.chidoRoleTexture;if(!m.aoMap&&ao){m.aoMap=ao;m.aoMapIntensity=intensity;}m.needsUpdate=true;}if(request.active&&!request.active.shared)request.active.texture.dispose();request.active=null;return true;}
  if(!validSource(style.source))throw Error('تصویر متریال معتبر نیست.');
  const entry=textureFor(style.source,role);request.entry=entry;
  try{await entry.ready;}catch(error){if(groups.get(role)===request)request.entry=null;throw error;}
  if(groups.get(role)!==request||visual.userData.disposed){if(!entry.shared)entry.texture.dispose();return false;}
- for(const m of materials){m.map=entry.texture;m.color.set(0xffffff);if(role==='fabric'){m.roughness=.88;m.metalness=0;m.normalMap=null;m.bumpMap=null;m.metalnessMap=null;m.roughnessMap=null;}else if(role==='wood'){m.roughness=.55;m.metalness=0;}else if(role==='metal'){m.metalness=.9;m.roughness=.3;}m.needsUpdate=true;}
+ for(const m of materials){if(m.isMeshBasicMaterial&&m.userData.chido_baked_lighting_v1){const texture=entry.texture.clone();texture.repeat.set(1,1);texture.needsUpdate=true;installBakedRoleTexture(m,texture);continue;}m.map=entry.texture;m.color.set(0xffffff);if(role==='fabric'){m.roughness=.88;m.metalness=0;m.normalMap=null;m.bumpMap=null;m.metalnessMap=null;m.roughnessMap=null;}else if(role==='wood'){m.roughness=.55;m.metalness=0;}else if(role==='metal'){m.metalness=.9;m.roughness=.3;}m.needsUpdate=true;}
  if(request.active&&!request.active.shared)request.active.texture.dispose();request.active=entry;return true;
 }
-export function disposeRoleMaterials(visual){if(!visual)return;visual.userData.disposed=true;const groups=states.get(visual);if(groups)for(const item of groups.values())for(const entry of new Set([item?.active,item?.entry]))if(entry&&!entry.shared)entry.texture.dispose();groups?.clear();visual.traverse(node=>{for(const m of Array.isArray(node.material)?node.material:[node.material])if(m){originals.get(m)?.dispose();originals.delete(m);}});}
+export function disposeRoleMaterials(visual){if(!visual)return;visual.userData.disposed=true;const groups=states.get(visual);if(groups)for(const item of groups.values())for(const entry of new Set([item?.active,item?.entry]))if(entry&&!entry.shared)entry.texture.dispose();groups?.clear();visual.traverse(node=>{for(const m of Array.isArray(node.material)?node.material:[node.material])if(m){m.userData.chidoRoleTexture?.dispose();originals.get(m)?.dispose();originals.delete(m);}});}
 export function instanceMaterialMap(items){return {version:2,items:items.map(m=>({itemId:m.userData.id,index:m.userData.index,color:'#'+m.material.color.getHexString(),tint:m.userData.tint||null,fabric:m.userData.fabric||null,materialStyles:copyMaterialStyles(m.userData.materialStyles)}))};}
 export async function applyInstanceMaterialMap(studio,map){
  let count=0;

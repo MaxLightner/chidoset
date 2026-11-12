@@ -2,7 +2,7 @@
 // Units: metres. Coordinates follow Three.js rotation around Y (+angle turns +X towards -Z).
 // Tabletop decor (including the crystal table lamp) must be free to overlap
 // the table's floor footprint so it can snap onto its top surface.
-export const FLOOR_SOLIDS = Object.freeze([0, 1, 2, 3, 6, 8, 9, 10, 11, 12, 13, 15, 22, 23, 24, 25, 26, 27, 29, 30, 1000]);
+export const FLOOR_SOLIDS = Object.freeze([0, 1, 2, 3, 6, 8, 9, 10, 11, 12, 13, 15, 22, 23, 24, 25, 26, 27, 29, 30, 32, 1000]);
 const EPS = 1e-9;
 const CLEARANCE = 0.012; // 1.2 cm of breathing room between solid footprints.
 

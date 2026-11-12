@@ -15,7 +15,7 @@ function fixture(){
  s.floorFrame.add(s.root,s.ruler,s.floorNet);s.syncSpatial=()=>s.model.apply(s.floorFrame,s.root);return s;
 }
 test('catalog metadata gives every model a collision, footprint, category and placement',()=>{
- assert.equal(CATALOG.length,32);
+ assert.equal(CATALOG.length,33);
  for(let i=0;i<CATALOG.length;i++){
   const m=assetMetadata(i);
   assert.ok(m.collision.size.every(n=>n>0),i);

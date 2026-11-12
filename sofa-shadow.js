@@ -1,6 +1,6 @@
 import * as THREE from './vendor/three.module.js';
 export const SOFA_SHADOW_OPACITY=.30;
-export const isSofaShadowProduct=(index,product)=>[0,1,3,22,23,24].includes(index)||product?.metadata?.kind==='sofa'||(product?.metadata?.category==='seating'&&/مبل|کاناپه|sofa/i.test(product.name||''));
+export const isSofaShadowProduct=(index,product)=>[0,1,3,22,23,24,32].includes(index)||product?.metadata?.kind==='sofa'||(product?.metadata?.category==='seating'&&/مبل|کاناپه|sofa/i.test(product.name||''));
 // Material Lab v15: actual model footprint, oversized plane and a safe transparent border.
 export function roundedShadowAlpha(x,z,width,depth){
  const radius=Math.min(width,depth)*.14,feather=Math.min(width,depth)*.28;
@@ -10,7 +10,7 @@ export function roundedShadowAlpha(x,z,width,depth){
 }
 export function modelLocalBounds(root,visual){
  root.updateWorldMatrix(true,true);const inverse=new THREE.Matrix4().copy(root.matrixWorld).invert(),box=new THREE.Box3(),point=new THREE.Vector3();
- visual.traverse(node=>{if(!node.isMesh||!node.geometry||!node.visible||node.userData.chidoBakedShadow)return;node.geometry.computeBoundingBox();const bounds=node.geometry.boundingBox;if(!bounds)return;const matrix=new THREE.Matrix4().multiplyMatrices(inverse,node.matrixWorld);for(const x of [bounds.min.x,bounds.max.x])for(const y of [bounds.min.y,bounds.max.y])for(const z of [bounds.min.z,bounds.max.z])box.expandByPoint(point.set(x,y,z).applyMatrix4(matrix));});
+ visual.traverse(node=>{if(!node.isMesh||!node.geometry||!node.visible||node.userData.chidoCollider||node.userData.chidoBakedShadow)return;node.geometry.computeBoundingBox();const bounds=node.geometry.boundingBox;if(!bounds)return;const matrix=new THREE.Matrix4().multiplyMatrices(inverse,node.matrixWorld);for(const x of [bounds.min.x,bounds.max.x])for(const y of [bounds.min.y,bounds.max.y])for(const z of [bounds.min.z,bounds.max.z])box.expandByPoint(point.set(x,y,z).applyMatrix4(matrix));});
  return box;
 }
 export function createSofaShadow(width,depth,bottom,centerX=0,centerZ=0){

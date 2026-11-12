@@ -10,8 +10,8 @@ import {isLamp,isRug,assetMetadata,categoryForIndex,variantsFor,SHEEN_CHAIR_SAMP
 import {Studio} from '../studio.js';
 
 test('all eleven included GLBs are present, binary and valid',()=>{
- assert.equal(CATALOG.length,32);
- assert.equal(Object.keys(IMPORTED_MODELS).length,11);
+ assert.equal(CATALOG.length,33);
+ assert.equal(Object.keys(IMPORTED_MODELS).length,12);
  for(const [key,model] of Object.entries(IMPORTED_MODELS)){
   const index=Number(key);
   const url=new URL('../assets/chido/'+model.file,import.meta.url);
