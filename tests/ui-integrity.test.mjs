@@ -42,11 +42,11 @@ test('catalog uses pre-rendered small image files rather than a runtime WebGL co
  }
 });
 
-test('tabletop lamps snap on every table model while the floor shadow remains visible',()=>{
+test('tabletop lamps snap correctly without generating a procedural floor-shadow decal',()=>{
  const studio=read('studio.js'),imports=read('imported-models.js'),html=read('index.html');
  assert.match(studio,/isTable\(table\.userData\.index\)/);
  assert.match(studio,/this\.whiteFloor\.renderOrder=-10/);
- assert.match(read('sofa-shadow.js'),/shadow\.renderOrder=-1/);
+ assert.doesNotMatch(studio,/addContactShadow|createSofaShadow|sofa-shadow\\.js/);
  assert.match(studio,/\[4,14,28\]\.includes\(mesh\.userData\.index\)/);
  assert.match(imports,/index===29\?\[Math\.max\(\.68,size\[0\]\)/);
  assert.match(imports,/transmission:\.24/);

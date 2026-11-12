@@ -27,7 +27,7 @@ test('the marker is independent of the AR plane tracker and decides insertion po
  const sofa=s.addAtMarker(0);
  assert.equal(sofa.position.x,1.2);assert.equal(sofa.position.z,-2.4);
  assert.equal(sofa.position.y,sofa.userData.height/2);
- assert.ok(sofa.children.some(x=>x.name==='contact-shadow'));
+ assert.equal(sofa.children.some(x=>x.name==='contact-shadow'),false,'fake rectangular shadows must never be added');
 });
 test('selection highlights only selected mesh; copy and visibility preserve object identity',()=>{
  const s=fixture();const sofa=s.add(0);assert.ok(sofa.userData.edges.material.opacity>.1);
