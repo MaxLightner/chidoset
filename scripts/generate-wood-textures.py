@@ -10,7 +10,18 @@ T = 2 * np.pi
 
 def make(name, seed):
     path = ROOT / ('wood-' + name + '.jpg')
-    base = np.asarray(Image.open(path).convert('RGB').resize((SIZE, SIZE), Image.Resampling.BICUBIC), dtype=np.float32)
+    try:
+        source = Image.open(path).convert('RGB')
+        source.load()
+        base = np.asarray(source.resize((SIZE, SIZE), Image.Resampling.BICUBIC), dtype=np.float32)
+    except (OSError, ValueError):
+        # Do not propagate previously truncated/invalid JPEG assets.
+        colors = {'oak': (208, 157, 105), 'walnut': (130, 83, 47), 'black': (73, 62, 51)}
+        base = np.empty((SIZE, SIZE, 3), dtype=np.float32)
+        for i, value in enumerate(colors[name]):
+            base[:, :, i] = value
+        base += (9 * np.sin(T * (X * 16 / SIZE + 1.4 * np.sin(T * Y * 2 / SIZE)))
+                 + 5 * np.sin(T * (X * 32 / SIZE - np.sin(T * Y * 3 / SIZE))))[..., None]
     rng = np.random.default_rng(seed)
     # Integer-frequency waves are periodic in both axes; material color never contains AO.
     bend = 2.9 * np.sin(T * (Y * 2 / SIZE + X / SIZE)) + 1.25 * np.sin(T * (Y * 7 / SIZE - X * 2 / SIZE)) + .45 * np.sin(T * Y * 13 / SIZE)
