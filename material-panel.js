@@ -1,4 +1,4 @@
-import {modelMaterialSlots,materialPresets,materialImage,ROLE_LABELS} from './material-roles.js?v=0.16.23';
+import {modelMaterialSlots,materialPresets,materialImage,ROLE_LABELS} from './material-roles.js?v=0.18.5';
 
 // Material slots 1..N are taken from the model's actual glTF materials. A
 // fabric/wood role selects the correct *catalogue* of thumbnails, not which
