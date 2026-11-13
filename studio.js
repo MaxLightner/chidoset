@@ -161,6 +161,21 @@ void main(){
   this.roomGeometryTimer=setTimeout(()=>{this.roomGeometryTimer=null;this.flushRoomGeometry();},180);
   this.changed();return true;
  }
+ updateRoomTVSettings(values){
+  if(!this.roomPlan||!values||typeof values!=='object')return false;
+  const next=normalizeRoomPlan({...this.roomPlan,...values});
+  if(!next)return false;
+  this.roomPlan=next;
+  // Editing a TV screen/console in 3D must NOT invoke setRoomPlan:
+  // that routine marks the whole placed room as pending and hides the root.
+  if(this.architecture?.data?.designedRoom){
+   this.architecture.data.tvSettings={
+    channel:next.tvChannel,on:next.tvOn!==false,consoleFinish:next.consoleFinish
+   };
+   this.architecture.refresh();
+  }
+  this.changed();return true;
+ }
  flushRoomGeometry(){
   if(this.roomGeometryTimer!==null){clearTimeout(this.roomGeometryTimer);this.roomGeometryTimer=null;}
   if(!this.roomGeometryDirty||!this.roomPlan)return;
@@ -810,7 +825,19 @@ safeObjectMotion(mesh,desired){
    return;
   }
   if(!this.model.locked||(this.session&&!this.tracking)||this.points.size>=2||(this.points.size===1&&['A','B'].includes(this.gesture?.kind)))return;e.preventDefault();target.setPointerCapture(e.pointerId);this.points.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});
-  if(this.points.size===1){const p=this.pointOnFloor(e,target);if(!p){this.cancelGesture();return;}
+  if(this.points.size===1){
+   if(this.roomPlan&&this.architecture?.data?.designedRoom){
+    this.setRay(e,target);
+    const tvId=this.architecture.pickTelevision(this.ray);
+    if(tvId){
+     this.points.delete(e.pointerId);
+     target.releasePointerCapture?.(e.pointerId);
+     this.gesture=null;
+     this.onTelevisionTap?.(tvId);
+     return;
+    }
+   }
+   const p=this.pointOnFloor(e,target);if(!p){this.cancelGesture();return;}
    if(this.moveLayoutMode){this.gesture={kind:'layout',offset:this.model.layoutOffset.clone().sub(this.floorLocal(p))};return;}
    if(this.selected&&isWallArt(this.selected.userData.index)&&this.hitArtHandle(e,target)){this.gesture={kind:'art-handle',offset:this.selected.position.clone().sub(this.rootLocal(p))};return;}
    const handle=this.hitHandle(e,target);if(handle){this.gesture={kind:handle,offset:this.model[handle.toLowerCase()].clone().sub(this.floorLocal(p))};return;}
