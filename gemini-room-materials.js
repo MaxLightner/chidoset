@@ -366,12 +366,18 @@ export function updateGeminiTV(timeMs){
  lastTVTime=timeMs;
  drawTVFrame(currentChannel,timeMs*.001);
 }
+const consoleMaterialCache=new Map();
 export function geminiConsoleMaterial(key='walnut'){
+ const cached=consoleMaterialCache.get(key);
+ if(cached)return cached.clone();
+ let material;
  if(key==='nero'){
   const maps=createStoneTextures('#1f2124','#d4af37',2);
-  return new THREE.MeshPhysicalMaterial({...maps,roughness:.18,metalness:.05,clearcoat:.75,clearcoatRoughness:.12,envMapIntensity:.5});
+  material=new THREE.MeshPhysicalMaterial({...maps,roughness:.18,metalness:.05,clearcoat:.75,clearcoatRoughness:.12,envMapIntensity:.5});
+ }else if(key==='lacquer')material=new THREE.MeshPhysicalMaterial({color:0x3b3734,roughness:.24,metalness:.04,clearcoat:.65,clearcoatRoughness:.15});
+ else{
+  const maps=createWoodTextures('#573724','#2e1b10',.16,.32,2,1);
+  material=new THREE.MeshPhysicalMaterial({...maps,roughness:.28,metalness:.02,clearcoat:.55,clearcoatRoughness:.18,envMapIntensity:.45});
  }
- if(key==='lacquer')return new THREE.MeshPhysicalMaterial({color:0x3b3734,roughness:.24,metalness:.04,clearcoat:.65,clearcoatRoughness:.15});
- const maps=createWoodTextures('#573724','#2e1b10',.16,.32,2,1);
- return new THREE.MeshPhysicalMaterial({...maps,roughness:.28,metalness:.02,clearcoat:.55,clearcoatRoughness:.18,envMapIntensity:.45});
+ consoleMaterialCache.set(key,material);return material.clone();
 }
