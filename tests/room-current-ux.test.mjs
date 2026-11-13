@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import * as THREE from '../vendor/three.module.js';
 import {Studio} from '../studio.js';
-import {Architecture} from '../architecture.js';
+import {ArchitectureLayer} from '../architecture.js';
 import {defaultRoomPlan,normalizeRoomPlan,roomPlanToArchitecture} from '../room-plan.js';
 import {FURNITURE_SIZE_FACTOR} from '../furniture-scale.js';
 import {materialSlotDescriptors} from '../material-panel.js';
@@ -69,7 +69,7 @@ test('TV settings only open after a 3D/AR ray hit; changing them keeps room root
 });
 
 test('TV ray hit finds the real panel mesh',()=>{
- const a=Object.create(Architecture.prototype),group=new THREE.Group();
+ const a=Object.create(ArchitectureLayer.prototype),group=new THREE.Group();
  const tv=new THREE.Group();tv.userData={archKind:'tv',archId:'tv-123'};
  tv.add(new THREE.Mesh(new THREE.BoxGeometry(1,1,.1),new THREE.MeshBasicMaterial()));
  tv.position.set(0,1,-2);group.add(tv);group.updateMatrixWorld(true);
