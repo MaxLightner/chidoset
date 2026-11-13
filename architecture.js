@@ -2,7 +2,7 @@ import * as THREE from './vendor/three.module.js';
 import {cm,distance,wallLength,nearestWall,snapPoint,closestFloorEdge,validPolygon,normalizedWindow,windowIntersects,updateWindow,validArchitecture} from './architecture-geometry.js?v=0.9.0';
 import {finishMaterial,FLOOR_FINISHES,WALL_FINISHES,floorFinish} from './architecture-materials.js';
 import {FloorReflection} from './floor-reflection.js';
-import {geminiConsoleMaterial,makeGeminiTVScreenMaterial} from './gemini-room-materials.js?v=0.17.3';
+import {geminiConsoleMaterial,makeGeminiTVScreenMaterial,setGeminiTVChannel,setGeminiTVOn} from './gemini-room-materials.js?v=0.17.3';
 
 const axis=new THREE.Vector3(0,1,0);
 const point=(x,z)=>new THREE.Vector3(x,.012,z);
@@ -180,7 +180,7 @@ export class ArchitectureLayer {
   const bezel=new THREE.MeshStandardMaterial({color:0x0e1014,roughness:.25,metalness:.7});
   const gold=new THREE.MeshStandardMaterial({color:0xd4af37,roughness:.24,metalness:.88});
   const soundbar=new THREE.MeshStandardMaterial({color:0x181a1f,roughness:.4,metalness:.4});
-  const consoleMat=geminiConsoleMaterial();
+  const consoleMat=geminiConsoleMaterial(this.data.tvSettings?.consoleFinish||'walnut');
   const slabW=panelW*.78,slabY=1.48,slabH=1.65;
   piece(slabW+.04,slabH+.04,.018,0,slabY,.032,halo);
   piece(slabW,slabH,.032,0,slabY,.048,slab,true);
@@ -242,6 +242,7 @@ export class ArchitectureLayer {
    const ceilingFill=new THREE.PointLight(0xfff5e4,2.2,14,1.5);
    ceilingFill.position.set(.4,2.55,.2);this.group.add(ceilingFill);
   }
+  if(this.data.tvSettings){setGeminiTVChannel(this.data.tvSettings.channel||'nature');setGeminiTVOn(this.data.tvSettings.on!==false);}
   const frameMat=new THREE.MeshStandardMaterial({color:0x8d9799,roughness:.54,metalness:.32});
   for(const w of this.data.walls){
    const len=wallLength(w);if(len<.1)continue;
