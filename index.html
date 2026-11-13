@@ -181,6 +181,16 @@ if (['chidoset.ir', 'www.chidoset.ir'].includes(location.hostname) && location.p
  <label class="xr-option"><input id="wideAoEnabled" type="checkbox" checked> GTAO در رندر مجازی · برای مقایسه کیفیت</label>
  <label class="xr-option"><input id="autoRenderQuality" type="checkbox" checked> کاهش تدریجی افکت‌های سنگین زیر ۲۰ FPS</label>
  <small id="renderQualityStatus" role="status">کیفیت کامل · GTAO دیوارها فعال</small>
+ <div id="roomLookSettings" class="room-look-settings" hidden>
+  <strong>تنظیمات واقعی نور و متریال اتاق</strong>
+  <label>قدرت نور پنجره‌ها <output id="roomDaylightValue">۱٫۰۰×</output>
+   <input type="range" id="roomDaylightIntensity" min=".45" max="2.1" step=".05" value="1"></label>
+  <label>شدت بازتاب HDRI <output id="roomIblValue">۰٫۵۵</output>
+   <input type="range" id="roomIblIntensity" min="0" max="1.5" step=".05" value=".55"></label>
+  <label>میکروبرجستگی گچ <output id="roomPlasterValue">۱٫۰۰×</output>
+   <input type="range" id="roomPlasterDetail" min="0" max="2" step=".05" value="1"></label>
+ </div>
+ <small>گزینه‌های نور و عمق واقعی WebXR هنگام شروع نشست AR اعمال می‌شوند.</small>
  <button id="rescanFloor">اسکن مجدد کف</button></details><small id="diagnostics" dir="ltr">tracking — · floor SCANNING</small></div></div>
 <dialog id="liveShareDialog" class="live-share-dialog"><button id="liveShareClose" class="sheet-close" aria-label="بستن پنجره">×</button><div class="live-share-head"><span class="live-pulse"></span><div><h2>نمایش زنده چیدو</h2><p>مهمان‌ها همین نمای مجازی را بدون تصویر دوربین و بدون کنترل می‌بینند.</p></div></div><div id="liveShareQr" class="live-share-qr"><span>QR در اینجا نمایش داده می‌شود.</span></div><label>لینک اختصاصی نمایش</label><div id="liveShareUrl" class="live-share-url" dir="ltr"></div><div class="live-share-actions"><button id="liveShareCopy" class="primary">کپی لینک</button><button id="liveShareStop" class="danger">پایان نمایش</button></div><small>این لینک تا ۴۵ دقیقه معتبر است و با پایان نمایش فوراً دسترسی جدید را می‌بندد.</small></dialog>
 <dialog id="photoHelp"><h2>یک قاب از خانه‌ات</h2><p>در مرورگرهای سازگار با WebXR Raw Camera Access، دکمه عکس فریم واقعی دوربین و مبلمان سه‌بعدی را درون چیدو ترکیب می‌کند.</p><p>اگر دسترسی داخلی دوربین روی دستگاه فعال نباشد، قابلیت کپچر AR ارائه نمی‌شود؛ عکس ساختگی یا بدون پس‌زمینه واقعی ذخیره نخواهد شد.</p><button id="closePhoto" class="primary">متوجه شدم</button></dialog>
