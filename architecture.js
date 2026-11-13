@@ -152,6 +152,19 @@ export class ArchitectureLayer {
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(b-a,y1-y0,thickness),mat.clone());
   mesh.position.set(w.x1+ux*along,(y0+y1)/2,w.z1+uz*along);
   mesh.rotation.y=-Math.atan2(uz,ux);mesh.userData.archWindow=owner;mesh.userData.archKind=owner?'window':'wall';mesh.userData.archId=owner||w.id;
+  if(!owner&&mat.normalMap&&mat.map){
+   // Plaster micro-detail is anchored to physical metres: long wall segments
+   // must not stretch a single texture across their entire length.
+   const geometry=mesh.geometry,positions=geometry.getAttribute('position'),normals=geometry.getAttribute('normal'),uv=geometry.getAttribute('uv');
+   const rx=Math.max(.01,mat.map.repeat?.x||1),ry=Math.max(.01,mat.map.repeat?.y||1);
+   for(let i=0;i<positions.count;i++){
+    const nx=Math.abs(normals.getX(i)),ny=Math.abs(normals.getY(i));
+    const u=nx>.5?positions.getZ(i):positions.getX(i);
+    const v=ny>.5?positions.getZ(i):positions.getY(i);
+    uv.setXY(i,u/(.75*rx),v/(.75*ry));
+   }
+   uv.needsUpdate=true;
+  }
   if(!owner)mesh.layers.enable(2); // visible in normal scene and in the wall-only GTAO mask
   group.add(mesh);return mesh;
  }
@@ -230,6 +243,18 @@ export class ArchitectureLayer {
   // No artificial kitchen point source: window daylight and global sky fill it.
   group.userData.archKind='kitchen';group.userData.archId=opening.id;
   parent.add(group);
+ }
+ applyRoomLookSettings(look){
+  if(!this.data.designedRoom)return false;
+  this.data.roomLook={...(this.data.roomLook||{}),...look};
+  const daylight=this.data.roomLook.daylight??1;
+  const detail=this.data.roomLook.plasterDetail??1;
+  this.group.traverse(node=>{
+   if(node.userData?.roomWindowLight)node.intensity=node.userData.roomBaseIntensity*daylight;
+   if(node.userData?.archKind==='wall'&&node.material?.normalScale)
+    node.material.normalScale.set(.56*detail,.56*detail);
+  });
+  return true;
  }
  pickTelevision(ray){
   if(!this.data.designedRoom||!this.group.visible)return null;
@@ -336,7 +361,7 @@ export class ArchitectureLayer {
    cove.dispose();plaster.dispose();
    // Ambient daylight makes window-free rooms readable without artificial
    // overhead or point-light hot spots on the parquet.
-   const daylight=new THREE.HemisphereLight(0xe8f3ff,0xc2b6a2,1.2);
+   const daylight=new THREE.HemisphereLight(0xe8f3ff,0xc2b6a2,1.0+(.2*(this.data.roomLook?.daylight||1)));
    this.group.add(daylight);
    // Each actual glazed opening is a daylight source. Directions point from
    // outdoors through the opening into the room, rather than from the ceiling.
@@ -347,7 +372,9 @@ export class ArchitectureLayer {
     const dx=(wall.x2-wall.x1)/length,dz=(wall.z2-wall.z1)/length;
     const x=wall.x1+dx*window.along,z=wall.z1+dz*window.along;
     const inward={'north':[0,1],'south':[0,-1],'west':[1,0],'east':[-1,0]}[window.wall]||[0,1];
-    const sun=new THREE.DirectionalLight(0xeef6ff,Math.min(6.5,4.0+window.width*.65));
+    const baseIntensity=Math.min(6.5,4.0+window.width*.65);
+    const sun=new THREE.DirectionalLight(0xeef6ff,baseIntensity*(this.data.roomLook?.daylight||1));
+    sun.userData.roomWindowLight=true;sun.userData.roomBaseIntensity=baseIntensity;
     const atY=Math.min(height-.2,window.sill+window.height*.62);
     sun.position.set(x-inward[0]*1.3,atY+.65,z-inward[1]*1.3);
     sun.target.position.set(x+inward[0]*Math.min(2.4,width*.5),1.0,z+inward[1]*Math.min(2.4,depth*.5));
@@ -363,10 +390,10 @@ export class ArchitectureLayer {
     // Keep Gemini's procedural plaster normal/roughness. Opposing walls
     // have slightly different reflectance, as a real daylight interior does.
     const side=w.id.replace(/^room-/,'');
-    const daylightFactors={north:1.025,south:.965,west:1.0,east:.94};
+    const daylightFactors={north:1.06,south:.90,west:1.0,east:.86};
     wallMat.color.multiplyScalar(daylightFactors[side]||.985);
     wallMat.roughness=Math.min(.93,Math.max(.74,wallMat.roughness+.025));
-    if(wallMat.normalScale)wallMat.normalScale.set(.48,.48);
+    if(wallMat.normalScale)wallMat.normalScale.set(.56*(this.data.roomLook?.plasterDetail??1),.56*(this.data.roomLook?.plasterDetail??1));
    }
    const openings=this.data.windows.filter(o=>o.hostId===w.id).sort((a,b)=>a.along-b.along);
    const container=new THREE.Group();container.userData.wallId=w.id;this.group.add(container);
