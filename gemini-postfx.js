@@ -11,9 +11,9 @@ import {ShaderPass} from './vendor/addons/postprocessing/ShaderPass.js';
 const PunchShader = {
     uniforms: {
         tDiffuse: { value: null },
-        uContrast: { value: 1.12 },
-        uVibrance: { value: 0.16 },
-        uShadowToe: { value: 0.015 }
+        uContrast: { value: 1.07 },
+        uVibrance: { value: 0.05 },
+        uShadowToe: { value: 0.009 }
     },
     vertexShader: `
         varying vec2 vUv;
@@ -57,7 +57,7 @@ export function createGeminiPostFX(renderer,scene,camera,width,height,{scale=1}=
   gtaoPass.updateGtaoMaterial({radius:.36,distanceExponent:1.2,thickness:.8,scale:.9,samples:24});
   composer.addPass(gtaoPass);
  }catch(error){console.warn('Gemini GTAO unavailable',error);gtaoPass?.dispose();gtaoPass=null;}
- const bloomPass=new UnrealBloomPass(new THREE.Vector2(width,height),.15,.45,1.05);
+ const bloomPass=new UnrealBloomPass(new THREE.Vector2(width,height),.09,.45,1.05);
  composer.addPass(bloomPass);
  const punchPass=new ShaderPass(PunchShader);
  composer.addPass(punchPass);
