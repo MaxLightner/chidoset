@@ -2,7 +2,7 @@ import {libraryThumbnail,libraryHidden,libraryModel} from './asset-library.js?v=
 import {LiveApprovalHost} from './live-approval-host.js?v=0.16.10';
 import {bindAROrientation} from './ar-orientation.js?v=0.16.9';
 import {liveSession} from './live-approval.js?v=0.16.10';
-import {mountMaterialPanel} from './material-panel.js?v=0.18.5';
+import {mountMaterialPanel,materialSlotDescriptors,renderMaterialSlotThumbnails} from './material-panel.js?v=0.18.6';
 import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.18.5';
 import {rememberAccount,accountName} from './auth-storage.js';
 import {readRecovery,saveRecovery,clearRecovery,filterPublishedScene} from './app-recovery.js';
@@ -35,7 +35,7 @@ const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio,{
  onClose:()=>{if(!studio?.session){$('#overlay').classList.remove('room-design-offline');$('#overlay').hidden=true;$('#arMiniMap').hidden=true;}},
  onFloor:()=>cycleRoomFinish('floor'),onWall:()=>cycleRoomFinish('wall')
 });
-let roomDesignOnLaunch=false,roomWaitingForFloor=false,materialRailClosedKey='';
+let roomDesignOnLaunch=false,roomWaitingForFloor=false,activeQuickMaterialSlot=null,quickMaterialsForId=null,lastQuickMaterialKey='';
 let chidoMenuOpen=false;
 let pendingARSession=null,calibrationPrompted=false;
 let homeExitRequested=false,homeExitBusy=false,homeExitFallback=null;
@@ -353,10 +353,10 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
   studio.onSelectionScreen=()=>{
     const quick=$('#objectQuick'),selected=studio?.selected;
     if(!quick)return;
-    updateSelectedMaterialRail();
     const show=!!selected&&!!studio.session&&studio.placed&&!studio.photoMode&&!chidoMenuOpen&&!$('#chidoMenuHome').disabled&&$('#arToolSheet').hidden&&!studio.placementEnabled;
     quick.hidden=!show;
     if(!show){$('#arMaterialRail').hidden=true;return;}
+    syncQuickMaterialButtons(selected);
     updateSelectedMaterialRail();
     $('#quickProps').title=selected.userData.index===7?'تنظیمات فرش':'ویژگی‌های آبجکت';
     $('#quickProps').setAttribute('aria-label',$('#quickProps').title);
@@ -715,19 +715,48 @@ function showArSheet(mode){
 $('#abLengthButton').onclick=()=>{$('#abCalibrationSheet').hidden=false;studio?.setRoomCalibrationGuides(true);$('#aractual').value=studio?.measurement().actualCm||Math.round(studio?.measurement().correctedCm||100);};
 $('#abCalibrationClose').onclick=()=>{$('#abCalibrationSheet').hidden=true;studio?.setRoomCalibrationGuides(false);};
 $('#arCalibrationTool').onclick=()=>{closeArSheet();$('#arArchitectureActions').hidden=true;$('#abCalibrationSheet').hidden=!$('#abCalibrationSheet').hidden;studio?.setRoomCalibrationGuides(!$('#abCalibrationSheet').hidden);};
+function syncQuickMaterialButtons(mesh){
+ const host=$('#quickMaterialButtons'),panel=$('#arMaterialRail');
+ if(!host)return;
+ const id=mesh?.userData?.id??null;
+ if(id!==quickMaterialsForId){
+  quickMaterialsForId=id;activeQuickMaterialSlot=null;lastQuickMaterialKey='';
+  panel.hidden=true;delete panel.dataset.itemKey;
+ }
+ const slots=materialSlotDescriptors(mesh);
+ const key=String(id)+'|'+slots.map(slot=>slot.id+':'+slot.name+':'+slot.role).join('|');
+ if(lastQuickMaterialKey===key)return;
+ lastQuickMaterialKey=key;
+ const icons={fabric:'▧',wood:'▥',metal:'⬡',glass:'◇'};
+ host.replaceChildren();
+ for(const slot of slots){
+  const button=document.createElement('button');
+  button.type='button';button.dataset.materialSlot=String(slot.id);
+  button.title=slot.name;button.setAttribute('aria-label','متریال '+(slot.id+1)+' · '+slot.name);
+  button.setAttribute('aria-pressed',String(activeQuickMaterialSlot===slot.id));
+  const symbol=document.createElement('span');symbol.textContent=icons[slot.role]||'◩';symbol.setAttribute('aria-hidden','true');
+  const small=document.createElement('small');small.textContent='متریال '+(slot.id+1);
+  button.append(symbol,small);
+  button.onclick=()=>{
+   activeQuickMaterialSlot=activeQuickMaterialSlot===slot.id?null:slot.id;
+   host.querySelectorAll('[data-material-slot]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.materialSlot)===activeQuickMaterialSlot)));
+   delete panel.dataset.itemKey;updateSelectedMaterialRail(true);
+  };
+  host.append(button);
+ }
+}
 function updateSelectedMaterialRail(force=false){
- // The swatches are a child of #objectQuick, NOT another floating panel.
- const quick=$('#objectQuick'),trigger=$('#quickMaterials');
- const host=$('#arMaterialRail'),body=$('#arMaterialRailBody'),mesh=studio?.selected;
- if(!host||!body||!trigger||!quick)return;
- const enabled=trigger.getAttribute('aria-expanded')==='true';
- const canShow=enabled&&mesh&&!!studio.session&&studio.placed&&!studio.photoMode&&!minimap.expanded&&!quick.hidden;
- if(!canShow){host.hidden=true;return;}
- const key='object:'+mesh.userData.id;
+ const quick=$('#objectQuick'),host=$('#arMaterialRail'),body=$('#arMaterialRailBody'),mesh=studio?.selected;
+ if(!quick||!host||!body)return;
+ const slot=activeQuickMaterialSlot;
+ if(slot===null||!mesh||!studio.session||!studio.placed||studio.photoMode||minimap.expanded||quick.hidden){
+  host.hidden=true;return;
+ }
+ const key=mesh.userData.id+':'+slot;
  if(!force&&host.dataset.itemKey===key&&!host.hidden)return;
- host.dataset.itemKey=key;host.hidden=false;body.replaceChildren();
+ host.dataset.itemKey=key;host.hidden=false;
  if(mesh.userData.imported){
-  mountMaterialPanel(body,studio,mesh,{notify:toast});
+  renderMaterialSlotThumbnails(body,studio,mesh,slot,{notify:toast});
  }else{
   const colors=[...themes[themeIndex].colors,'#b6bca2','#70858b','#b79c85','#ae8574','#546356','#5f5753','#efe8df'];
   body.innerHTML='<div class="ar-color-grid">'+colors.map(color=>
@@ -735,12 +764,6 @@ function updateSelectedMaterialRail(force=false){
   body.querySelectorAll('[data-rail-color]').forEach(btn=>btn.onclick=()=>studio.color(btn.dataset.railColor));
  }
 }
-$('#quickMaterials').onclick=()=>{
- const trigger=$('#quickMaterials'),opening=trigger.getAttribute('aria-expanded')!=='true';
- trigger.setAttribute('aria-expanded',String(opening));
- $('#arMaterialRail').hidden=!opening;
- if(opening)updateSelectedMaterialRail(true);
-};
 function closeRoomCenterMode(){
  $('#roomCenterReticle').hidden=true;$('#roomCenterActions').hidden=true;
  $('#arMoveCenterTool').setAttribute('aria-pressed','false');
