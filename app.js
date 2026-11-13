@@ -339,6 +339,11 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
   studio.onHint=toast;
   studio.onWideViewError=message=>{resetWideViewControls();toast(message);};
   studio.onWideViewReset=resetWideViewControls;
+  studio.onRenderQualityChange=({level,fps,auto})=>{
+   const label=$('#renderQualityStatus');if(!label)return;
+   const stages=['کیفیت کامل','GTAO نمونه‌گیری سبک‌تر','GTAO سبک‌تر و Bloom خاموش','تفکیک‌پذیری پس‌پردازش ۸۲٪'];
+   label.textContent=(Number.isFinite(fps)&&fps>0?Math.round(fps).toLocaleString('fa-IR')+' FPS · ':'')+(stages[level]||stages[0])+(auto?' · خودکار':' · دستی');
+  };
   studio.onWideViewProjection=projection=>{
    if($('#wideViewMode')?.value!=='ar')showWideProjection(projection);
   };
@@ -1008,6 +1013,9 @@ function applyWideMode(){
 }
 $('#wideViewMode').onchange=applyWideMode;
 $('#wideNatural').onchange=()=>{if(studio?.session&&studio.wideMode!=='ar')applyWideMode();};
+$('#autoRenderQuality').onchange=()=>{
+ studio?.wideView?.setAutoQuality($('#autoRenderQuality').checked);
+};
 $('#wideAoEnabled').onchange=()=>{
  if(studio?.wideView?.active)studio.wideView.setAmbientOcclusion($('#wideAoEnabled').checked);
  toast($('#wideAoEnabled').checked?'GTAO فعال است؛ Bloom و تون‌مپینگ تغییری نکرد.':'فقط GTAO غیرفعال شد؛ Bloom، Reinhard و سایر تنظیمات ثابت‌اند.');
