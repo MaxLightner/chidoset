@@ -53,7 +53,8 @@ function generateNormalFromHeight(heightCanvas, strength = 2.2) {
     tex.wrapS = THREE.RepeatWrapping;
     tex.wrapT = THREE.RepeatWrapping;
     return tex;
-}\n
+}
+
 function createWoodTextures(baseHex, grainHex, roughMin, roughMax, repeatX = 4, repeatY = 4) {
     const size = 512;
     const diffCanvas = document.createElement('canvas');
@@ -114,7 +115,8 @@ function createWoodTextures(baseHex, grainHex, roughMin, roughMax, repeatX = 4, 
     normalMap.repeat.set(repeatX, repeatY);
 
     return { map, roughnessMap, normalMap };
-}\n
+}
+
 function createStoneTextures(baseHex, veinHex, repeat = 3) {
     const size = 512;
     const diffCanvas = document.createElement('canvas');
@@ -160,7 +162,8 @@ function createStoneTextures(baseHex, veinHex, repeat = 3) {
     normalMap.repeat.set(repeat, repeat);
 
     return { map, roughnessMap, normalMap };
-}\n
+}
+
 function createPlasterTextures() {
     const size = 512;
     const diffCanvas = document.createElement('canvas');
@@ -206,7 +209,8 @@ function createPlasterTextures() {
     normalMap.repeat.set(3, 2);
 
     return { map, roughnessMap, normalMap };
-}\n
+}
+
 
 const colorHexes=Object.freeze(['#f4efe6','#e8decb','#d8dadf','#d5cfc2','#cfd8cf']);
 export const GEMINI_WALL_COLORS=colorHexes;
@@ -340,12 +344,13 @@ function drawTVFrame(channel, time) {
     }
 
     if (tvScreenTexture) tvScreenTexture.needsUpdate = true;
-}\n
+}
+
 export const GEMINI_TV_CHANNELS=Object.freeze(['nature','fireplace','abstract']);
 let currentChannel='nature',lastTVTime=-Infinity;
-export function setGeminiTVChannel(channel){if(!GEMINI_TV_CHANNELS.includes(channel))return;currentChannel=channel;lastTVTime=-Infinity;}
+export function setGeminiTVChannel(channel){if(!GEMINI_TV_CHANNELS.includes(channel))return;if(currentChannel===channel)return;currentChannel=channel;lastTVTime=-Infinity;if(tvScreenTexture)drawTVFrame(currentChannel,0);}
 export function getGeminiTVChannel(){return currentChannel;}
-export function setGeminiTVOn(on){isTVOn=!!on;lastTVTime=-Infinity;}
+export function setGeminiTVOn(on){if(isTVOn===!!on)return;isTVOn=!!on;lastTVTime=-Infinity;if(tvScreenTexture)drawTVFrame(currentChannel,0);}
 export function makeGeminiTVScreenMaterial(){
  if(!tvScreenCanvas){
   tvScreenCanvas=document.createElement('canvas');
