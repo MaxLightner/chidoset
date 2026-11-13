@@ -1,1 +1,1 @@
-export {Studio,palette} from './studio.js?v=0.18.3';
+export {Studio,palette} from './studio.js?v=0.18.4';
