@@ -99,28 +99,29 @@ if (['chidoset.ir', 'www.chidoset.ir'].includes(location.hostname) && location.p
     <div class="map-title"><strong>طراحی اتاق · چیدو</strong><button type="button" data-map-expand aria-label="بازکردن نقشه دوبعدی">▣</button></div>
      <div class="room-design-toolbar" role="toolbar" aria-label="ابزار طراحی اتاق">
       <div class="room-design-row room-design-row-main">
-       <label title="طول اتاق به متر">طول <input data-room-width type="number" min="3.5" max="14" step="0.1" value="6.8" inputmode="decimal"></label>
-       <label title="عرض اتاق به متر">عرض <input data-room-depth type="number" min="3.5" max="14" step="0.1" value="5.8" inputmode="decimal"></label>
-       <button type="button" data-plan-create title="اعمال ابعاد اتاق">✓</button>
-       <select data-plan-tool-select title="ابزار معماری" aria-label="ابزار رسم در، پنجره، اپن یا TV">
-        <option value="select">انتخاب و ویرایش</option>
-        <option value="win_tall_1">پنجره قدی ۱م</option>
-        <option value="win_tall_25">پنجره قدی ۲٫۵م</option>
-        <option value="win_std_2">پنجره ۲م</option>
-        <option value="door">در / راهرو</option>
-        <option value="kitchen">اپن آشپزخانه</option>
-        <option value="tv">تلویزیون</option>
-       </select>
+       <label title="طول اتاق به متر"><span>طول اتاق</span><input data-room-width type="number" min="3.5" max="14" step="0.1" value="6.8" inputmode="decimal"><span>متر</span></label>
+       <label title="عرض اتاق به متر"><span>عرض اتاق</span><input data-room-depth type="number" min="3.5" max="14" step="0.1" value="5.8" inputmode="decimal"><span>متر</span></label>
+       <button type="button" data-plan-create title="اعمال ابعاد اتاق">ثبت ابعاد</button>
+       <button type="button" data-plan-fit title="نمایش کل نقشه">⊡</button>
       </div>
       <div class="room-design-row room-design-row-actions">
        <select data-plan-model aria-label="مدل مبلمان برای افزودن"><option value="0">مبل سه‌نفره</option></select>
-       <button type="button" data-plan-add title="افزودن مبلمان">＋</button>
+       <button type="button" data-plan-add title="افزودن مبلمان">＋ مبل</button>
        <button type="button" data-plan-delete title="حذف یا بازگرداندن انتخاب">× حذف</button>
        <button type="button" data-plan-floor title="رنگ و متریال کف">کف</button>
        <button type="button" data-plan-wall title="رنگ و متریال دیوار">دیوار</button>
-       <button type="button" data-plan-fit title="جای‌دادن نقشه در صفحه">⊡</button>
-       <button type="button" data-plan-3d class="plan-to-3d" title="اسکن کف و ورود به محیط سه‌بعدی">◈ ۳بعدی</button>
+       <button type="button" data-plan-3d class="plan-to-3d" title="اسکن کف و ورود به محیط سه‌بعدی">◈ سه‌بعدی</button>
       </div>
+      <div class="room-design-row room-design-row-architecture" aria-label="در و پنجره و اجزای دیوار">
+       <button type="button" data-plan-tool="select" class="active" title="انتخاب و جابه‌جایی">انتخاب</button>
+       <button type="button" data-plan-tool="win_tall_1" title="پنجره قدی ۱ متر">قدی ۱م</button>
+       <button type="button" data-plan-tool="win_tall_25" title="پنجره قدی ۲٫۵ متر">قدی ۲٫۵م</button>
+       <button type="button" data-plan-tool="win_std_2" title="پنجره معمولی ۲ متر">پنجره ۲م</button>
+       <button type="button" data-plan-tool="door" title="در و راهرو">در</button>
+       <button type="button" data-plan-tool="kitchen" title="اپن آشپزخانه">اپن</button>
+       <button type="button" data-plan-tool="tv" title="پنل تلویزیون">TV</button>
+      </div>
+      <select hidden data-plan-tool-select aria-label="ابزار معماری"><option value="select">انتخاب</option><option value="win_tall_1">قدی ۱</option><option value="win_tall_25">قدی ۲٫۵</option><option value="win_std_2">پنجره ۲</option><option value="door">در</option><option value="kitchen">اپن</option><option value="tv">TV</option></select>
       <button type="button" hidden data-plan-start-ar>اسکن AR</button>
       <button type="button" hidden data-plan-zoom-in>زوم +</button>
       <button type="button" hidden data-plan-zoom-out>زوم −</button>
