@@ -1,4 +1,4 @@
-import {MATERIAL_ROLES,ROLE_LABELS,roleMaterials,materialPresets,materialImage} from './material-roles.js?v=0.16.20';
+import {MATERIAL_ROLES,ROLE_LABELS,roleMaterials,materialPresets,materialImage} from './material-roles.js?v=0.16.21';
 export function mountMaterialPanel(host,studio,mesh,{notify=()=>{}}={}){
  let active='fabric',renderVersion=0;
  const valid=()=>host.isConnected&&studio.items.includes(mesh)&&studio.selected===mesh&&!mesh.userData.disposed;
