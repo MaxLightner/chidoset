@@ -317,6 +317,9 @@ export class ArchitectureLayer {
    windowFill.position.set(-Math.min(width/2-1,2),2.1,0);this.group.add(windowFill);
    const ceilingFill=new THREE.PointLight(0xfff5e4,2.2,14,1.5);
    ceilingFill.position.set(.4,2.55,.2);this.group.add(ceilingFill);
+   const portal=new THREE.SpotLight(0xdceeff,18,22,Math.PI*.44,.75,1.2);
+   portal.position.set(-Math.min(width/2+.3,4.2),2.0,0);
+   portal.target.position.set(1.5,1.1,0);this.group.add(portal,portal.target);
   }
   if(this.data.tvSettings){setGeminiTVChannel(this.data.tvSettings.channel||'nature');setGeminiTVOn(this.data.tvSettings.on!==false);}
   const frameMat=new THREE.MeshStandardMaterial({color:0x8d9799,roughness:.54,metalness:.32});
