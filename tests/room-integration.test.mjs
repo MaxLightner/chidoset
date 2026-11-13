@@ -1,0 +1,74 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {LiveMiniMap} from '../minimap.js';
+import {defaultRoomPlan} from '../room-plan.js';
+
+const read=name=>readFileSync(new URL('../'+name,import.meta.url),'utf8');
+const pointer=(id,x,y)=>({pointerId:id,clientX:x,clientY:y,preventDefault(){}});
+const fakeStudio=()=>({
+ roomPlan:defaultRoomPlan(),items:[],selected:null,
+ setRoomPlan(next){this.roomPlan=next;return true;},
+ select(){},moveRoomFurniture(){},changed(){}
+});
+
+test('selected room perimeter can resize by pointer while keeping width and depth live',()=>{
+ const studio=fakeStudio(),editor=Object.create(LiveMiniMap.prototype);
+ editor.expanded=true;editor.getStudio=()=>studio;
+ editor.gesture={type:'wall',wall:'east',startX:0,startY:0,startW:6.8,startD:5.8,metersPerPixel:.01};
+ editor.pointers=new Map([[1,{x:0,y:0}]]);
+ editor.point=()=>({x:0,z:0});editor.render=()=>{};editor.syncRoomFields=()=>{};
+ editor.move(pointer(1,100,0));
+ assert.equal(studio.roomPlan.w,7.8);assert.equal(studio.roomPlan.d,5.8);
+ editor.gesture={type:'wall',wall:'corner-north-west',startX:0,startY:0,startW:7.8,startD:5.8,metersPerPixel:.01};
+ editor.move(pointer(1,50,20));
+ assert.equal(studio.roomPlan.w,7.3);
+ assert.equal(studio.roomPlan.d,5.6);
+});
+
+test('the four room sides and corners are interactive selection targets',()=>{
+ const editor=Object.create(LiveMiniMap.prototype),plan=defaultRoomPlan();
+ assert.equal(editor.nearWall({x:-3.4,z:0},plan),'west');
+ assert.equal(editor.nearWall({x:3.4,z:0},plan),'east');
+ assert.equal(editor.nearWall({x:0,z:-2.9},plan),'north');
+ assert.equal(editor.nearWall({x:0,z:2.9},plan),'south');
+ assert.equal(editor.nearWall({x:-3.4,z:-2.9},plan),'corner-north-west');
+ assert.equal(editor.nearWall({x:0,z:0},plan),null);
+});
+
+test('apply dimensions updates the authoritative plan, refits the canvas and informs the user',()=>{
+ const studio=fakeStudio(),values={'[data-room-width]':{value:'8.5'},'[data-room-depth]':{value:'6.2'}};
+ const editor=Object.create(LiveMiniMap.prototype);
+ editor.panel={querySelector:selector=>values[selector]};
+ editor.getStudio=()=>studio;let fit=0,sync=0,message='';
+ editor.fit=()=>fit++;editor.syncRoomFields=()=>sync++;
+ editor.options={onToast:m=>message=m};
+ editor.applyDimensions();
+ assert.equal(studio.roomPlan.w,8.5);assert.equal(studio.roomPlan.d,6.2);
+ assert.equal(fit,1);assert.equal(sync,1);assert.match(message,/8.50/);
+});
+
+test('offline plan drags use the room-local furniture transform without floor lock',()=>{
+ const studio=fakeStudio();studio.items=[{userData:{id:9,product:{size:[1.8,.8,.9]}}}];
+ let moved;
+ studio.moveRoomFurniture=(...args)=>{moved=args;return true;};
+ const editor=Object.create(LiveMiniMap.prototype);
+ editor.expanded=true;editor.pointers=new Map([[1,{x:0,y:0}]]);
+ editor.gesture={type:'furniture',id:9,dx:0,dz:0};
+ editor.getStudio=()=>studio;editor.point=()=>({x:1.1,z:.7});editor.render=()=>{};
+ editor.move(pointer(1,12,14));
+ assert.deepEqual(moved,[9,1.1,.7]);
+});
+
+test('XR scanner controls remain distinct from explicit room placement',()=>{
+ const app=read('app.js'),studio=read('studio.js'),html=read('index.html'),css=read('room-designer.css');
+ for(const id of ['confirmFloor','roomPlaceActions','placeDesignedRoom','editDesignedRoom','arDock','arMiniMap'])
+  assert.ok(html.includes('id="'+id+'"'),id);
+ assert.match(app,/classList\.remove\('room-design-offline','floor-ready'\)/);
+ assert.match(app,/\$\('#roomPlaceActions'\)\.hidden=!report\.placed/);
+ assert.match(app,/\$\('#placeDesignedRoom'\)\.onclick=/);
+ assert.match(studio,/placeDesignedRoom\(\)/);
+ assert.match(studio,/this\.root\.visible=t>\.68&&!this\.roomPendingPlacement/);
+ assert.match(css,/#overlay \.room-place-actions\[hidden\]/);
+ assert.doesNotMatch(app,/roomAutoCoverAfterScan/);
+});
