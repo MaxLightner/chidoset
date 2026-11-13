@@ -78,10 +78,11 @@ export function finishMaterial(id){
  const maps=finishTextures(finish.id);
  const tile=finish.kind==='ceramic';
  return new THREE.MeshPhysicalMaterial({
-  ...maps,color:0xffffff,roughness:finish.roughness,metalness:0,ior:1.5,
+  ...maps,color:0xffffff,roughness:finish.kind==='carpet'?1:finish.roughness,metalness:0,ior:1.5,
+  specularIntensity:finish.kind==='carpet'?0:1,
   clearcoat:tile ? .72 : 0,clearcoatRoughness:tile ? .27 : 1,
   normalScale:new THREE.Vector2(finish.kind==='carpet' ? .85 : .38,finish.kind==='carpet' ? .85 : .38),
-  side:THREE.DoubleSide,transparent:false,depthWrite:true,envMapIntensity:tile?1.65:.75
+  side:THREE.DoubleSide,transparent:false,depthWrite:true,envMapIntensity:finish.kind==='carpet'?0:tile?1.65:.75
  });
 }
 // Preview is generated from the very same procedural texture, no external image requests.
@@ -98,4 +99,23 @@ export function finishPreviewDataUrl(id){
  const ctx=c.getContext('2d'),raw=map.image.data,src=new ImageData(new Uint8ClampedArray(raw),256,256);
  const tmp=document.createElement('canvas');tmp.width=tmp.height=256;tmp.getContext('2d').putImageData(src,0,0);
  ctx.drawImage(tmp,0,0,64,64);return c.toDataURL('image/png');
+}
+
+// Room floors share metre-accurate texture density regardless of room dimensions.
+// The canvas pattern itself may repeat multiple times, so compensate for its
+// texture.repeat values when writing UVs; do not mutate cached texture objects.
+export const FLOOR_TILE_METERS=Object.freeze({
+ 'parquet-oak':.72,'parquet-walnut':.72,
+ 'stone-marble':1.2,'polished-concrete':.9,
+ 'ceramic-cream':1,'ceramic-white':1,'ceramic-grey':1,
+ 'carpet-petrol':.4,'carpet-olive':.4,'carpet-burgundy':.4
+});
+export function applyMetricFloorUV(geometry,finishId,material){
+ const position=geometry?.getAttribute?.('position'),uv=geometry?.getAttribute?.('uv');
+ if(!position||!uv)return geometry;
+ const period=FLOOR_TILE_METERS[finishId]||1;
+ const repeats=material?.map?.repeat;
+ const sx=period*Math.max(.001,repeats?.x||1),sz=period*Math.max(.001,repeats?.y||1);
+ for(let i=0;i<position.count;i++)uv.setXY(i,position.getX(i)/sx,position.getZ(i)/sz);
+ uv.needsUpdate=true;return geometry;
 }
