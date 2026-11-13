@@ -90,7 +90,9 @@ export function finishPreviewDataUrl(id){
  const finish=[...FLOOR_FINISHES,...WALL_FINISHES].find(x=>x.id===id)||FLOOR_FINISHES[0];
  if(finish.kind.startsWith('gemini-')){
   const material=finishMaterial(id),canvas=document.createElement('canvas');canvas.width=canvas.height=64;
-  const ctx=canvas.getContext('2d');ctx.drawImage(material.map.image,0,0,64,64);material.dispose();return canvas.toDataURL('image/png');
+  const ctx=canvas.getContext('2d');ctx.drawImage(material.map.image,0,0,64,64);
+  if(finish.kind==='gemini-wall'){ctx.globalCompositeOperation='multiply';ctx.fillStyle=finish.hex;ctx.fillRect(0,0,64,64);ctx.globalCompositeOperation='source-over';}
+  material.dispose();return canvas.toDataURL('image/png');
  }
  const {map}=finishTextures(id),c=document.createElement('canvas');c.width=c.height=64;
  const ctx=c.getContext('2d'),raw=map.image.data,src=new ImageData(new Uint8ClampedArray(raw),256,256);
