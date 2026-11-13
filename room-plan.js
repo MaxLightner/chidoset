@@ -12,7 +12,7 @@ export const ROOM_WALLS=['north','south','west','east'];
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const number=(x)=>Number.isFinite(Number(x))?Number(x):NaN;
 const cm=n=>Math.round(n*100)/100;
-export function defaultRoomPlan(){return {version:1,w:6.8,d:5.8,elements:[]};}
+export function defaultRoomPlan(){return {version:1,w:6.8,d:5.8,elements:[],hiddenWalls:[]};}
 export function wallLength(plan,wall){return wall==='north'||wall==='south'?plan.w:plan.d;}
 export function wallAnchor(plan,wall,u){
  const x0=-plan.w/2,z0=-plan.d/2;
@@ -24,6 +24,7 @@ export function wallAnchor(plan,wall,u){
 export function canPlaceRoomElement(plan,candidate,others=plan.elements){
  const s=ROOM_SPECS[candidate?.type];
  if(!s||!ROOM_WALLS.includes(candidate?.wall)||!Number.isFinite(candidate?.u))return {valid:false,reason:'آیتم معتبر نیست.'};
+ if(plan.hiddenWalls?.includes(candidate.wall))return {valid:false,reason:'برای افزودن این آیتم، ابتدا دیوار حذف‌شده را بازگردان.'};
  const len=wallLength(plan,candidate.wall),half=s.width/2;
  if(s.width>len-.36||candidate.u-half<.18||candidate.u+half>len-.18)return {valid:false,reason:'فاصله از گوشه یا طول دیوار کافی نیست.'};
  for(const el of others){
@@ -42,7 +43,9 @@ export function normalizeRoomPlan(raw){
  if(!raw||typeof raw!=='object')return null;
  const w=cm(number(raw.w)),d=cm(number(raw.d));
  if(!Number.isFinite(w)||!Number.isFinite(d)||w<3.5||d<3.5||w>14||d>14)return null;
- const plan={version:1,w,d,elements:[]};
+ const hiddenWalls=raw.hiddenWalls??[];
+ if(!Array.isArray(hiddenWalls)||hiddenWalls.length>4||hiddenWalls.some(wall=>!ROOM_WALLS.includes(wall))||new Set(hiddenWalls).size!==hiddenWalls.length)return null;
+ const plan={version:1,w,d,elements:[],hiddenWalls:[...hiddenWalls]};
  if(!Array.isArray(raw.elements)||raw.elements.length>48)return null;
  for(const item of raw.elements){
   if(!item||typeof item.id!=='string'||item.id.length>90||!ROOM_SPECS[item.type]||!ROOM_WALLS.includes(item.wall))return null;
@@ -70,7 +73,7 @@ export function roomPlanToArchitecture(plan,previous={}){
   {id:'room-south',x1:-x,z1:z,x2:x,z2:z},
   {id:'room-west',x1:-x,z1:-z,x2:-x,z2:z},
   {id:'room-east',x1:x,z1:-z,x2:x,z2:z}
- ].map(w=>({...w,height:3.10,thickness:.24}));
+ ].filter(w=>!plan.hiddenWalls?.includes(w.id.slice(5))).map(w=>({...w,height:3.10,thickness:.24}));
  const windows=[],features=[];
  for(const el of plan.elements){
   const s=ROOM_SPECS[el.type];
