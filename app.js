@@ -351,7 +351,8 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
     updateSelectedMaterialRail();
     const show=!!selected&&!!studio.session&&studio.placed&&!studio.photoMode&&!chidoMenuOpen&&!$('#chidoMenuHome').disabled&&$('#arToolSheet').hidden&&!studio.placementEnabled;
     quick.hidden=!show;
-    if(!show)return;
+    if(!show){$('#arMaterialRail').hidden=true;return;}
+    updateSelectedMaterialRail();
     $('#quickProps').title=selected.userData.index===7?'تنظیمات فرش':'ویژگی‌های آبجکت';
     $('#quickProps').setAttribute('aria-label',$('#quickProps').title);
     updateLampPowerControl();
@@ -710,41 +711,30 @@ $('#abLengthButton').onclick=()=>{$('#abCalibrationSheet').hidden=false;studio?.
 $('#abCalibrationClose').onclick=()=>{$('#abCalibrationSheet').hidden=true;studio?.setRoomCalibrationGuides(false);};
 $('#arCalibrationTool').onclick=()=>{closeArSheet();$('#arArchitectureActions').hidden=true;$('#abCalibrationSheet').hidden=!$('#abCalibrationSheet').hidden;studio?.setRoomCalibrationGuides(!$('#abCalibrationSheet').hidden);};
 function updateSelectedMaterialRail(force=false){
- const host=$('#arMaterialRail'),body=$('#arMaterialRailBody'),title=$('#arMaterialRailTitle');
- if(!host||!body||!studio)return;
- const surface=studio.architecture?.selectedSurface();
- const mesh=surface?null:studio.selected;
- const key=surface&&['floor','wall'].includes(surface.kind)?'surface:'+surface.kind+':'+surface.id:
-  mesh?'object:'+mesh.userData.id:null;
- const canShow=!!key&&!!studio.session&&studio.placed&&!studio.photoMode&&!minimap.expanded;
- if(!canShow||key===materialRailClosedKey){host.hidden=true;return;}
+ // The swatches are a child of #objectQuick, NOT another floating panel.
+ const quick=$('#objectQuick'),trigger=$('#quickMaterials');
+ const host=$('#arMaterialRail'),body=$('#arMaterialRailBody'),mesh=studio?.selected;
+ if(!host||!body||!trigger||!quick)return;
+ const enabled=trigger.getAttribute('aria-expanded')==='true';
+ const canShow=enabled&&mesh&&!!studio.session&&studio.placed&&!studio.photoMode&&!minimap.expanded&&!quick.hidden;
+ if(!canShow){host.hidden=true;return;}
+ const key='object:'+mesh.userData.id;
  if(!force&&host.dataset.itemKey===key&&!host.hidden)return;
  host.dataset.itemKey=key;host.hidden=false;body.replaceChildren();
- if(surface){
-  const floor=surface.kind==='floor',options=floor?FLOOR_FINISHES:WALL_FINISHES;
-  const selectedId=floor?studio.architecture.data.floorMaterial:
-   studio.architecture.data.walls.find(w=>w.id===surface.id)?.material||studio.architecture.data.wallMaterial;
-  title.textContent=floor?'متریال کف':'متریال دیوار';
-  body.innerHTML='<div class="architecture-finish-grid">'+options.map(o=>
-   '<button type="button" data-rail-finish="'+o.id+'" class="'+(o.id===selectedId?'selected':'')+'">'+
-   '<img src="'+finishPreviewDataUrl(o.id)+'" alt=""><span>'+o.label+'</span></button>').join('')+'</div>';
-  body.querySelectorAll('[data-rail-finish]').forEach(btn=>btn.onclick=()=>{
-   if(studio.architecture.setSelectedFinish(btn.dataset.railFinish))updateSelectedMaterialRail(true);
-  });
- }else if(mesh?.userData.imported){
-  title.textContent='تکسچر · '+mesh.userData.product.name;
+ if(mesh.userData.imported){
   mountMaterialPanel(body,studio,mesh,{notify:toast});
- }else if(mesh){
-  title.textContent='رنگ · '+mesh.userData.product.name;
+ }else{
   const colors=[...themes[themeIndex].colors,'#b6bca2','#70858b','#b79c85','#ae8574','#546356','#5f5753','#efe8df'];
   body.innerHTML='<div class="ar-color-grid">'+colors.map(color=>
    '<button type="button" data-rail-color="'+color+'" title="'+color+'" style="--swatch:'+color+'"><span></span></button>').join('')+'</div>';
   body.querySelectorAll('[data-rail-color]').forEach(btn=>btn.onclick=()=>studio.color(btn.dataset.railColor));
  }
 }
-$('#arMaterialRailClose').onclick=()=>{
- materialRailClosedKey=$('#arMaterialRail').dataset.itemKey;
- $('#arMaterialRail').hidden=true;
+$('#quickMaterials').onclick=()=>{
+ const trigger=$('#quickMaterials'),opening=trigger.getAttribute('aria-expanded')!=='true';
+ trigger.setAttribute('aria-expanded',String(opening));
+ $('#arMaterialRail').hidden=!opening;
+ if(opening)updateSelectedMaterialRail(true);
 };
 function closeRoomCenterMode(){
  $('#roomCenterReticle').hidden=true;$('#roomCenterActions').hidden=true;
@@ -791,7 +781,7 @@ function updateArchitectureSelection(){
  $('#arSurfaceMaterial').hidden=selected.kind==='window';
  updateSelectedMaterialRail();
 }
-$('#arSurfaceMaterial').onclick=()=>{materialRailClosedKey='';updateSelectedMaterialRail(true);};
+$('#arSurfaceMaterial').onclick=()=>showArSheet('colors');
 $('#arSurfaceDelete').onclick=()=>{
  const s=studio?.architecture?.selectedSurface();if(!s)return;
  if(studio.architecture.deleteSelected()){closeArSheet();toast('سطح انتخاب‌شده حذف شد.');}
