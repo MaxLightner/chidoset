@@ -196,3 +196,95 @@
  #overlay .room-place-actions p{font-size:11px;}
  #overlay .room-place-actions button{min-height:44px;font-size:12px;}
 }
+
+
+/* v0.17.3 — two short, fully visible rows; there is no sideways toolbar scrolling. */
+#overlay .ar-minimap.expanded .room-design-toolbar,
+#overlay.floor-ready .ar-minimap.expanded .room-design-toolbar,
+#overlay[data-ui-orientation].floor-ready .ar-minimap.expanded .room-design-toolbar{
+ display:grid!important;grid-template-columns:minmax(0,1fr)!important;
+ grid-template-rows:repeat(2,40px)!important;
+ width:100%!important;height:85px!important;min-height:85px!important;max-height:85px!important;
+ padding:3px 5px!important;margin:0!important;gap:3px!important;overflow:visible!important;
+ background:#e6e1d7;border-radius:11px;scroll-snap-type:none!important;
+}
+#overlay .ar-minimap.expanded .room-design-toolbar .room-design-row{
+ min-width:0;width:100%;max-width:100%;height:40px;min-height:40px;
+ display:grid!important;gap:4px;align-items:stretch;overflow:hidden;
+}
+#overlay .ar-minimap.expanded .room-design-toolbar .room-design-row-main{
+ grid-template-columns:minmax(73px,1fr) minmax(73px,1fr) 38px minmax(105px,1.35fr);
+}
+#overlay .ar-minimap.expanded .room-design-toolbar .room-design-row-actions{
+ grid-template-columns:minmax(72px,1.35fr) 34px minmax(45px,.8fr) 36px 42px 34px minmax(62px,1fr);
+}
+#overlay .ar-minimap.expanded .room-design-toolbar .room-design-row>*{min-width:0!important;max-width:100%!important;}
+#overlay .ar-minimap.expanded .room-design-toolbar .room-design-row button,
+#overlay.floor-ready .ar-minimap.expanded .room-design-toolbar .room-design-row button,
+#overlay .ar-minimap.expanded .room-design-toolbar .room-design-row select{
+ width:100%!important;height:39px!important;min-height:39px!important;max-height:39px!important;
+ padding:4px 2px!important;font-size:12px!important;line-height:1.2!important;
+ text-align:center;border-radius:8px!important;scroll-snap-align:none!important;
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#overlay .ar-minimap.expanded .room-design-toolbar .room-design-row label{
+ display:flex!important;gap:3px!important;align-items:center;justify-content:center;
+ height:39px!important;min-height:39px!important;min-width:0;
+ margin:0;padding:0 2px!important;font-size:11px!important;white-space:nowrap;
+}
+#overlay .ar-minimap.expanded .room-design-toolbar .room-design-row input{
+ width:100%!important;max-width:66px!important;min-width:0!important;flex:1 1 0;
+ height:34px!important;min-height:34px!important;padding:2px!important;
+ font-size:14px!important;border-radius:6px;
+}
+#overlay .ar-minimap.expanded .room-design-toolbar button[hidden]{display:none!important;}
+#overlay .ar-minimap.expanded .room-design-toolbar [data-plan-model],
+#overlay .ar-minimap.expanded .room-design-toolbar [data-plan-tool-select]{
+ min-width:0!important;max-width:none!important;font-size:11px!important;direction:rtl;
+}
+#overlay .ar-minimap.expanded .room-design-toolbar [data-plan-tool-select]{text-align:right;padding-right:4px!important;}
+#overlay .ar-minimap.expanded .room-design-toolbar [data-plan-delete]{font-size:11px!important;}
+#overlay .ar-minimap.expanded .room-design-toolbar [data-plan-3d]{background:#d7ab58!important;}
+#overlay .ar-minimap.expanded .room-design-toolbar [data-plan-fit]{font-size:19px!important;}
+#overlay .ar-minimap.expanded .room-finish-picker[hidden]{display:none!important;}
+#overlay .ar-minimap.expanded .room-finish-picker{
+ display:grid!important;position:absolute;z-index:4;
+ top:calc(env(safe-area-inset-top,0px) + 140px);right:9px;left:9px;
+ max-height:min(44dvh,310px);overflow-y:auto;
+ background:#faf8f0;padding:10px;border:1px solid #c5bfb1;
+ border-radius:14px;box-shadow:0 15px 40px #1828243a;gap:8px;
+}
+#overlay .ar-minimap.expanded .room-finish-picker strong{
+ font-size:15px;color:#2e483c;
+}
+#overlay .ar-minimap.expanded .room-finish-picker .finish-options{
+ display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:7px;
+}
+#overlay .ar-minimap.expanded .room-finish-picker .finish-options button{
+ display:grid;grid-template-columns:50px 1fr;gap:6px;align-items:center;text-align:right;
+ border:2px solid #d3d5ca;min-height:57px;border-radius:9px;background:#f3f1e9;
+ padding:4px 6px;font-size:11px;color:#334c3f;white-space:normal;
+}
+#overlay .ar-minimap.expanded .room-finish-picker .finish-options button.selected{
+ border-color:#338062;background:#e7f2e8;
+}
+#overlay .ar-minimap.expanded .room-finish-picker .finish-options img{
+ width:50px;height:46px;object-fit:cover;border-radius:6px;
+}
+#overlay .ar-minimap.expanded .room-finish-picker .picker-header{
+ display:flex;justify-content:space-between;align-items:center;gap:6px;
+}
+#overlay .ar-minimap.expanded .room-finish-picker .picker-header button{
+ min-height:32px;border-radius:8px;padding:4px 10px;font-size:13px;
+}
+@media(max-width:400px){
+ #overlay .ar-minimap.expanded .room-design-toolbar .room-design-row{gap:2px!important;}
+ #overlay .ar-minimap.expanded .room-design-toolbar .room-design-row-actions{
+  grid-template-columns:minmax(65px,1.3fr) 31px minmax(41px,.7fr) 32px 39px 31px minmax(58px,1fr);
+ }
+ #overlay .ar-minimap.expanded .room-design-toolbar .room-design-row-main{
+  grid-template-columns:minmax(70px,1fr) minmax(70px,1fr) 34px minmax(91px,1.2fr);
+ }
+ #overlay .ar-minimap.expanded .room-design-toolbar .room-design-row button,
+ #overlay .ar-minimap.expanded .room-design-toolbar .room-design-row select{font-size:11px!important;}
+}
