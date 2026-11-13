@@ -30,7 +30,7 @@ const fa=n=>n.toLocaleString('fa-IR',{maximumFractionDigits:1});
 export class Studio{
  constructor(host,changed){
   Object.assign(this,{host,changed,items:[],serial:0,selected:null,session:null,photoMode:false,tracking:true,anchor:null,anchorGeneration:0,anchorPending:false,anchorState:'بدون Anchor',lastStatus:'',lastReport:0,frames:0,fps:0,points:new Map(),gesture:null,needsAnchor:false,wideMode:'ar',wideView:null});
-  this.roomPlan=null;this.roomCalibrationGuides=false;this.roomPendingPlacement=false;this.roomGeometryTimer=null;this.roomGeometryDirty=false;this.model=new SpatialState();this.scanner=new FloorScanner();this.anchorRig=new AnchorStabilizer();this.anchorNodes=[];this.anchorCandidates=[];this.anchorActive=false;this.anchorLastTime=0;this.extraHitSources=[];this.scanHits=0;this.scanDrop=null;this.scanDistance=null;this.revealStart=null;this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#eeeee3');this.debugView=new ARDebugView(this.scene);this.debugView.setVisible(false);
+  this.roomPlan=null;this.roomVisible=true;this.roomCalibrationGuides=false;this.roomPendingPlacement=false;this.roomGeometryTimer=null;this.roomGeometryDirty=false;this.model=new SpatialState();this.scanner=new FloorScanner();this.anchorRig=new AnchorStabilizer();this.anchorNodes=[];this.anchorCandidates=[];this.anchorActive=false;this.anchorLastTime=0;this.extraHitSources=[];this.scanHits=0;this.scanDrop=null;this.scanDistance=null;this.revealStart=null;this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#eeeee3');this.debugView=new ARDebugView(this.scene);this.debugView.setVisible(false);
   this.camera=new THREE.PerspectiveCamera(48,1,.03,40);this.camera.position.set(5.2,4.4,6);this.camera.lookAt(.6,0,-.5);
   this.renderPolicy=rendererPolicy({coarse:!!globalThis.matchMedia?.('(pointer:coarse)').matches,pixelRatio:globalThis.devicePixelRatio||1});
   this.renderer=new THREE.WebGLRenderer({antialias:this.renderPolicy.antialias,alpha:true,preserveDrawingBuffer:this.renderPolicy.preserveDrawingBuffer});this.renderer.setPixelRatio(this.renderPolicy.pixelRatio);
@@ -172,7 +172,33 @@ void main(){
   // share this.root, whose uniform scale is the measured correction factor.
   // Never reset calibration or shift the layout when inserting the room.
   this.syncSpatial();
-  this.flushRoomGeometry();this.roomPendingPlacement=false;this.floorNet.visible=false;this.root.visible=true;this.changed();return true;
+  this.flushRoomGeometry();this.roomVisible=true;this.architecture.group.visible=true;this.roomPendingPlacement=false;this.floorNet.visible=false;this.root.visible=true;this.changed();return true;
+ }
+ setDesignedRoomVisible(visible){
+  if(!this.roomPlan||!this.architecture)return false;
+  this.roomVisible=!!visible;
+  this.architecture.group.visible=this.roomVisible;
+  this.changed();return true;
+ }
+ roomCenterTarget(){
+  if(!this.session||!this.model.locked||!this.tracking)return null;
+  const camera=this.activeCamera();
+  camera.updateWorldMatrix(true,false);
+  const eye=camera.getWorldPosition(new THREE.Vector3());
+  const direction=camera.getWorldDirection(new THREE.Vector3()).normalize();
+  if(direction.y>=-.045)return null; // the reticle must really intersect the floor
+  const intersection=new THREE.Ray(eye,direction).intersectPlane(this.model.plane,new THREE.Vector3());
+  if(!intersection||!Number.isFinite(intersection.x)||eye.distanceTo(intersection)>12||eye.distanceTo(intersection)<.25)return null;
+  return intersection;
+ }
+ moveRoomCenterToCrosshair(){
+  if(!this.roomPlan)return false;
+  const target=this.roomCenterTarget();
+  if(!target)return false;
+  const local=this.floorLocal(target);
+  this.model.layoutOffset.set(local.x,0,local.z);
+  // Same A/B scale, rotation, floor anchor and furniture-relative positions.
+  this.syncSpatial();this.changed();return true;
  }
  moveRoomFurniture(id,x,z){
   if(!this.roomPlan||!Number.isFinite(x)||!Number.isFinite(z))return false;
