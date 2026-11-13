@@ -50,7 +50,7 @@ export class WideViewRenderer{
   // virtual tracked view. This renderer never replaces the XR pose source.
   this.renderer.outputColorSpace=THREE.SRGBColorSpace;
   this.renderer.toneMapping=THREE.ReinhardToneMapping;
-  this.renderer.toneMappingExposure=1.45;
+  this.renderer.toneMappingExposure=1.15;
   this.renderer.shadowMap.enabled=true;
   this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   this.renderer.setPixelRatio(Math.min(1.25,rendererPolicy({coarse:!!globalThis.matchMedia?.('(pointer:coarse)').matches,pixelRatio:window.devicePixelRatio||1}).pixelRatio));
