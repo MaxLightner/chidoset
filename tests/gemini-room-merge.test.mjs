@@ -39,7 +39,7 @@ test('Gemini source algorithms and three.js GTAO/Bloom passes are bundled locall
  const module=await import('../gemini-postfx.js');
  assert.equal(typeof module.createGeminiPostFX,'function');
  const src=read('gemini-postfx.js');
- for(const token of ['GTAOPass','UnrealBloomPass','OutputPass','radius:.36','samples:24','uVibrance'])assert.ok(src.includes(token),token);
+ for(const token of ['GTAOPass','UnrealBloomPass','OutputPass','radius:1.08','samples:24','uVibrance'])assert.ok(src.includes(token),token);
  const wide=read('wide-view.js');
  assert.ok(wide.includes("import('./gemini-postfx.js"));
  assert.ok(wide.includes('ReinhardToneMapping'));
