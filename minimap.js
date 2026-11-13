@@ -67,9 +67,11 @@ export class LiveMiniMap{
   this.panel.classList.toggle('expanded',this.expanded);
   this.panel.querySelector('[data-map-expand]').textContent=this.expanded?'بستن':'▣';
   this.panel.querySelector('[data-map-expand]').setAttribute('aria-label',this.expanded?'بستن پلان':'باز کردن پلان');
+  const wasExpanded=this.pointers.size>=0&&this._previousExpanded===true;
+  this._previousExpanded=this.expanded;
   this.pointers.clear();this.gesture=null;
   if(this.expanded){this.syncRoomFields();this.updateTools();this.fit();}
-  else this.render();
+  else{this.render();if(wasExpanded&&this.options.onClose)this.options.onClose();}
  }
  collapse(){this.setExpanded(false);}
  fit(){this.zoom=1;this.panX=0;this.panZ=0;this.render();}
