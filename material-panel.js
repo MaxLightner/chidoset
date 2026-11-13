@@ -1,12 +1,13 @@
 import {MATERIAL_ROLES,ROLE_LABELS,roleMaterials,materialPresets,materialImage} from './material-roles.js?v=0.16.23';
 export function mountMaterialPanel(host,studio,mesh,{notify=()=>{}}={}){
  let active='fabric',renderVersion=0;
+ const icons={fabric:'🧵',wood:'🪵',metal:'⚙',glass:'◈'};
  const valid=()=>host.isConnected&&studio.items.includes(mesh)&&studio.selected===mesh&&!mesh.userData.disposed;
  const visual=()=>mesh.getObjectByName('imported-visual');
  const render=()=>{
   if(!valid())return;
   const groups=roleMaterials(visual()),matches=groups.filter(e=>e.role===active);
-  host.innerHTML='<div class="material-tabs" role="tablist" aria-label="بخش متریال">'+MATERIAL_ROLES.map(role=>`<button type="button" role="tab" id="material-tab-${role}" aria-controls="material-role-panel" aria-selected="${role===active}" tabindex="${role===active?0:-1}" data-role="${role}">${ROLE_LABELS[role]}</button>`).join('')+'</div><section role="tabpanel" id="material-role-panel" aria-labelledby="material-tab-'+active+'"></section><p class="sheet-tip" data-material-status role="status"></p>';
+  host.innerHTML='<div class="material-tabs" role="tablist" aria-label="بخش متریال">'+MATERIAL_ROLES.map(role=>`<button type="button" role="tab" id="material-tab-${role}" aria-controls="material-role-panel" aria-selected="${role===active}" tabindex="${role===active?0:-1}" data-role="${role}"><span class="role-icon" aria-hidden="true">${icons[role]}</span><span>${ROLE_LABELS[role]}</span></button>`).join('')+'</div><section role="tabpanel" id="material-role-panel" aria-labelledby="material-tab-'+active+'"></section><p class="sheet-tip" data-material-status role="status"></p>';
   const panel=host.querySelector('[role=tabpanel]'),status=host.querySelector('[data-material-status]');
   const setStatus=text=>{if(host.isConnected)status.textContent=text;};
   const apply=async style=>{
