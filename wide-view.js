@@ -45,7 +45,14 @@ export class WideViewRenderer{
   if(!overlay)throw Error('Wide View requires an active DOM overlay');
   this.scene=scene;this.overlay=overlay;
   this.camera=new THREE.PerspectiveCamera(60,1,.03,40);
-  this.renderer=new THREE.WebGLRenderer({antialias:false,alpha:false,powerPreference:'low-power'});
+  this.renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});
+  // Match Gemini's color pipeline and physically based soft shadows in the
+  // virtual tracked view. This renderer never replaces the XR pose source.
+  this.renderer.outputColorSpace=THREE.SRGBColorSpace;
+  this.renderer.toneMapping=THREE.ReinhardToneMapping;
+  this.renderer.toneMappingExposure=1.45;
+  this.renderer.shadowMap.enabled=true;
+  this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   this.renderer.setPixelRatio(Math.min(1.25,rendererPolicy({coarse:!!globalThis.matchMedia?.('(pointer:coarse)').matches,pixelRatio:window.devicePixelRatio||1}).pixelRatio));
   this.renderer.setClearColor('#e9e8e2',1);
   this.canvas=this.renderer.domElement;
