@@ -3,6 +3,7 @@ import {copyMaterialStyles,applyRoleMaterial,disposeRoleMaterials} from './mater
 import {getCloudProduct,getCloudProductInfo,registerCloudProducts,cloudProductList} from './cloud-product-registry.js';
 import {ArchitectureLayer} from './architecture.js?v=0.9.0';
 import {normalizeRoomPlan,roomPlanToArchitecture,constrainFurnitureToRoom} from './room-plan.js?v=0.17.2';
+import {updateGeminiTV} from './gemini-room-materials.js?v=0.17.3';
 import {createFurniture,furnitureHit} from './furniture.js?v=0.5.4';
 import {createDecor} from './decor.js?v=0.5.4';
 import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.16.23';
@@ -910,6 +911,7 @@ safeObjectMotion(mesh,desired){
  }
  frame(time,frame){
   if(this.suspended||this.exitToHome)return;
+  if(this.root?.visible&&this.roomPlan?.elements.some(el=>el.type==='tv'))updateGeminiTV(time);
   for(const item of (this.items||[]))if(item.userData.loadIndeterminate&&item.userData.loadFill?.parent){
    const fill=item.userData.loadFill,h=item.userData.height,band=.16,phase=(time%1150)/1150;
    fill.scale.y=band;fill.position.y=-h/2+((phase*(1-band)+band/2)*h);fill.material.opacity=.10+.10*(.5+.5*Math.sin(time*.008));
