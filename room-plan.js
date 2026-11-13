@@ -82,3 +82,24 @@ export function roomPlanToArchitecture(plan,previous={}){
   floorMaterial:previous.floorMaterial||'ceramic-cream',
   wallMaterial:previous.wallMaterial||'wall-ivory'};
 }
+
+// Exact rotated-rectangle bounds of existing furniture in a designed room.
+// Parts are footprints in Studio root coordinates. Moving chairs keep their offset
+// relative to the table, so the ENTIRE linked group remains within the walls.
+export function constrainFurnitureToRoom(plan,parts,target,margin=.10){
+ if(!plan||!Array.isArray(parts)||!parts.length)return target;
+ const anchor=parts[0];if(!anchor)return null;
+ let xMin=-Infinity,xMax=Infinity,zMin=-Infinity,zMax=Infinity;
+ for(const part of parts){
+  if(![part.x,part.z,part.hx,part.hz,part.angle].every(Number.isFinite))return null;
+  const c=Math.abs(Math.cos(part.angle)),ss=Math.abs(Math.sin(part.angle));
+  const radiusX=part.hx*c+part.hz*ss,radiusZ=part.hx*ss+part.hz*c;
+  const offsetX=part.x-anchor.x,offsetZ=part.z-anchor.z;
+  xMin=Math.max(xMin,-plan.w/2+margin+radiusX-offsetX);
+  xMax=Math.min(xMax,plan.w/2-margin-radiusX-offsetX);
+  zMin=Math.max(zMin,-plan.d/2+margin+radiusZ-offsetZ);
+  zMax=Math.min(zMax,plan.d/2-margin-radiusZ-offsetZ);
+ }
+ if(xMin>xMax||zMin>zMax)return null;
+ return {x:clamp(target.x,xMin,xMax),z:clamp(target.z,zMin,zMax)};
+}
