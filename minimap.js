@@ -23,7 +23,8 @@ export class LiveMiniMap{
   const toolSelect=panel.querySelector('[data-plan-tool-select]');
   if(toolSelect)toolSelect.onchange=()=>{this.tool=toolSelect.value;this.selectedArch=null;this.selectedWall=null;this.updateTools();};
   panel.querySelectorAll('[data-plan-tool]').forEach(btn=>btn.onclick=()=>{
-   this.tool=btn.dataset.planTool;this.selectedArch=null;this.selectedWall=null;this.updateTools();
+   this.tool=this.tool===btn.dataset.planTool?'select':btn.dataset.planTool;
+   this.selectedArch=null;this.selectedWall=null;this.updateTools();
   });
   panel.querySelector('[data-plan-add]').onclick=()=>this.addFurniture();
   panel.querySelector('[data-plan-delete]').onclick=()=>this.removeSelected();
