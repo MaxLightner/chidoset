@@ -81,6 +81,7 @@ test('dragging a room wall freezes pan and viewbox at the original world-space z
  const studio=fakeStudio();
  const editor=Object.create(LiveMiniMap.prototype);
  editor.expanded=true;editor.tool='select';editor.getStudio=()=>studio;
+ editor.zoom=1;editor.panX=0;editor.panZ=0;
  editor.viewport={width:9,height:7,left:-4.5,top:-3.5};editor.viewportLock=null;
  editor.pointers=new Map();editor.selectedArch=null;editor.selectedWall=null;
  editor.svg={getScreenCTM:()=>({a:1}),setPointerCapture(){},releasePointerCapture(){}};
