@@ -313,7 +313,7 @@ export class ArchitectureLayer {
    }
    cove.dispose();plaster.dispose();
    // Gemini-style diffused interior light, compatible with the tracked camera.
-   const windowFill=new THREE.PointLight(0xeef6ff,3.0,16,1.35);
+   const windowFill=new THREE.PointLight(0xeef6ff,5.2,16,1.35);
    windowFill.position.set(-Math.min(width/2-1,2),2.1,0);this.group.add(windowFill);
    const ceilingFill=new THREE.PointLight(0xfff5e4,2.2,14,1.5);
    ceilingFill.position.set(.4,2.55,.2);this.group.add(ceilingFill);
@@ -332,18 +332,20 @@ export class ArchitectureLayer {
     this.makeBox(container,w,left,right,0,o.sill,w.thickness,wallMat);
     this.makeBox(container,w,left,right,o.sill+o.height,w.height,w.thickness,wallMat);
     // Reuse the application's AR architecture renderer for authored rooms.
-    if(o.kind==='window'){
+    if(o.kind==='window'&&this.data.designedRoom)this.makeGeminiWindow(container,w,o);
+    else if(o.kind==='window'){
      const glass=new THREE.MeshPhysicalMaterial({color:'#e9f7ff',roughness:.06,metalness:.02,transparent:true,opacity:.16,depthWrite:false,side:THREE.DoubleSide});
      this.makeBox(container,w,left+.045,right-.045,o.sill+.045,o.sill+o.height-.045,.018,glass,o.id);
      glass.dispose();
     }
-    if(o.kind==='door'||o.kind==='kitchen'){
+    if(o.kind==='kitchen'&&this.data.designedRoom)this.makeGeminiKitchen(container,w,o);
+    else if(o.kind==='door'||o.kind==='kitchen'){
      const len=wallLength(w),ux=(w.x2-w.x1)/len,uz=(w.z2-w.z1)/len;
      const cx=w.x1+ux*o.along,cz=w.z1+uz*o.along;
      const normal={north:[0,-1],south:[0,1],west:[-1,0],east:[1,0]}[o.wall]||[0,0];
      const depth=o.kind==='door'?1.55:2.10;
      const hallwayWidth=o.width+(o.kind==='door'?1.0:.55);
-     const hallwayFloor=new THREE.Mesh(new THREE.BoxGeometry(hallwayWidth,.10,depth),finishMaterial('ceramic-cream'));
+     const hallwayFloor=new THREE.Mesh(new THREE.BoxGeometry(hallwayWidth,.10,depth),finishMaterial(this.data.designedRoom?'stone-marble':'ceramic-cream'));
      hallwayFloor.position.set(cx+normal[0]*(depth/2+.14),-.05,cz+normal[1]*(depth/2+.14));
      hallwayFloor.rotation.y=-Math.atan2(uz,ux);
      hallwayFloor.receiveShadow=true;container.add(hallwayFloor);
@@ -355,6 +357,12 @@ export class ArchitectureLayer {
       const doorMat=new THREE.MeshStandardMaterial({color:'#634732',roughness:.52});
       const leaf=this.makeBox(container,w,left+.06,right-.06,.035,o.height-.05,.055,doorMat,o.id);
       if(leaf){leaf.position.x+=normal[0]*.055;leaf.position.z+=normal[1]*.055;leaf.castShadow=true;}
+      if(this.data.designedRoom){
+       const brass=new THREE.MeshStandardMaterial({color:0xd4af37,roughness:.25,metalness:.88});
+       const knob=this.makeBox(container,w,right-.25,right-.12,1.01,1.035,.11,brass,o.id);
+       if(knob){knob.position.x+=normal[0]*.13;knob.position.z+=normal[1]*.13;}
+       brass.dispose();
+      }
       doorMat.dispose();
      }else{
       const base=new THREE.MeshStandardMaterial({color:'#5a493d',roughness:.54});
@@ -364,11 +372,13 @@ export class ArchitectureLayer {
       base.dispose();top.dispose();
      }
     }
-    const edge=Math.min(.05,o.width/8,o.height/8),t=w.thickness+.02;
-    this.makeBox(container,w,left,left+edge,o.sill,o.sill+o.height,t,frameMat,o.id);
-    this.makeBox(container,w,right-edge,right,o.sill,o.sill+o.height,t,frameMat,o.id);
-    this.makeBox(container,w,left,right,o.sill,o.sill+edge,t,frameMat,o.id);
-    this.makeBox(container,w,left,right,o.sill+o.height-edge,o.sill+o.height,t,frameMat,o.id);
+    if(!this.data.designedRoom||!['window','kitchen'].includes(o.kind)){
+     const edge=Math.min(.05,o.width/8,o.height/8),t=w.thickness+.02;
+     this.makeBox(container,w,left,left+edge,o.sill,o.sill+o.height,t,frameMat,o.id);
+     this.makeBox(container,w,right-edge,right,o.sill,o.sill+o.height,t,frameMat,o.id);
+     this.makeBox(container,w,left,right,o.sill,o.sill+edge,t,frameMat,o.id);
+     this.makeBox(container,w,left,right,o.sill+o.height-edge,o.sill+o.height,t,frameMat,o.id);
+    }
     before=right;
    }
    this.makeBox(container,w,before,len,0,w.height,w.thickness,wallMat);
