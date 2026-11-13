@@ -51,10 +51,10 @@ test('A/B calibration updates actual room and sofa scale on the same root at 1m 
 
 test('material slots open their own horizontal swatches and persist by numbered index',()=>{
  const panel=read('material-panel.js'),roles=read('material-roles.js'),studio=read('studio.js');
- assert.match(panel,/modelMaterialSlots\(visual\(\)\)/);
- assert.match(panel,/data-slot/);
+ assert.match(panel,/modelMaterialSlots\(visual\)/);
+ assert.match(panel,/materialSlotDescriptors/);
  assert.match(panel,/material-slot-thumbnails/);
- assert.match(panel,/studio\.setMaterialSlotStyle\(index,style,mesh\)/);
+ assert.match(panel,/studio\.setMaterialSlotStyle\(slotIndex,style,mesh\)/);
  assert.match(roles,/export async function applyMaterialSlot/);
  assert.match(studio,/materialSlotStyles:structuredClone/);
  assert.match(studio,/restoreMaterialSlots\(mesh\)/);
