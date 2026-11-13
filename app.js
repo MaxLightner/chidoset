@@ -1,8 +1,8 @@
 import {LiveApprovalHost} from './live-approval-host.js?v=0.16.10';
 import {bindAROrientation} from './ar-orientation.js?v=0.16.9';
 import {liveSession} from './live-approval.js?v=0.16.10';
-import {mountMaterialPanel} from './material-panel.js?v=0.16.19';
-import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.16.19';
+import {mountMaterialPanel} from './material-panel.js?v=0.16.20';
+import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.16.20';
 import {rememberAccount,accountName} from './auth-storage.js';
 import {readRecovery,saveRecovery,clearRecovery,filterPublishedScene} from './app-recovery.js';
 import {runtimeHealth,recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.16.1';
@@ -106,7 +106,7 @@ function heading(step,title,sub,back){return `<div class="page-heading"><div><sp
 async function full(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(!document.documentElement.requestFullscreen){toast('مرورگر شما تمام‌صفحه را پشتیبانی نمی‌کند.');return;}try{await document.documentElement.requestFullscreen();}catch{toast('ورود به تمام‌صفحه ممکن نشد؛ می‌توانی ادامه بدهی.');}}
 $('#fullscreen').onclick=full;document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'خروج از تمام‌صفحه ↙':'تمام‌صفحه ⛶');
 async function support(){try{supported=!!(isSecureContext&&navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar'));}catch{supported=false;}return supported;}
-async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.16.19');Scene=m.Studio;palette=m.palette;}}
+async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.16.20');Scene=m.Studio;palette=m.palette;}}
 let draftTimer=null;
 function currentSceneRecord(){
  if(!studio)return null;
