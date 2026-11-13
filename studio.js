@@ -38,7 +38,7 @@ export class Studio{
   // ACES, AgX or Neutral when switching to the native scene/AR renderer.
   this.renderer.outputColorSpace=THREE.SRGBColorSpace;
   this.renderer.toneMapping=THREE.ReinhardToneMapping;
-  this.renderer.toneMappingExposure=1.45;
+  this.renderer.toneMappingExposure=1.15;
   this.renderer.xr.enabled=true;this.renderer.xr.setFramebufferScaleFactor(this.renderPolicy.xrScale);this.renderer.xr.setReferenceSpaceType('local');host.prepend(this.renderer.domElement);
   recordRuntime('renderer-created',this.renderer);
   this.renderer.domElement.addEventListener('webglcontextlost',event=>{event.preventDefault();this.contextLost=true;recordRuntime('context-lost',this.renderer);this.renderer.setAnimationLoop(null);if(this.session)void endXRSession(this.session).catch(()=>{});this.onHint?.('نمای گرافیکی موقتاً قطع شد؛ در حال بازیابی است.');});
