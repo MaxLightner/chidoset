@@ -2,6 +2,7 @@ import * as THREE from './vendor/three.module.js';
 import {cm,distance,wallLength,nearestWall,snapPoint,closestFloorEdge,validPolygon,normalizedWindow,windowIntersects,updateWindow,validArchitecture} from './architecture-geometry.js?v=0.9.0';
 import {finishMaterial,FLOOR_FINISHES,WALL_FINISHES,floorFinish} from './architecture-materials.js';
 import {FloorReflection} from './floor-reflection.js';
+import {geminiConsoleMaterial,makeGeminiTVScreenMaterial} from './gemini-room-materials.js?v=0.17.3';
 
 const axis=new THREE.Vector3(0,1,0);
 const point=(x,z)=>new THREE.Vector3(x,.012,z);
@@ -152,6 +153,53 @@ export class ArchitectureLayer {
   mesh.position.set(w.x1+ux*along,(y0+y1)/2,w.z1+uz*along);
   mesh.rotation.y=-Math.atan2(uz,ux);mesh.userData.archWindow=owner;mesh.userData.archKind=owner?'window':'wall';mesh.userData.archId=owner||w.id;group.add(mesh);return mesh;
  }
+ makeGeminiTelevision(container,wall,feature){
+  // The panel geometry, proportions and surfaces follow the original Gemini
+  // 85-inch TV feature wall, but live in Chido's tracked architecture group.
+  const length=wallLength(wall),ux=(wall.x2-wall.x1)/length,uz=(wall.z2-wall.z1)/length;
+  const group=new THREE.Group();
+  group.position.set(wall.x1+ux*feature.u,0,wall.z1+uz*feature.u);
+  group.rotation.y=-Math.atan2(uz,ux);
+  // Wall normals depend on both the wall ordering and which side is interior.
+  const front=['north','east'].includes(feature.wall)?1:-1;
+  const z=v=>front*v;
+  const panelW=feature.width||2.2,offset=wall.thickness/2;
+  const piece=(width,height,depth,x,y,frontDepth,mat,cast=false)=>{
+   const mesh=new THREE.Mesh(new THREE.BoxGeometry(width,height,depth),mat.clone());
+   mesh.position.set(x,y,z(offset+frontDepth));mesh.castShadow=cast;mesh.receiveShadow=true;
+   group.add(mesh);return mesh;
+  };
+  const walnut=new THREE.MeshStandardMaterial({color:0x4b2f1d,roughness:.48});
+  const count=Math.max(5,Math.floor(panelW/.065));
+  for(let i=0;i<count;i++){
+   const sx=-panelW/2+.032+i*panelW/count;
+   piece(.036,2.92,.03,sx,1.54,.015,walnut,true);
+  }
+  const halo=new THREE.MeshStandardMaterial({color:0xffdfb0,emissive:0xffc670,emissiveIntensity:1.5,roughness:.5});
+  const slab=new THREE.MeshStandardMaterial({color:0x1d2025,roughness:.32,metalness:.1});
+  const bezel=new THREE.MeshStandardMaterial({color:0x0e1014,roughness:.25,metalness:.7});
+  const gold=new THREE.MeshStandardMaterial({color:0xd4af37,roughness:.24,metalness:.88});
+  const soundbar=new THREE.MeshStandardMaterial({color:0x181a1f,roughness:.4,metalness:.4});
+  const consoleMat=geminiConsoleMaterial();
+  const slabW=panelW*.78,slabY=1.48,slabH=1.65;
+  piece(slabW+.04,slabH+.04,.018,0,slabY,.032,halo);
+  piece(slabW,slabH,.032,0,slabY,.048,slab,true);
+  const tvW=Math.min(1.88,panelW*.85),tvH=tvW*9/16;
+  piece(tvW+.03,tvH+.03,.035,0,slabY+.03,.075,bezel,true);
+  const screen=new THREE.Mesh(new THREE.PlaneGeometry(tvW,tvH),makeGeminiTVScreenMaterial());
+  screen.position.set(0,slabY+.03,z(offset+.095));
+  if(front<0)screen.rotation.y=Math.PI;
+  group.add(screen);
+  const conW=panelW*.92,conD=.42;
+  piece(conW,.34,conD,0,.34,conD/2+.02,consoleMat,true);
+  piece(conW-.04,.016,.012,0,.34,conD+.024,gold);
+  piece(conW*.52,.065,.09,-.12,.54,conD*.55,soundbar,true);
+  const sphere=new THREE.Mesh(new THREE.SphereGeometry(.11,20,16),gold.clone());
+  sphere.position.set(conW*.32,.62,z(offset+conD*.52));sphere.castShadow=true;group.add(sphere);
+  for(const material of [walnut,halo,slab,bezel,gold,soundbar,consoleMat])material.dispose();
+  group.userData.archKind='tv';group.userData.archId=feature.id;
+  container.add(group);
+ }
  refresh(){
   this.reflection?.detach();this.floorMesh=null;
   while(this.group.children.length){
@@ -161,13 +209,39 @@ export class ArchitectureLayer {
   this.handles=[];
   const floor=this.data.floor;
   if(floor.length>=3&&validPolygon(floor)){
-   const shape=new THREE.Shape();floor.forEach((p,i)=>i?shape.lineTo(p.x,p.z):shape.moveTo(p.x,p.z));shape.closePath();
-   const geo=new THREE.ShapeGeometry(shape);geo.rotateX(Math.PI/2);
-   const surface=new THREE.Mesh(geo,finishMaterial(this.data.floorMaterial));
-   surface.position.y=-.008;surface.receiveShadow=true;surface.renderOrder=-1;surface.userData.archKind='floor';surface.userData.archId='floor';this.group.add(surface);
-   this.floorMesh=surface;
+   let geo,surface;
+   if(this.data.designedRoom&&floor.length===4){
+    // Gemini uses a solid 14cm floor slab with its texture over 0..1 UVs.
+    const width=Math.abs(floor[1].x-floor[0].x),depth=Math.abs(floor[2].z-floor[1].z);
+    geo=new THREE.BoxGeometry(width+.4,.14,depth+.4);
+    surface=new THREE.Mesh(geo,finishMaterial(this.data.floorMaterial));
+    surface.position.y=-.07;
+   }else{
+    const shape=new THREE.Shape();floor.forEach((p,i)=>i?shape.lineTo(p.x,p.z):shape.moveTo(p.x,p.z));shape.closePath();
+    geo=new THREE.ShapeGeometry(shape);geo.rotateX(Math.PI/2);
+    surface=new THREE.Mesh(geo,finishMaterial(this.data.floorMaterial));surface.position.y=-.008;
+   }
+   surface.receiveShadow=true;surface.renderOrder=-2;surface.userData.archKind='floor';surface.userData.archId='floor';
+   this.group.add(surface);this.floorMesh=surface;
   }
   if(!floor.length)this.floorMesh=null;
+  if(this.data.designedRoom&&floor.length===4){
+   const width=Math.abs(floor[1].x-floor[0].x),depth=Math.abs(floor[2].z-floor[1].z),height=3.1;
+   const plaster=finishMaterial(this.data.wallMaterial);
+   const roof=new THREE.Mesh(new THREE.BoxGeometry(width+.6,.22,depth+.6),plaster.clone());
+   roof.position.y=height+.11;roof.castShadow=true;roof.receiveShadow=true;this.group.add(roof);
+   const cove=new THREE.MeshStandardMaterial({color:0xfff3db,emissive:0xffd28a,emissiveIntensity:1.35,roughness:.4});
+   for(const [x,z,w,d] of [[0,-depth/2, width-.15,.045],[0,depth/2,width-.15,.045],[-width/2,0,.045,depth-.15],[width/2,0,.045,depth-.15]]){
+    const lightBar=new THREE.Mesh(new THREE.BoxGeometry(Math.max(.1,w),.035,Math.max(.1,d)),cove.clone());
+    lightBar.position.set(x,height-.13,z);this.group.add(lightBar);
+   }
+   cove.dispose();plaster.dispose();
+   // Gemini-style diffused interior light, compatible with the tracked camera.
+   const windowFill=new THREE.PointLight(0xeef6ff,3.0,16,1.35);
+   windowFill.position.set(-Math.min(width/2-1,2),2.1,0);this.group.add(windowFill);
+   const ceilingFill=new THREE.PointLight(0xfff5e4,2.2,14,1.5);
+   ceilingFill.position.set(.4,2.55,.2);this.group.add(ceilingFill);
+  }
   const frameMat=new THREE.MeshStandardMaterial({color:0x8d9799,roughness:.54,metalness:.32});
   for(const w of this.data.walls){
    const len=wallLength(w);if(len<.1)continue;
@@ -222,20 +296,9 @@ export class ArchitectureLayer {
    }
    this.makeBox(container,w,before,len,0,w.height,w.thickness,wallMat);
    for(const feature of this.data.features||[]){
-    if(feature.kind!=='tv'||feature.wall!==w.id.replace(/^room-/,'')||!Number.isFinite(feature.u))continue;
-    const pos=feature.u,half=(feature.width||2.2)/2;
-    const panelMat=new THREE.MeshStandardMaterial({color:'#534131',roughness:.46,metalness:.02});
-    const screenMat=new THREE.MeshStandardMaterial({color:'#161b20',roughness:.12,metalness:.12,emissive:'#244c64',emissiveIntensity:.48});
-    const consoleMat=new THREE.MeshPhysicalMaterial({color:'#74533b',roughness:.3,metalness:.02,clearcoat:.28});
-    const slab=this.makeBox(container,w,pos-half,pos+half,.1,2.96,.065,panelMat);
-    const screen=this.makeBox(container,w,pos-.91,pos+.91,1.12,2.18,.08,screenMat);
-    const consoleBox=this.makeBox(container,w,pos-1.0,pos+1.0,.22,.53,.42,consoleMat);
-    const nx=feature.wall==='west'?1:feature.wall==='east'?-1:0;
-    const nz=feature.wall==='north'?1:feature.wall==='south'?-1:0;
-    for(const [mesh,offset] of [[slab,.16],[screen,.22],[consoleBox,.39]]){
-     if(mesh){mesh.position.x+=nx*offset;mesh.position.z+=nz*offset;mesh.castShadow=true;mesh.receiveShadow=true;}
+    if(feature.kind==='tv'&&feature.wall===w.id.replace(/^room-/,'')&&Number.isFinite(feature.u)){
+     this.makeGeminiTelevision(container,w,feature);
     }
-    panelMat.dispose();screenMat.dispose();consoleMat.dispose();
    }
    wallMat.dispose();
   }
