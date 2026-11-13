@@ -72,3 +72,28 @@ test('XR scanner controls remain distinct from explicit room placement',()=>{
  assert.match(css,/#overlay \.room-place-actions\[hidden\]/);
  assert.doesNotMatch(app,/roomAutoCoverAfterScan/);
 });
+
+
+test('dragging a room wall freezes pan and viewbox at the original world-space zoom',()=>{
+ const studio=fakeStudio();
+ const editor=Object.create(LiveMiniMap.prototype);
+ editor.expanded=true;editor.tool='select';editor.getStudio=()=>studio;
+ editor.viewport={width:9,height:7,left:-4.5,top:-3.5};editor.viewportLock=null;
+ editor.pointers=new Map();editor.selectedArch=null;editor.selectedWall=null;
+ editor.svg={getScreenCTM:()=>({a:1}),setPointerCapture(){},releasePointerCapture(){}};
+ editor.point=()=>({x:studio.roomPlan.w/2,z:0});
+ editor.render=()=>{};editor.syncRoomFields=()=>{};
+ const e={pointerId:1,clientX:0,clientY:0,preventDefault(){},stopPropagation(){},target:{closest(){return null;}}};
+ editor.start(e);
+ assert.equal(editor.gesture.type,'wall');
+ assert.deepEqual(editor.viewportLock,{width:9,height:7,left:-4.5,top:-3.5});
+ const locked={...editor.viewportLock};
+ editor.move(pointer(1,100,0));
+ assert.deepEqual(editor.viewportLock,locked,'wall geometry may change but the viewport must not zoom or move');
+ editor.end({...e,type:'pointerup'});
+ assert.deepEqual(editor.viewportLock,locked,'camera must also stay fixed when wall gesture ends');
+ editor.zoomBy(1.25);
+ assert.ok(editor.viewportLock.width<locked.width,'deliberate user zoom must remain functional');
+ editor.fit();
+ assert.equal(editor.viewportLock,null,'fit explicitly resets the camera framing');
+});
