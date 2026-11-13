@@ -108,3 +108,44 @@ export function constrainFurnitureToRoom(plan,parts,target,margin=.10){
  if(xMin>xMax||zMin>zMax)return null;
  return {x:clamp(target.x,xMin,xMax),z:clamp(target.z,zMin,zMax)};
 }
+
+// Invisible, metre-based SAT footprints for solid walls; these shapes never
+// enter THREE.Scene and thus cannot create shadows, AO, depth or reflections.
+// Open doors and kitchen openings have no floor-height barrier. Glass windows
+// remain walls to floor-standing furniture, even if their glass is transparent.
+export function roomWallCollisionFootprints(plan,{thickness=.24}={}){
+ if(!plan||!Number.isFinite(plan.w)||!Number.isFinite(plan.d))return [];
+ const colliders=[],hidden=new Set(plan.hiddenWalls||[]);
+ const walls=[
+  ['north',plan.w,-plan.d/2,0],
+  ['south',plan.w,plan.d/2,0],
+  ['west',plan.d,-plan.w/2,Math.PI/2],
+  ['east',plan.d,plan.w/2,Math.PI/2]
+ ];
+ for(const [side,length,edge,angle] of walls){
+  if(hidden.has(side))continue;
+  const gaps=(plan.elements||[])
+   .filter(el=>el.wall===side&&['door','kitchen'].includes(el.type))
+   .map(el=>{const width=ROOM_SPECS[el.type]?.width||0;return [el.u-width/2,el.u+width/2]})
+   .sort((a,b)=>a[0]-b[0]);
+  const segments=[];
+  let begin=0;
+  for(const [left,right] of gaps){
+   if(left>begin+.025)segments.push([begin,left]);
+   begin=Math.max(begin,right);
+  }
+  if(begin<length-.025)segments.push([begin,length]);
+  for(const [a,b] of segments){
+   if(b-a<.025)continue;
+   const along=(a+b)/2-length/2;
+   // Axis 0 points along X for north/south, and along Z for east/west.
+   // A half-width in that axis represents the whole physical wall segment.
+   colliders.push({
+    x:angle?edge:along,z:angle?along:edge,
+    angle,hx:(b-a)/2,hz:thickness/2,
+    wall:side,kind:'wall',height:3.0,visible:false
+   });
+  }
+ }
+ return colliders;
+}
