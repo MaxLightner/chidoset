@@ -110,3 +110,89 @@
  display:block!important;flex:1 1 0!important;min-height:0!important;
  width:100%!important;height:auto!important;max-height:none!important;
 }
+
+
+/* v0.17.1: One touch-sized toolbar; drawing surface remains dominant. */
+#overlay .ar-minimap.expanded .room-design-toolbar,
+#overlay.floor-ready .ar-minimap.expanded .room-design-toolbar,
+#overlay[data-ui-orientation].floor-ready .ar-minimap.expanded .room-design-toolbar{
+ height:62px!important;min-height:62px!important;max-height:62px!important;
+ gap:8px!important;padding:6px 8px!important;
+ overscroll-behavior-x:contain;scroll-snap-type:x proximity;
+}
+#overlay .ar-minimap.expanded .room-design-toolbar button,
+#overlay .ar-minimap.expanded .room-design-toolbar select,
+#overlay.floor-ready .ar-minimap.expanded .room-design-toolbar button{
+ min-height:47px!important;height:47px!important;font-size:14px!important;
+ padding:8px 12px!important;scroll-snap-align:start;white-space:nowrap;
+}
+#overlay .ar-minimap.expanded .room-design-toolbar input{
+ height:42px!important;width:67px!important;min-width:67px!important;
+ font-size:16px!important;padding:4px 6px!important;
+}
+#overlay .ar-minimap.expanded .room-design-toolbar label{
+ font-size:13px!important;min-height:47px!important;gap:6px!important;
+}
+#overlay .ar-minimap.expanded .room-design-toolbar [data-plan-model]{
+ min-width:145px!important;max-width:195px!important;
+}
+#overlay .ar-minimap.expanded .map-title{
+ min-height:43px!important;max-height:43px!important;
+ font-size:15px!important;padding:4px 10px!important;
+}
+#overlay .ar-minimap.expanded .map-title strong{font-size:16px!important;}
+#overlay .ar-minimap.expanded .map-title [data-map-expand]{
+ height:36px!important;min-height:36px!important;padding:6px 12px!important;font-size:13px!important;
+}
+#overlay .ar-minimap.expanded .map-meta,
+#overlay.floor-ready .ar-minimap.expanded .map-meta{
+ display:flex!important;flex-direction:row!important;min-height:35px!important;max-height:42px!important;
+ padding:3px 9px!important;gap:9px!important;
+}
+#overlay .ar-minimap.expanded .map-meta .map-edit{
+ display:flex!important;align-items:center;flex:1 1 auto;min-width:0;overflow:hidden;
+}
+#overlay .ar-minimap.expanded .map-meta [data-map-selected]{
+ font-size:12px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0!important;
+}
+#overlay .ar-minimap.expanded .map-meta .map-object-actions,
+#overlay .ar-minimap.expanded .map-meta .map-rotate{display:none!important;}
+#overlay .ar-minimap.expanded .room-design-toolbar button:disabled{opacity:.45;cursor:not-allowed;}
+
+/* Room placement is an independent AR action after floor confirmation. */
+#overlay .room-place-actions[hidden]{display:none!important}
+#overlay .room-place-actions{
+ position:absolute;z-index:65;bottom:calc(83px + env(safe-area-inset-bottom,0px));
+ left:50%;transform:translateX(-50%);width:min(440px,calc(100vw - 32px));
+ display:grid;gap:9px;padding:14px 16px;
+ background:#f9f7f1f5;color:#294b3d;border:2px solid #d5ad69;
+ border-radius:17px;box-shadow:0 14px 38px #1c282c66;
+ text-align:center;pointer-events:auto;
+}
+#overlay .room-place-actions strong{font-size:16px;line-height:1.4;}
+#overlay .room-place-actions p{font-size:12px;line-height:1.65;margin:0;}
+#overlay .room-place-actions .room-place-buttons{display:flex;gap:8px;align-items:center;justify-content:center;}
+#overlay .room-place-actions button{
+ flex:1;min-height:48px;padding:9px;border:1px solid #a7b3a2;
+ border-radius:11px;font-size:14px;font-weight:700;color:#344b42;background:#fffdf7;
+}
+#overlay .room-place-actions button.primary{background:#33725e;color:white;border-color:#33725e;}
+@media(max-width:650px){
+ #overlay .ar-minimap.expanded .room-design-toolbar,
+ #overlay.floor-ready .ar-minimap.expanded .room-design-toolbar,
+ #overlay[data-ui-orientation].floor-ready .ar-minimap.expanded .room-design-toolbar{
+  min-height:56px!important;height:56px!important;max-height:56px!important;padding:5px 6px!important;
+ }
+ #overlay .ar-minimap.expanded .room-design-toolbar button,
+ #overlay .ar-minimap.expanded .room-design-toolbar select,
+ #overlay.floor-ready .ar-minimap.expanded .room-design-toolbar button{
+  min-height:44px!important;height:44px!important;padding:7px 10px!important;font-size:13px!important;
+ }
+ #overlay .ar-minimap.expanded .room-design-toolbar input{height:39px!important;font-size:15px!important;}
+ #overlay .ar-minimap.expanded .map-title{min-height:38px!important;max-height:38px!important;}
+ #overlay .ar-minimap.expanded .map-meta{min-height:31px!important;max-height:38px!important;font-size:11px!important;}
+ #overlay .ar-minimap.expanded .map-meta [data-map-selected]{font-size:11px!important;}
+ #overlay .room-place-actions{bottom:calc(72px + env(safe-area-inset-bottom,0px));padding:11px 12px;}
+ #overlay .room-place-actions p{font-size:11px;}
+ #overlay .room-place-actions button{min-height:44px;font-size:12px;}
+}
