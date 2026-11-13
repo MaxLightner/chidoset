@@ -17,6 +17,27 @@ export function roleMaterials(visual){
  const named=entries.some(e=>SUPPORTED_ROLES.concat('body').some(role=>String(e.material.name||'').toLowerCase().includes(role)));
  return entries.map(e=>({...e,role:e.role||(!named&&visual?.userData.legacyFabric?'fabric':null)}));
 }
+// Apply the authored model AO to the final color, not only to indirect lighting.
+// The 0.2 lift is applied to the AO value before multiplying it with the swatch.
+const colorAOStates=new WeakMap();
+export function installColorAO(material,texture){
+ if(!material||!texture)return;
+ const existing=colorAOStates.get(material);
+ if(existing){existing.texture=texture;existing.uniform.value=texture;return;}
+ const baseCompile=material.onBeforeCompile;
+ const baseCacheKey=material.customProgramCacheKey.bind(material);
+ const state={texture,uniform:{value:texture}};
+ colorAOStates.set(material,state);
+ material.aoMap=null;
+ material.onBeforeCompile=shader=>{
+  baseCompile?.call(material,shader);
+  shader.uniforms.chidoColorAO=state.uniform;
+  shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\\nattribute vec2 chidoAoUv; varying vec2 vChidoAoUv;').replace('#include <uv_vertex>','#include <uv_vertex>\\nvChidoAoUv=chidoAoUv;');
+  shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\\nuniform sampler2D chidoColorAO; varying vec2 vChidoAoUv;').replace('#include <map_fragment>','#include <map_fragment>\\ndiffuseColor.rgb *= clamp(texture2D(chidoColorAO,vChidoAoUv).r + 0.2, 0.0, 1.0);');
+ };
+ material.customProgramCacheKey=()=>baseCacheKey()+'-chido-color-ao-v1';
+ material.needsUpdate=true;
+}
 const ownedMaterials=new WeakSet(),originals=new WeakMap(),states=new WeakMap(),presetTextures=new Map(),bakedRoleStates=new WeakMap();
 function targets(visual,role){
  const entries=roleMaterials(visual).filter(e=>e.role===role),result=[];
@@ -24,6 +45,8 @@ function targets(visual,role){
   let m=material;
   if(!ownedMaterials.has(m)){
    m=material.clone();ownedMaterials.add(m);originals.set(m,material.clone());
+   const ao=colorAOStates.get(material)?.texture;
+   if(ao)installColorAO(m,ao);
    if(Array.isArray(node.material))node.material=node.material.map(x=>x===material?m:x);else node.material=m;
    material.dispose();
   }if(!result.includes(m))result.push(m);
@@ -47,12 +70,15 @@ export function installBakedRoleTexture(material,texture){
   state={uniform:{value:texture},texture:null};
   bakedRoleStates.set(material,state);
   const uniform=state.uniform;
+  const baseCompile=material.onBeforeCompile;
+  const baseCacheKey=material.customProgramCacheKey.bind(material);
   material.onBeforeCompile=shader=>{
+   baseCompile?.call(material,shader);
    shader.uniforms.chidoRoleMap=uniform;
    shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nattribute vec2 chidoTileUv; varying vec2 vChidoTileUv;').replace('#include <uv_vertex>','#include <uv_vertex>\nvChidoTileUv=chidoTileUv;');
    shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D chidoRoleMap; varying vec2 vChidoTileUv;').replace('#include <map_fragment>','#include <map_fragment>\ndiffuseColor *= texture2D(chidoRoleMap,vChidoTileUv);');
   };
-  material.customProgramCacheKey=()=> 'chido-baked-role-v2';
+  material.customProgramCacheKey=()=>baseCacheKey()+'-chido-baked-role-v3';
   material.needsUpdate=true;
  }
  const old=state.texture;
@@ -83,12 +109,12 @@ export async function applyRoleMaterial(visual,role,style){
   delete visual.userData.roleMaterialOverrides[role];
   for(const m of materials){
    const original=originals.get(m);if(!original)continue;
-   const ao=m.aoMap,intensity=m.aoMapIntensity;
+   const ao=colorAOStates.get(m)?.texture;
    clearBakedRoleTexture(m);
    m.copy(original);
    m.onBeforeCompile=original.onBeforeCompile;
    m.customProgramCacheKey=original.customProgramCacheKey;
-   if(!m.aoMap&&ao){m.aoMap=ao;m.aoMapIntensity=intensity;}
+   if(ao){colorAOStates.delete(m);installColorAO(m,ao);}
    m.needsUpdate=true;
   }
   if(request.active&&!request.active.shared)request.active.texture.dispose();
