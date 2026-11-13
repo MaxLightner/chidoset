@@ -15,7 +15,7 @@ test('Mani baked model includes authored shadow, collider, physical UV and indep
  assert.ok(d.meshes.some(m=>m.primitives.some(p=>p.attributes.TEXCOORD_1!==undefined)));
  for(const role of ['Fabric','Wood'])assert.ok(d.materials.some(m=>m.extras?.tripo_prep_role===role&&m.extensions?.KHR_materials_unlit));
 });
-test('baked AO multiplies final color with a +0.2 lift instead of affecting only indirect light',()=>{
+test('baked AO multiplies final color with a +0.15 lift instead of affecting only indirect light',()=>{
  const tex=new THREE.Texture();tex.colorSpace=THREE.SRGBColorSpace;
  const mat=new THREE.MeshBasicMaterial({color:0x555555,map:tex});mat.userData.tripo_prep_role='Fabric';
  const pbr=normalizeBakedAO(mat,true);
@@ -28,7 +28,7 @@ test('baked AO multiplies final color with a +0.2 lift instead of affecting only
  pbr.onBeforeCompile(shader);
  assert.equal(shader.uniforms.chidoColorAO.value.colorSpace,THREE.NoColorSpace);
  assert.equal(shader.uniforms.chidoColorAO.value.channel,0);
- assert.ok(shader.fragmentShader.includes('diffuseColor.rgb *= clamp(texture2D(chidoColorAO,vChidoAoUv).r + 0.2'));
+ assert.ok(shader.fragmentShader.includes('diffuseColor.rgb *= clamp(texture2D(chidoColorAO,vChidoAoUv).r + 0.15'));
 });
 test('baked unlit Fabric and Wood materials are exposed as independent selectable roles',()=>{
  const visual=new THREE.Group();
