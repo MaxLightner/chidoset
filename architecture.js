@@ -1,6 +1,6 @@
 import * as THREE from './vendor/three.module.js';
 import {cm,distance,wallLength,nearestWall,snapPoint,closestFloorEdge,validPolygon,normalizedWindow,windowIntersects,updateWindow,validArchitecture} from './architecture-geometry.js?v=0.9.0';
-import {finishMaterial,FLOOR_FINISHES,WALL_FINISHES,floorFinish} from './architecture-materials.js?v=0.18.1';
+import {finishMaterial,applyMetricFloorUV,FLOOR_FINISHES,WALL_FINISHES,floorFinish} from './architecture-materials.js?v=0.18.1';
 import {FloorReflection} from './floor-reflection.js';
 import {geminiFloorMaterial,geminiConsoleMaterial,makeGeminiTVScreenMaterial,setGeminiTVChannel,setGeminiTVOn} from './gemini-room-materials.js?v=0.18.1';
 
@@ -224,8 +224,7 @@ export class ArchitectureLayer {
   const cabinet=new THREE.MeshStandardMaterial({color:0xe6dfd3,roughness:.35});
   part(new THREE.BoxGeometry(W,.88,.58),cabinet,0,.44,-backD+.22);
   part(new THREE.BoxGeometry(W,.72,.36),baseMat,0,2.12,-backD+.12);
-  const light=new THREE.PointLight(0xfff0d4,4.5,7);
-  light.position.set(0,2.65,-face);group.add(light);
+  // No artificial kitchen point source: window daylight and global sky fill it.
   group.userData.archKind='kitchen';group.userData.archId=opening.id;
   parent.add(group);
  }
@@ -290,36 +289,52 @@ export class ArchitectureLayer {
     // Gemini uses a solid 14cm floor slab with its texture over 0..1 UVs.
     const width=Math.abs(floor[1].x-floor[0].x),depth=Math.abs(floor[2].z-floor[1].z);
     geo=new THREE.BoxGeometry(width+.4,.14,depth+.4);
-    surface=new THREE.Mesh(geo,finishMaterial(this.data.floorMaterial));
+    const material=finishMaterial(this.data.floorMaterial);
+    applyMetricFloorUV(geo,this.data.floorMaterial,material);
+    surface=new THREE.Mesh(geo,material);
     surface.position.y=-.07;
    }else{
     const shape=new THREE.Shape();floor.forEach((p,i)=>i?shape.lineTo(p.x,p.z):shape.moveTo(p.x,p.z));shape.closePath();
     geo=new THREE.ShapeGeometry(shape);geo.rotateX(Math.PI/2);
-    surface=new THREE.Mesh(geo,finishMaterial(this.data.floorMaterial));surface.position.y=-.008;
+    const material=finishMaterial(this.data.floorMaterial);
+    applyMetricFloorUV(geo,this.data.floorMaterial,material);
+    surface=new THREE.Mesh(geo,material);surface.position.y=-.008;
    }
    surface.receiveShadow=true;surface.renderOrder=-2;surface.userData.archKind='floor';surface.userData.archId='floor';
    this.group.add(surface);this.floorMesh=surface;
   }
   if(!floor.length)this.floorMesh=null;
   if(this.data.designedRoom&&floor.length===4){
-   const width=Math.abs(floor[1].x-floor[0].x),depth=Math.abs(floor[2].z-floor[1].z),height=3.1;
+   const width=Math.abs(floor[1].x-floor[0].x),depth=Math.abs(floor[2].z-floor[1].z),height=3.0;
    const plaster=finishMaterial(this.data.wallMaterial);
-   const roof=new THREE.Mesh(new THREE.BoxGeometry(width+.6,.22,depth+.6),plaster.clone());
-   roof.position.y=height+.11;roof.castShadow=true;roof.receiveShadow=true;this.group.add(roof);
-   const cove=new THREE.MeshStandardMaterial({color:0xfff3db,emissive:0xffd28a,emissiveIntensity:1.35,roughness:.4});
-   for(const [x,z,w,d] of [[0,-depth/2, width-.15,.045],[0,depth/2,width-.15,.045],[-width/2,0,.045,depth-.15],[width/2,0,.045,depth-.15]]){
-    const lightBar=new THREE.Mesh(new THREE.BoxGeometry(Math.max(.1,w),.035,Math.max(.1,d)),cove.clone());
-    lightBar.position.set(x,height-.13,z);this.group.add(lightBar);
+   const roof=new THREE.Mesh(new THREE.BoxGeometry(width+.6,.12,depth+.6),plaster.clone());
+   roof.position.y=height+.06;roof.castShadow=false;roof.receiveShadow=true;this.group.add(roof);
+   // Daytime room: cove is subtle trim, not a nighttime emissive light.
+   const cove=new THREE.MeshStandardMaterial({color:0xf8f5ef,emissive:0xffffff,emissiveIntensity:.015,roughness:.93,metalness:0});
+   for(const [x,z,w,d] of [[0,-depth/2,width-.15,.045],[0,depth/2,width-.15,.045],[-width/2,0,.045,depth-.15],[width/2,0,.045,depth-.15]]){
+    const bar=new THREE.Mesh(new THREE.BoxGeometry(Math.max(.1,w),.018,Math.max(.1,d)),cove.clone());
+    bar.position.set(x,height-.06,z);bar.castShadow=false;bar.receiveShadow=false;this.group.add(bar);
    }
    cove.dispose();plaster.dispose();
-   // Gemini-style diffused interior light, compatible with the tracked camera.
-   const windowFill=new THREE.PointLight(0xeef6ff,5.2,16,1.35);
-   windowFill.position.set(-Math.min(width/2-1,2),2.1,0);this.group.add(windowFill);
-   const ceilingFill=new THREE.PointLight(0xfff5e4,2.2,14,1.5);
-   ceilingFill.position.set(.4,2.55,.2);this.group.add(ceilingFill);
-   const portal=new THREE.SpotLight(0xdceeff,18,22,Math.PI*.44,.75,1.2);
-   portal.position.set(-Math.min(width/2+.3,4.2),2.0,0);
-   portal.target.position.set(1.5,1.1,0);this.group.add(portal,portal.target);
+   // Ambient daylight makes window-free rooms readable without artificial
+   // overhead or point-light hot spots on the parquet.
+   const daylight=new THREE.HemisphereLight(0xe8f3ff,0xc2b6a2,1.45);
+   this.group.add(daylight);
+   // Each actual glazed opening is a daylight source. Directions point from
+   // outdoors through the opening into the room, rather than from the ceiling.
+   const glazed=this.data.windows.filter(o=>o.kind==='window');
+   for(const window of glazed.slice(0,4)){
+    const wall=this.data.walls.find(w=>w.id===window.hostId);if(!wall)continue;
+    const length=wallLength(wall);if(length<.1)continue;
+    const dx=(wall.x2-wall.x1)/length,dz=(wall.z2-wall.z1)/length;
+    const x=wall.x1+dx*window.along,z=wall.z1+dz*window.along;
+    const inward={'north':[0,1],'south':[0,-1],'west':[1,0],'east':[-1,0]}[window.wall]||[0,1];
+    const sun=new THREE.DirectionalLight(0xeef6ff,Math.min(3.5,2.1+window.width*.4));
+    const atY=Math.min(height-.2,window.sill+window.height*.62);
+    sun.position.set(x-inward[0]*1.3,atY+.65,z-inward[1]*1.3);
+    sun.target.position.set(x+inward[0]*Math.min(2.4,width*.5),1.0,z+inward[1]*Math.min(2.4,depth*.5));
+    sun.castShadow=false;this.group.add(sun,sun.target);
+   }
   }
   if(this.data.tvSettings){setGeminiTVChannel(this.data.tvSettings.channel||'nature');setGeminiTVOn(this.data.tvSettings.on!==false);}
   const frameMat=new THREE.MeshStandardMaterial({color:0x8d9799,roughness:.54,metalness:.32});
