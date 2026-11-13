@@ -49,14 +49,17 @@ const PunchShader = {
 // wall-depth target is cheaper than a full object-ID render, and importantly
 // does not touch the floor or any sofa pixels.
 function installWallOnlyGTAO(renderer,scene,camera,gtaoPass,width,height){
- const target=new THREE.WebGLRenderTarget(width,height,{
+ // Full-scene depth is ONLY a visibility mask: it stops AO from appearing
+ // through sofas in front of walls. The GTAO normal/depth input itself contains
+ // architecture walls exclusively, so sofas cannot produce ugly wall halos.
+ const fullDepth=new THREE.WebGLRenderTarget(width,height,{
   minFilter:THREE.NearestFilter,magFilter:THREE.NearestFilter,
   depthBuffer:true,stencilBuffer:false
  });
  const depthMaterial=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,side:THREE.DoubleSide});
  const blend=gtaoPass.blendMaterial;
- blend.uniforms.tSceneDepth={value:gtaoPass.depthTexture};
- blend.uniforms.tWallDepth={value:target.texture};
+ blend.uniforms.tSceneDepth={value:fullDepth.texture};
+ blend.uniforms.tWallDepth={value:gtaoPass.depthTexture};
  blend.fragmentShader=`
   #include <packing>
   uniform float intensity;
@@ -65,44 +68,47 @@ function installWallOnlyGTAO(renderer,scene,camera,gtaoPass,width,height){
   uniform sampler2D tWallDepth;
   varying vec2 vUv;
   void main(){
-   float sceneDepth=texture2D(tSceneDepth,vUv).r;
-   float wallDepth=unpackRGBAToDepth(texture2D(tWallDepth,vUv));
-   // The wall alone may be occluded by sofa silhouettes. Compare against the
-   // full G-buffer depth so only the wall *visible at this pixel* receives AO.
-   float visibleWall=(1.0-step(0.00005,abs(sceneDepth-wallDepth)))*
+   float sceneDepth=unpackRGBAToDepth(texture2D(tSceneDepth,vUv));
+   float wallDepth=texture2D(tWallDepth,vUv).r;
+   // Only actual visible structural wall pixels receive long-range wall AO.
+   float visibleWall=(1.0-step(0.00008,abs(sceneDepth-wallDepth)))*
     (1.0-step(0.99995,wallDepth));
    vec3 ao=texture2D(tDiffuse,vUv).rgb;
    gl_FragColor=vec4(mix(vec3(1.0),ao,clamp(intensity*visibleWall,0.0,1.0)),1.0);
   }
  `;
  blend.needsUpdate=true;
+ const baseOverride=gtaoPass._renderOverride.bind(gtaoPass);
+ gtaoPass._renderOverride=(render,material,target,color,alpha)=>{
+  const saved=camera.layers.mask;
+  try{camera.layers.set(2);return baseOverride(render,material,target,color,alpha);}
+  finally{camera.layers.mask=saved;}
+ };
  const baseRender=gtaoPass.render.bind(gtaoPass);
  const baseSize=gtaoPass.setSize.bind(gtaoPass);
- gtaoPass.setSize=(w,h)=>{baseSize(w,h);target.setSize(w,h);};
+ gtaoPass.setSize=(w,h)=>{baseSize(w,h);fullDepth.setSize(w,h);};
  gtaoPass.render=(render,write,read,dt,maskActive)=>{
-  const cameraMask=camera.layers.mask;
   const oldOverride=scene.overrideMaterial,oldBackground=scene.background;
   const oldTarget=render.getRenderTarget(),oldAuto=render.autoClear;
   const oldClear=render.getClearColor(new THREE.Color()),oldAlpha=render.getClearAlpha();
+  const cameraMask=camera.layers.mask;
   try{
-   camera.layers.set(2);
-   scene.overrideMaterial=depthMaterial;
-   scene.background=null;
-   render.setRenderTarget(target);
-   render.autoClear=false;
-   render.setClearColor(0xffffff,1);
-   render.clear(true,true,true);
+   // All VISIBLE meshes for depth testing, but only visible wall meshes
+   // enter GTAO's own G-buffer through the layer-2 override above.
+   camera.layers.set(0);
+   scene.overrideMaterial=depthMaterial;scene.background=null;
+   render.setRenderTarget(fullDepth);render.autoClear=false;
+   render.setClearColor(0xffffff,1);render.clear(true,true,true);
    render.render(scene,camera);
   }finally{
    camera.layers.mask=cameraMask;
    scene.overrideMaterial=oldOverride;scene.background=oldBackground;
-   render.setRenderTarget(oldTarget);
-   render.setClearColor(oldClear,oldAlpha);
+   render.setRenderTarget(oldTarget);render.setClearColor(oldClear,oldAlpha);
    render.autoClear=oldAuto;
   }
   baseRender(render,write,read,dt,maskActive);
  };
- return {dispose(){target.dispose();depthMaterial.dispose();}};
+ return {dispose(){fullDepth.dispose();depthMaterial.dispose();}};
 }
 export function createGeminiPostFX(renderer,scene,camera,width,height,{scale=1}={}){
  const baseRatio=Math.min(1,renderer.getPixelRatio())*scale;
