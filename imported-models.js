@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.js';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
 import {getCloudProduct} from './cloud-product-registry.js';
-import {materialRole} from './material-roles.js?v=0.16.19';
+import {materialRole,installColorAO} from './material-roles.js?v=0.16.19';
 import {loadModelBytes} from './model-asset-cache.js?v=0.16.17';
 
 // All units are metres. Native Blender GLB dimensions are preserved; the
@@ -67,7 +67,8 @@ export async function applySofaFabric(model,id='dark',index=22){
  if(SOFA_AO[index])model.traverse(object=>{
   if(!object.isMesh||!object.geometry.attributes.uv)return;
   if(!object.geometry.attributes.uv2)object.geometry.setAttribute('uv2',object.geometry.attributes.uv.clone());
-  for(const m of Array.isArray(object.material)?object.material:[object.material])if(m?.isMeshStandardMaterial&&materialRole(m.name)==='fabric'){m.aoMap=loadFabric(SOFA_AO[index],1);m.aoMapIntensity=1.15;m.needsUpdate=true;}
+  if(!object.geometry.attributes.chidoAoUv)object.geometry.setAttribute('chidoAoUv',object.geometry.attributes.uv.clone());
+  for(const m of Array.isArray(object.material)?object.material:[object.material])if(m?.isMeshStandardMaterial&&materialRole(m.name)==='fabric'){installColorAO(m,loadFabric(SOFA_AO[index],1));}
  });
  if(model.userData.fabricRequest!==request||model.userData.roleMaterialOverrides?.fabric)return false;
  model.userData.fabricState='ready';
@@ -77,13 +78,13 @@ export async function applySofaFabric(model,id='dark',index=22){
   if(!object.geometry.attributes.uv)return;
   // AO uses the native, untiled UV; cloth alone repeats 4 times on each axis.
   if(!object.geometry.attributes.uv2)object.geometry.setAttribute('uv2',object.geometry.attributes.uv.clone());
+  if(!object.geometry.attributes.chidoAoUv)object.geometry.setAttribute('chidoAoUv',object.geometry.attributes.uv.clone());
   const materials=Array.isArray(object.material)?object.material:[object.material];
-  markBakedRoleMaterials(materials,!!colorUV);
+  markBakedRoleMaterials(materials,!!object.geometry.getAttribute('chidoTileUv'));
   for(const material of materials){
    if(!material?.isMeshStandardMaterial||(named&&materialRole(material.name)!=='fabric'))continue;
    material.map=loadFabric(fabric.file,4);
-   material.aoMap=loadFabric(SOFA_AO[index],1);
-   material.aoMapIntensity=1.15;
+   installColorAO(material,loadFabric(SOFA_AO[index],1));
    // Imported baked roughness/metallic/normal maps are not fabric maps.
    material.normalMap=null;material.bumpMap=null;
    material.metalnessMap=null;material.roughnessMap=null;
@@ -123,8 +124,9 @@ export function normalizeBakedAO(material,hasColorUV){
  if(!hasColorUV||!material?.isMeshBasicMaterial||!material.map||!materialRole(material.userData?.tripo_prep_role))return material;
  const mask=material.map.clone();mask.colorSpace=THREE.NoColorSpace;mask.channel=0;mask.wrapS=mask.wrapT=THREE.ClampToEdgeWrapping;mask.needsUpdate=true;
  const role=materialRole(material.userData.tripo_prep_role);
- const pbr=new THREE.MeshStandardMaterial({name:material.name,color:0xffffff,map:null,aoMap:mask,aoMapIntensity:1,metalness:0,roughness:role==='wood'?.58:.88,side:material.side,transparent:material.transparent,opacity:material.opacity,alphaTest:material.alphaTest,depthWrite:material.depthWrite});
+ const pbr=new THREE.MeshStandardMaterial({name:material.name,color:0xffffff,map:null,metalness:0,roughness:role==='wood'?.58:.88,side:material.side,transparent:material.transparent,opacity:material.opacity,alphaTest:material.alphaTest,depthWrite:material.depthWrite});
  pbr.userData={...material.userData,chido_baked_ao_v1:true};
+ installColorAO(pbr,mask);
  material.dispose();return pbr;
 }
 function configureMeshes(model,index){
@@ -142,6 +144,7 @@ function configureMeshes(model,index){
   let uvOwner=object;while(uvOwner&&!uvOwner.userData.chido_color_uv_v1)uvOwner=uvOwner.parent;
   const colorUV=uvOwner?.userData.chido_color_uv_v1;
   if(colorUV){const attr=object.geometry.getAttribute(colorUV.uvSet===0?'uv':'uv'+colorUV.uvSet);if(attr)object.geometry.setAttribute('chidoTileUv',attr);}
+  if(object.geometry.attributes.uv&&!object.geometry.attributes.chidoAoUv)object.geometry.setAttribute('chidoAoUv',object.geometry.attributes.uv.clone());
   const convert=m=>normalizeBakedAO(m,!!object.geometry.getAttribute('chidoTileUv'));
   if(Array.isArray(object.material))object.material=object.material.map(convert);
   else object.material=convert(object.material);
@@ -156,6 +159,10 @@ function configureMeshes(model,index){
    object.material=new THREE.MeshBasicMaterial({name:'Chido Baked Shadow',color:0x000000,
     alphaMap:mask,transparent:true,opacity:1,depthWrite:false,
     side:THREE.DoubleSide,toneMapped:false});
+   object.material.onBeforeCompile=shader=>{
+    shader.fragmentShader=shader.fragmentShader.replace('#include <alphamap_fragment>','#include <alphamap_fragment>\\ndiffuseColor.a = clamp(diffuseColor.a - 0.2, 0.0, 1.0);');
+   };
+   object.material.customProgramCacheKey=()=> 'chido-baked-shadow-alpha-minus-0.2';
    previous?.dispose();
    object.userData.chidoBakedShadow=true;
    object.castShadow=false;object.receiveShadow=false;
