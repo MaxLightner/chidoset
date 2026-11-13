@@ -1,5 +1,6 @@
 import {rendererPolicy} from './renderer-policy.js';
 import * as THREE from './vendor/three.module.js';
+import {RenderQualityGovernor} from './render-quality-governor.js?v=0.18.6';
 
 // Horizontal FOV values. They describe a virtual perspective, not a phone lens.
 export const WIDE_VIEW_FOV=Object.freeze({normal:60,wide:84,ultra:100});
@@ -64,6 +65,7 @@ export class WideViewRenderer{
   this.mode='ar';this.natural=true;this.width=0;this.height=0;this.active=false;this.lost=false;
   this.horizontalFov=0;this.verticalFov=0;this.limited=false;
   this.geminiQuality=null;this.geminiQualityPromise=null;this.geminiQualityFailed=false;this.disposed=false;this.aoEnabled=true;
+  this.qualityGovernor=new RenderQualityGovernor();
   this.canvas.addEventListener('webglcontextlost',event=>{
    event.preventDefault();this.lost=true;this.disable();
    this.onFailure?.('مرورگر بافت گرافیکی نمای واید را از دست داد. به AR معمولی برگشتیم.');
@@ -76,6 +78,11 @@ export class WideViewRenderer{
   this.ensureGeminiQuality();
  }
  setAmbientOcclusion(enabled){this.aoEnabled=!!enabled;this.geminiQuality?.setAmbientOcclusion(this.aoEnabled);}
+ setAutoQuality(enabled){
+  const reset=this.qualityGovernor.setEnabled(enabled);
+  if(reset)this.geminiQuality?.setAdaptiveLevel(0);
+  this.onQualityChange?.({level:this.qualityGovernor.level,fps:this.qualityGovernor.fps,auto:this.qualityGovernor.enabled});
+ }
  resize(force=false){
   if(!this.active)return;
   const rect=this.overlay.getBoundingClientRect();
@@ -103,6 +110,7 @@ export class WideViewRenderer{
    if(this.disposed)return;
    this.geminiQuality=createGeminiPostFX(this.renderer,this.scene,this.camera,this.width,this.height);
    this.geminiQuality.setAmbientOcclusion(this.aoEnabled);
+   this.geminiQuality.setAdaptiveLevel(this.qualityGovernor.level);
   }).catch(error=>{
    this.geminiQualityFailed=true;
    console.warn('Chido advanced Gemini post-processing unavailable; PBR renderer retained',error);
@@ -110,6 +118,10 @@ export class WideViewRenderer{
  }
  draw(){
   if(!this.active||this.lost)return;
+  if(this.qualityGovernor.update(performance.now())){
+   this.geminiQuality?.setAdaptiveLevel(this.qualityGovernor.level);
+   this.onQualityChange?.({level:this.qualityGovernor.level,fps:this.qualityGovernor.fps,auto:this.qualityGovernor.enabled});
+  }
   this.resize();
   if(this.geminiQuality){
    try{this.geminiQuality.render();return;}
