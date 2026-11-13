@@ -396,11 +396,11 @@ void main(){
   const width={2:1.05,4:1.35,6:1.85,8:2.35}[count];
   const chairs=[];
   for(let i=0;i<count/2;i++)for(const side of [-1,1]){
-   const offset=new THREE.Vector3((i-(count/2-1)/2)*.55,0,side*.78).applyAxisAngle(new THREE.Vector3(0,1,0),angle);
+   const offset=new THREE.Vector3((i-(count/2-1)/2)*.55*FURNITURE_SIZE_FACTOR,0,side*.78*FURNITURE_SIZE_FACTOR).applyAxisAngle(new THREE.Vector3(0,1,0),angle);
    chairs.push({x:center.x+offset.x,z:center.z+offset.z,angle:angle+(side===1?Math.PI:0)});
   }
-  const fixed=this.collisionObstacles(table,oldChairs),tableShape=footprint([width,.75,.86],center.x,center.z,angle);
-  const chairShapes=chairs.map(c=>footprint(CATALOG[11].size,c.x,c.z,c.angle));
+  const fixed=this.collisionObstacles(table,oldChairs),tableShape=footprint(scaledFurnitureSize([width,.75,.86]),center.x,center.z,angle);
+  const chairShapes=chairs.map(c=>footprint(scaledFurnitureSize(CATALOG[11].size),c.x,c.z,c.angle));
   if(fixed.some(item=>footprintsOverlap(tableShape,item))||
      chairShapes.some((shape,i)=>fixed.some(item=>footprintsOverlap(shape,item))||
       footprintsOverlap(shape,tableShape)||
