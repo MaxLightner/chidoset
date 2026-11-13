@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {defaultRoomPlan,normalizeRoomPlan,sizedRoomPlan,canPlaceRoomElement,roomPlanToArchitecture,wallAnchor} from '../room-plan.js';
+import {defaultRoomPlan,normalizeRoomPlan,sizedRoomPlan,canPlaceRoomElement,roomPlanToArchitecture,wallAnchor,constrainFurnitureToRoom} from '../room-plan.js';
 
 test('default rectangular room builds a closed four-wall, metric architecture',()=>{
  const plan=defaultRoomPlan(),arch=roomPlanToArchitecture(plan);
@@ -55,4 +55,21 @@ test('resizing never silently shrinks an existing opening',()=>{
  assert.equal(sizedRoomPlan(plan,4,7),null);
  assert.equal(sizedRoomPlan(plan,9,7).w,9);
  assert.equal(normalizeRoomPlan({...plan,w:12,elements:[{...plan.elements[0],u:Infinity}]}),null);
+});
+
+test('rotated sofa stays within wall clearance when dragged',()=>{
+ const plan=defaultRoomPlan();
+ const sofa={x:0,z:0,hx:1.2,hz:.55,angle:Math.PI/4};
+ const p=constrainFurnitureToRoom(plan,[sofa],{x:10,z:10});
+ const radius=1.2*Math.SQRT1_2+.55*Math.SQRT1_2;
+ assert.ok(p.x+radius<=plan.w/2-.099);
+ assert.ok(p.z+radius<=plan.d/2-.099);
+ assert.equal(constrainFurnitureToRoom({w:1,d:1},[sofa],{x:0,z:0}),null);
+});
+test('linked table and chairs must stay inside as a group',()=>{
+ const plan=defaultRoomPlan();
+ const table={x:0,z:0,hx:.7,hz:.5,angle:0};
+ const chair={x:1.3,z:0,hx:.35,hz:.4,angle:0};
+ const point=constrainFurnitureToRoom(plan,[table,chair],{x:10,z:0});
+ assert.ok(point.x+1.3+.35<=plan.w/2-.099);
 });
