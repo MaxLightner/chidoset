@@ -91,6 +91,19 @@ test('authored room hides generated labels, glowing selection and legacy scan ov
  assert.match(studio,/const label=null;/);
  assert.match(studio,/if\(mesh&&!this\.roomPlan&&!mesh\.userData\.selectionHalo\)/);
  assert.match(studio,/!this\.roomPlan&&this\.selected\?\.userData\.edges/);
- assert.match(studio,/this\.ruler\.visible=show&&this\.model\.locked&&!this\.roomPlan/);
+ assert.match(studio,/this\.ruler\.visible=show&&this\.model\.locked&&\(!this\.roomPlan\|\|this\.roomCalibrationGuides\)/);
  assert.doesNotMatch(studio,/this\.model\.resetCalibration\(\);\s*this\.model\.layoutOffset\.set\(0,0,0\)/);
+});
+
+
+test('A/B ruler stays hidden in room viewing, appears in scale editor and never resets calibration on placement',()=>{
+ const studio=read('studio.js'),app=read('app.js');
+ assert.match(studio,/setRoomCalibrationGuides\(enabled\)/);
+ assert.match(studio,/this\.roomCalibrationGuides=!!enabled/);
+ assert.match(app,/studio\?\.setRoomCalibrationGuides\(!\$\('#abCalibrationSheet'\)\.hidden\)/);
+ assert.match(app,/studio\?\.setRoomCalibrationGuides\(false\)/);
+ const block=studio.slice(studio.indexOf(' placeDesignedRoom(){'),studio.indexOf(' moveRoomFurniture('));
+ assert.doesNotMatch(block,/resetCalibration\(/);
+ assert.doesNotMatch(block,/layoutOffset\.set\(/);
+ assert.match(block,/this\.syncSpatial\(\)/);
 });
