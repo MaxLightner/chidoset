@@ -12,7 +12,7 @@ export const ROOM_WALLS=['north','south','west','east'];
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const number=(x)=>Number.isFinite(Number(x))?Number(x):NaN;
 const cm=n=>Math.round(n*100)/100;
-export function defaultRoomPlan(){return {version:1,w:6.8,d:5.8,elements:[],hiddenWalls:[]};}
+export function defaultRoomPlan(){return {version:1,w:6.8,d:5.8,elements:[],hiddenWalls:[],tvChannel:'nature',tvOn:true,consoleFinish:'walnut'};}
 export function wallLength(plan,wall){return wall==='north'||wall==='south'?plan.w:plan.d;}
 export function wallAnchor(plan,wall,u){
  const x0=-plan.w/2,z0=-plan.d/2;
@@ -45,7 +45,9 @@ export function normalizeRoomPlan(raw){
  if(!Number.isFinite(w)||!Number.isFinite(d)||w<3.5||d<3.5||w>14||d>14)return null;
  const hiddenWalls=raw.hiddenWalls??[];
  if(!Array.isArray(hiddenWalls)||hiddenWalls.length>4||hiddenWalls.some(wall=>!ROOM_WALLS.includes(wall))||new Set(hiddenWalls).size!==hiddenWalls.length)return null;
- const plan={version:1,w,d,elements:[],hiddenWalls:[...hiddenWalls]};
+ const tvChannel=['nature','fireplace','abstract'].includes(raw.tvChannel)?raw.tvChannel:'nature';
+ const consoleFinish=['walnut','nero','lacquer'].includes(raw.consoleFinish)?raw.consoleFinish:'walnut';
+ const plan={version:1,w,d,elements:[],hiddenWalls:[...hiddenWalls],tvChannel,tvOn:raw.tvOn!==false,consoleFinish};
  if(!Array.isArray(raw.elements)||raw.elements.length>48)return null;
  for(const item of raw.elements){
   if(!item||typeof item.id!=='string'||item.id.length>90||!ROOM_SPECS[item.type]||!ROOM_WALLS.includes(item.wall))return null;
@@ -81,7 +83,7 @@ export function roomPlanToArchitecture(plan,previous={}){
   windows.push({id:el.id,hostId:'room-'+el.wall,along:el.u,width:s.width,
    height:s.height,sill:s.sill,kind:s.kind,wall:el.wall});
  }
- return {floor,walls,windows,features,designedRoom:true,
+ return {floor,walls,windows,features,designedRoom:true,tvSettings:{channel:plan.tvChannel||'nature',on:plan.tvOn!==false,consoleFinish:plan.consoleFinish||'walnut'},
   floorMaterial:previous.floorMaterial||'parquet-oak',
   wallMaterial:previous.wallMaterial||'gemini-wall-warm'};
 }
