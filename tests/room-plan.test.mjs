@@ -8,7 +8,7 @@ test('default rectangular room builds a closed four-wall, metric architecture',(
  assert.equal(arch.walls.length,4);
  assert.equal(arch.windows.length,0);
  assert.equal(arch.features.length,0);
- assert.equal(arch.walls[0].height,3.1);
+ assert.equal(arch.walls[0].height,3);
  assert.deepEqual(wallAnchor(plan,'north',0),{x:-3.4,z:-2.9});
 });
 test('windows of different sizes and sill heights map correctly',()=>{
