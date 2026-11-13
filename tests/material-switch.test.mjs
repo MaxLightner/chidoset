@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from '../vendor/three.module.js';
-import {installBakedRoleTexture,applyRoleMaterial,roleMaterials,disposeRoleMaterials} from '../material-roles.js';
+import {installBakedRoleTexture,installColorAO,applyRoleMaterial,roleMaterials,disposeRoleMaterials} from '../material-roles.js';
 
 function shader(){
  return {uniforms:{},vertexShader:'#include <common>\n#include <uv_vertex>',fragmentShader:'#include <common>\n#include <map_fragment>'};
@@ -65,19 +65,28 @@ test('fabric and wood can be swapped repeatedly and reset independently',async()
  }
 });
 
-test('recoloring PBR with baked AO never changes AO or puts it in Base Color',async()=>{
+test('recoloring PBR keeps model AO in the final color multiplication through swatch changes and reset',async()=>{
  const original=THREE.TextureLoader.prototype.load;
  THREE.TextureLoader.prototype.load=function(url,done){const t=new THREE.Texture();queueMicrotask(()=>done(t));return t;};
  try{
-  const ao=new THREE.Texture(),m=new THREE.MeshStandardMaterial({map:null,aoMap:ao,color:0xffffff});
+  const ao=new THREE.Texture(),m=new THREE.MeshStandardMaterial({map:null,color:0xffffff});
   m.userData={tripo_prep_role:'Wood',chido_baked_ao_v1:true};
-  const g=new THREE.PlaneGeometry();g.setAttribute('chidoTileUv',g.getAttribute('uv').clone());
+  installColorAO(m,ao);
+  const g=new THREE.PlaneGeometry();g.setAttribute('chidoTileUv',g.getAttribute('uv').clone());g.setAttribute('chidoAoUv',g.getAttribute('uv').clone());
   const visual=new THREE.Group();visual.add(new THREE.Mesh(g,m));
   for(const source of ['wood:oak','wood:walnut','wood:black'])assert.equal(await applyRoleMaterial(visual,'wood',{source}),true);
   const active=roleMaterials(visual)[0].material;
-  assert.strictEqual(active.aoMap,ao);assert.equal(active.map,null);
+  assert.strictEqual(active.aoMap,null);assert.equal(active.map,null);
+  const shaderWithSwatch=shader();
+  active.onBeforeCompile(shaderWithSwatch);
+  assert.strictEqual(shaderWithSwatch.uniforms.chidoColorAO.value,ao);
+  assert.ok(shaderWithSwatch.uniforms.chidoRoleMap,'selected swatch must also be present');
   assert.equal(await applyRoleMaterial(visual,'wood',null),true);
-  assert.strictEqual(active.aoMap,ao);assert.equal(active.map,null);
+  assert.strictEqual(active.aoMap,null);assert.equal(active.map,null);
+  const shaderAfterReset=shader();
+  active.onBeforeCompile(shaderAfterReset);
+  assert.strictEqual(shaderAfterReset.uniforms.chidoColorAO.value,ao);
+  assert.equal(shaderAfterReset.uniforms.chidoRoleMap,undefined);
   disposeRoleMaterials(visual);
  }finally{THREE.TextureLoader.prototype.load=original;}
 });
