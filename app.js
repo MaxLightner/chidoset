@@ -143,7 +143,30 @@ function updateObjects(){if(!studio)return;const buttons=studio.items.map(m=>`<b
  updateMeasurements();minimap.render();scheduleDraftSave();if(activeLiveSession)scheduleLiveScenePublish(true);}
 function updateMeasurements(){if(!studio)return;const m=studio.measurement();for(const id of ['measurement','arMeasurement']){const el=$('#'+id);if(el)el.textContent=`A—B: ${fa(m.measuredCm)} سانتی‌متر اندازه‌گیری‌شده · ضریب ${fa(m.scale)} · طول اصلاح‌شده ${fa(m.correctedCm)} سانتی‌متر`;}}
 function calibrationControls(prefix=''){return `<div class="calibration-controls"><p class="measurement" id="${prefix?'arMeasurement':'measurement'}"></p><label for="${prefix}actual">طول واقعی A—B (۱۰۰ تا ۱۰۰۰ سانتی‌متر)</label><div class="input-row"><input id="${prefix}actual" type="number" inputmode="decimal" min="100" max="1000" step="0.1" placeholder="مثلاً ۱۰۰"><button id="${prefix}calibrate">کالیبره کن</button><button id="${prefix}resetScale">۱:۱</button></div><small>A کل صحنه را جابه‌جا می‌کند و B جهت آن را تعیین می‌کند.</small></div>`;}
-function bindCalibration(prefix=''){const initial=studio.measurement();if(initial.actualCm!==null)$('#'+prefix+'actual').value=initial.actualCm;const fail=fn=>()=>{try{fn();}catch(error){toast(error.message);}};$('#'+prefix+'calibrate').onclick=fail(()=>{studio.calibrate($('#'+prefix+'actual').value);$('#abCalibrationSheet').hidden=true;toast('مقیاس و مرجع پروژه تنظیم شد.');});$('#'+prefix+'resetScale').onclick=()=>studio.resetCalibration();}
+function bindCalibration(prefix=''){
+ const initial=studio.measurement(),input=$('#'+prefix+'actual');
+ if(initial.actualCm!==null)input.value=initial.actualCm;
+ else input.value=Math.round(initial.measuredCm);
+ const fail=fn=>()=>{try{fn();}catch(error){toast(error.message);}};
+ $('#'+prefix+'calibrate').onclick=fail(()=>{
+  const requested=Number(input.value);
+  if(!Number.isFinite(requested)||requested<10||requested>2000)throw Error('طول واقعی A/B را بین ۱۰ تا ۲۰۰۰ سانتی‌متر وارد کن.');
+  const before=studio.measurement().scale;
+  const result=studio.calibrate(requested);
+  updateMeasurements();
+  const physicalWidth=studio.roomPlan?.w||0;
+  const physicalDepth=studio.roomPlan?.d||0;
+  const factor=result.scale.toLocaleString('fa-IR',{maximumFractionDigits:3});
+  const worldWidth=(physicalWidth*result.scale).toLocaleString('fa-IR',{maximumFractionDigits:2});
+  const note=studio.roomPlan?' · عرض اتاق در مختصات AR: '+worldWidth+' متر':'';
+  $('#arMeasurement').textContent='مقیاس اعمال شد: '+factor+'× · A/B واقعی '+requested.toLocaleString('fa-IR')+' سانتی‌متر'+note;
+  studio.root.updateMatrixWorld(true);
+  if(Math.abs(studio.root.scale.x-result.scale)>.00001)throw Error('مقیاس در رندر به‌روزرسانی نشد.');
+  studio.wideView?.active&&studio.wideView.draw();
+  toast('مقیاس '+factor+'× اعمال شد'+(Math.abs(before-result.scale)<.001?' (بدون تغییر نسبت به قبل)':'')+'.');
+ });
+ $('#'+prefix+'resetScale').onclick=fail(()=>{studio.resetCalibration();updateMeasurements();input.value=studio.measurement().measuredCm.toFixed(1);toast('مقیاس ۱:۱ اعمال شد.');});
+}
 function snapshotItems(){savedItems=studio?studio.items.map(m=>({id:m.userData.id,name:m.userData.product.name,price:m.userData.price,color:'#'+m.material.color.getHexString()})):savedItems;}
 function uploadControl(){return `<label class="upload">بارگذاری تصویر +<input id="upload" type="file" accept="image/png,image/jpeg,image/webp" multiple></label>`;}
 async function uploadFiles(e){const files=[...e.target.files];if(files.length>20){toast('هر بار حداکثر ۲۰ تصویر بارگذاری کن.');return;}let count=0;for(const f of files){if(!['image/png','image/jpeg','image/webp'].includes(f.type)||f.size>15*1024*1024){toast('فقط PNG، JPEG و WebP تا ۱۵ مگابایت پذیرفته می‌شود.');continue;}try{const img=await createImageBitmap(f);img.close();await savePhoto(f,'تصویر بارگذاری‌شده');count++;}catch{toast('تصویر خوانده یا ذخیره نشد؛ فضای مرورگر را بررسی کن.');}}if(count){toast(`${fa(count)} تصویر به گالری اضافه شد.`);await render();}e.target.value='';}
