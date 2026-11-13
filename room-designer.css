@@ -288,3 +288,22 @@
  #overlay .ar-minimap.expanded .room-design-toolbar .room-design-row button,
  #overlay .ar-minimap.expanded .room-design-toolbar .room-design-row select{font-size:11px!important;}
 }
+
+/* Contextual TV editing keeps the upper 2-row CAD toolbar unchanged. */
+#overlay .ar-minimap.expanded .room-finish-picker .tv-settings{display:grid;gap:11px;}
+#overlay .ar-minimap.expanded .room-finish-picker .tv-group{display:grid;gap:6px;}
+#overlay .ar-minimap.expanded .room-finish-picker .tv-group b{font-size:12px;color:#445c4c;}
+#overlay .ar-minimap.expanded .room-finish-picker .tv-options{
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;
+}
+#overlay .ar-minimap.expanded .room-finish-picker .tv-options button{
+ min-height:42px;padding:6px 4px;border:1px solid #c1c7bd;
+ border-radius:9px;background:#f1f0e9;font-size:12px;color:#3d554a;
+}
+#overlay .ar-minimap.expanded .room-finish-picker .tv-options button.selected{
+ border:2px solid #36745d;background:#dbe8dc;font-weight:700;
+}
+#overlay .ar-minimap.expanded .room-finish-picker .tv-power{
+ display:flex;gap:8px;align-items:center;font-size:13px;font-weight:650;color:#355345;
+}
+#overlay .ar-minimap.expanded .room-finish-picker .tv-power input{width:18px;height:18px;accent-color:#3b8567;}
