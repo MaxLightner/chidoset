@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from '../vendor/three.module.js';
 import {Studio} from '../studio.js';
 import {SpatialState} from '../spatial.js';
+import {FURNITURE_SIZE_FACTOR} from '../furniture-scale.js';
 import {RUG_STYLES,rugPreviewDataUrl} from '../rug-textures.js';
 
 function fixture(){
@@ -47,7 +48,7 @@ test('vase attaches to the top of a table and returns to floor after moving outs
 });
 test('sofa variants preserve logical dimensions and different seat upholstery',()=>{
  const s=fixture();const sofa=s.add(0);
- assert.equal(s.setSofaSeats(2),true);assert.equal(s.selected.userData.product.size[0],1.62);
+ assert.equal(s.setSofaSeats(2),true);assert.ok(Math.abs(s.selected.userData.product.size[0]-1.62*FURNITURE_SIZE_FACTOR)<1e-9);
  assert.equal(s.selected.userData.seats,2);
  assert.equal(s.setSofaSeats(1),true);assert.equal(s.selected.userData.index,1);
  assert.equal(s.setSofaSeats(3),true);assert.equal(s.selected.userData.seats,3);
@@ -58,6 +59,6 @@ test('dining capacity updates both table width and real count of linked chairs',
  assert.equal(s.setDiningCapacity(8),true);
  const table=s.items.find(x=>x.userData.index===10);
  assert.equal(table.userData.capacity,8);
- assert.equal(table.userData.product.size[0],2.35);
+ assert.ok(Math.abs(table.userData.product.size[0]-2.35*FURNITURE_SIZE_FACTOR)<1e-9);
  assert.equal(s.items.filter(x=>x.userData.tableId===table.userData.id).length,8);
 });
