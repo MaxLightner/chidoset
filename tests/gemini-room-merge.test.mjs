@@ -102,7 +102,7 @@ test('A/B ruler stays hidden in room viewing, appears in scale editor and never 
  assert.match(studio,/this\.roomCalibrationGuides=!!enabled/);
  assert.match(app,/studio\?\.setRoomCalibrationGuides\(!\$\('#abCalibrationSheet'\)\.hidden\)/);
  assert.match(app,/studio\?\.setRoomCalibrationGuides\(false\)/);
- const block=studio.slice(studio.indexOf(' placeDesignedRoom(){'),studio.indexOf(' moveRoomFurniture('));
+ const block=studio.slice(studio.indexOf(' placeDesignedRoom(){'),studio.indexOf(' setDesignedRoomVisible('));
  assert.doesNotMatch(block,/resetCalibration\(/);
  assert.doesNotMatch(block,/layoutOffset\.set\(/);
  assert.match(block,/this\.syncSpatial\(\)/);
