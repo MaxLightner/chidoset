@@ -2,7 +2,7 @@ import * as THREE from './vendor/three.module.js';
 import {cm,distance,wallLength,nearestWall,snapPoint,closestFloorEdge,validPolygon,normalizedWindow,windowIntersects,updateWindow,validArchitecture} from './architecture-geometry.js?v=0.9.0';
 import {finishMaterial,FLOOR_FINISHES,WALL_FINISHES,floorFinish} from './architecture-materials.js?v=0.18.0';
 import {FloorReflection} from './floor-reflection.js';
-import {geminiConsoleMaterial,makeGeminiTVScreenMaterial,setGeminiTVChannel,setGeminiTVOn} from './gemini-room-materials.js?v=0.18.0';
+import {geminiFloorMaterial,geminiConsoleMaterial,makeGeminiTVScreenMaterial,setGeminiTVChannel,setGeminiTVOn} from './gemini-room-materials.js?v=0.18.0';
 
 const axis=new THREE.Vector3(0,1,0);
 const point=(x,z)=>new THREE.Vector3(x,.012,z);
@@ -152,6 +152,82 @@ export class ArchitectureLayer {
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(b-a,y1-y0,thickness),mat.clone());
   mesh.position.set(w.x1+ux*along,(y0+y1)/2,w.z1+uz*along);
   mesh.rotation.y=-Math.atan2(uz,ux);mesh.userData.archWindow=owner;mesh.userData.archKind=owner?'window':'wall';mesh.userData.archId=owner||w.id;group.add(mesh);return mesh;
+ }
+ makeGeminiWindow(parent,wall,opening){
+  const length=wallLength(wall),ux=(wall.x2-wall.x1)/length,uz=(wall.z2-wall.z1)/length;
+  const group=new THREE.Group();
+  group.position.set(wall.x1+ux*opening.along,0,wall.z1+uz*opening.along);
+  group.rotation.y=-Math.atan2(uz,ux);
+  const width=opening.width,sill=opening.sill,height=opening.height,depth=wall.thickness+.02,thick=.055;
+  const face=['north','east'].includes(opening.wall)?1:-1;
+  const frameMat=new THREE.MeshStandardMaterial({color:0x1b1e23,roughness:.35,metalness:.78});
+  const bar=(w,h,d,x,y,z)=>{
+   const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),frameMat);
+   mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh);
+  };
+  bar(width,thick,depth,0,sill+height-thick/2,0);
+  bar(width,thick,depth,0,sill+thick/2,0);
+  bar(thick,height,depth,-width/2+thick/2,sill+height/2,0);
+  bar(thick,height,depth,width/2-thick/2,sill+height/2,0);
+  const divisions=width>=2.2?3:2;
+  for(let i=1;i<divisions;i++)bar(.038,height,depth*.8,-width/2+width*i/divisions,sill+height/2,0);
+  const glassMat=new THREE.MeshPhysicalMaterial({color:0xeaf6ff,transparent:true,opacity:.16,
+   roughness:.05,metalness:.05,reflectivity:.9,side:THREE.DoubleSide,depthWrite:false});
+  const glass=new THREE.Mesh(new THREE.PlaneGeometry(width-thick*2,height-thick*2),glassMat);
+  glass.position.y=sill+height/2;group.add(glass);
+  const curtainMat=new THREE.MeshStandardMaterial({color:0xf7f3eb,roughness:.92,
+   transparent:true,opacity:.84,side:THREE.DoubleSide});
+  const curtainW=Math.min(.42,width*.25),curtainH=2.92;
+  const curtainGeo=new THREE.PlaneGeometry(curtainW,curtainH,10,4);
+  const pos=curtainGeo.attributes.position;
+  for(let i=0;i<pos.count;i++)pos.setZ(i,Math.sin(pos.getX(i)*36)*.025);
+  curtainGeo.computeVertexNormals();
+  const curtain=new THREE.Mesh(curtainGeo,curtainMat);
+  curtain.position.set(-width/2+curtainW*.4,curtainH/2+.05,face*(wall.thickness/2+.08));
+  curtain.castShadow=true;group.add(curtain);
+  group.userData.archWindow=opening.id;
+  parent.add(group);
+ }
+ makeGeminiKitchen(parent,wall,opening){
+  const length=wallLength(wall),ux=(wall.x2-wall.x1)/length,uz=(wall.z2-wall.z1)/length;
+  const group=new THREE.Group();
+  group.position.set(wall.x1+ux*opening.along,0,wall.z1+uz*opening.along);
+  group.rotation.y=-Math.atan2(uz,ux);
+  const face=['north','east'].includes(opening.wall)?1:-1;
+  const W=opening.width,H=opening.height,depth=wall.thickness;
+  const part=(geo,mat,x,y,z,cast=false)=>{
+   const mesh=new THREE.Mesh(geo,mat);mesh.position.set(x,y,face*z);
+   mesh.castShadow=cast;mesh.receiveShadow=true;group.add(mesh);return mesh;
+  };
+  const baseMat=new THREE.MeshStandardMaterial({color:0x3b281c,roughness:.45});
+  const topMat=new THREE.MeshPhysicalMaterial({color:0xf4f1ea,roughness:.18,metalness:.03,
+   clearcoat:.6,clearcoatRoughness:.15});
+  const counterW=W-.06,counterH=.92,counterD=.68;
+  part(new THREE.BoxGeometry(counterW-.1,counterH-.05,counterD-.06),baseMat,0,(counterH-.05)/2,.08,true);
+  part(new THREE.BoxGeometry(counterW,.055,counterD),topMat,0,counterH-.025,.08,true);
+  for(const x of [-counterW/2+.028,counterW/2-.028])
+   part(new THREE.BoxGeometry(.055,counterH,counterD),topMat,x,counterH/2,.08,true);
+  const seatMat=new THREE.MeshStandardMaterial({color:0xc89d6c,roughness:.65});
+  const metal=new THREE.MeshStandardMaterial({color:0x1e2024,roughness:.35,metalness:.8});
+  const gold=new THREE.MeshStandardMaterial({color:0xd4af37,roughness:.25,metalness:.85});
+  for(const x of [-.85,0,.85]){
+   part(new THREE.CylinderGeometry(.17,.16,.06,20),seatMat,x,.66,.54,true);
+   part(new THREE.CylinderGeometry(.02,.025,.64,12),metal,x,.32,.54);
+   part(new THREE.CylinderGeometry(.14,.15,.02,16),metal,x,.01,.54);
+   part(new THREE.CylinderGeometry(.005,.005,.58,8),metal,x,H-.29,.08);
+   part(new THREE.ConeGeometry(.11,.14,20),gold,x,H-.60,.08);
+  }
+  const backD=2.1,marble=geminiFloorMaterial('marble'),plaster=finishMaterial(this.data.wallMaterial);
+  part(new THREE.BoxGeometry(W+.6,.1,backD),marble,0,-.05,-backD/2-depth/2);
+  part(new THREE.BoxGeometry(W+.6,.12,backD),plaster,0,3.16,-backD/2-depth/2);
+  part(new THREE.BoxGeometry(W+.6,3.1,.15),plaster,0,1.55,-backD-depth/2);
+  const cabinet=new THREE.MeshStandardMaterial({color:0xe6dfd3,roughness:.35});
+  part(new THREE.BoxGeometry(W,.88,.58),cabinet,0,.44,-backD+.22);
+  part(new THREE.BoxGeometry(W,.72,.36),baseMat,0,2.12,-backD+.12);
+  const light=new THREE.PointLight(0xfff0d4,4.5,7);
+  light.position.set(0,2.65,-face);group.add(light);
+  group.userData.archKind='kitchen';group.userData.archId=opening.id;
+  parent.add(group);
  }
  makeGeminiTelevision(container,wall,feature){
   // The panel geometry, proportions and surfaces follow the original Gemini
