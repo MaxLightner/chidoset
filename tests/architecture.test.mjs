@@ -79,8 +79,10 @@ test('floor, wall and window surfaces are selectable and deletable',()=>{
  a.dispose();
 });
 test('ceramic and woven carpet use opaque metre-tileable PBR colour and normal maps',()=>{
- assert.equal(FLOOR_FINISHES.length,6);assert.ok(WALL_FINISHES.length>=3);
- for(const f of FLOOR_FINISHES){
+ assert.ok(FLOOR_FINISHES.length>=10);assert.ok(WALL_FINISHES.length>=8);
+ const originalPresets=FLOOR_FINISHES.filter(f=>f.kind==='ceramic'||f.kind==='carpet');
+ assert.equal(originalPresets.length,6);
+ for(const f of originalPresets){
   const mat=finishMaterial(f.id),maps=finishTextures(f.id);
   assert.equal(mat.transparent,false);assert.equal(mat.opacity,1);
   assert.ok(maps.map.image.data.length>=256*256*4);
