@@ -43,7 +43,7 @@ test('Gemini source algorithms and three.js GTAO/Bloom passes are bundled locall
  const wide=read('wide-view.js');
  assert.ok(wide.includes("import('./gemini-postfx.js"));
  assert.ok(wide.includes('ReinhardToneMapping'));
- assert.ok(wide.includes('toneMappingExposure=1.45'));
+ assert.ok(wide.includes('toneMappingExposure=1.15'));
 });
 
 test('scanner floor grid and extra planar reflection cannot remain active after AR floor reveal',()=>{
@@ -69,7 +69,7 @@ test('Gemini tone mapping stays Reinhard and retains restrained punch',()=>{
  const studio=read('studio.js'),wide=read('wide-view.js'),fx=read('gemini-postfx.js');
  for(const src of [studio,wide]){
   assert.match(src,/toneMapping=THREE\.ReinhardToneMapping/);
-  assert.match(src,/toneMappingExposure=1\.45/);
+  assert.match(src,/toneMappingExposure=1\.15/);
  }
  assert.match(fx,/uContrast:\s*\{ value:\s*1\.07/);
  assert.match(fx,/uVibrance:\s*\{ value:\s*0\.05/);
