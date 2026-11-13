@@ -11,9 +11,10 @@ export class ArchitectureLayer {
   this.data={floor:[],walls:[],windows:[],floorMaterial:'ceramic-cream',wallMaterial:'wall-ivory'};this.mode=null;this.draft=[];this.wallStart=null;
   this.wallPreview=null;this.hoverPoint=null;this.selectedRef=null;this.selectedWindow=null;
   this.previewGroup=new THREE.Group();this.previewGroup.name='Architectural placement preview';root.add(this.previewGroup);
-  this.handles=[];this.serial=0;this.refresh();
+  this.handles=[];this.serial=0;this.reflectionAllowed=true;this.refresh();
  }
  attachRenderer(renderer,scene){this.reflection=new FloorReflection(renderer,scene);this.refresh();}
+ setReflectionAllowed(value){const enabled=!!value;if(this.reflectionAllowed===enabled)return;this.reflectionAllowed=enabled;this.reflection?.detach();if(enabled&&this.floorMesh&&floorFinish(this.data.floorMaterial).kind==='ceramic')this.reflection?.attach(this.floorMesh,this.group);}
  snapshot(){return structuredClone(this.data);}
  restore(data){
   if(!validArchitecture(data))return;
@@ -265,7 +266,7 @@ export class ArchitectureLayer {
    }
   }
   this.drawPreview();
-  if(this.floorMesh&&floorFinish(this.data.floorMaterial).kind==='ceramic')this.reflection?.attach(this.floorMesh,this.group);
+  if(this.reflectionAllowed&&this.floorMesh&&floorFinish(this.data.floorMaterial).kind==='ceramic')this.reflection?.attach(this.floorMesh,this.group);
  }
  pickHandle(e,target,camera){
   if(!this.handles.length)return null;
