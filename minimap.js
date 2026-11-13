@@ -323,10 +323,7 @@ export class LiveMiniMap{
   if(!this.pointers.has(e.pointerId))return;
   this.pointers.delete(e.pointerId);
   try{this.svg.releasePointerCapture(e.pointerId);}catch{}
-  if(e.type==='pointerup'&&this.gesture?.type==='architecture'&&!this.gesture.moved){
-   const plan=this.getStudio()?.roomPlan,el=plan?.elements.find(x=>x.id===this.gesture.id);
-   if(el?.type==='tv')this.options.onTV?.();
-  }
+  // TV controls are exclusively opened by tapping its 3D panel in Studio.
   // Avoid stale one-finger drags after a two-finger twist/pinch.
   this.gesture=null;
  }
