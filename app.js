@@ -35,7 +35,7 @@ const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio,{
  onClose:()=>{if(!studio?.session){$('#overlay').classList.remove('room-design-offline');$('#overlay').hidden=true;$('#arMiniMap').hidden=true;}},
  onFloor:()=>cycleRoomFinish('floor'),onWall:()=>cycleRoomFinish('wall')
 });
-let roomDesignOnLaunch=false;
+let roomDesignOnLaunch=false,roomAutoCoverAfterScan=false;
 let chidoMenuOpen=false;
 let pendingARSession=null,calibrationPrompted=false;
 let homeExitRequested=false,homeExitBusy=false,homeExitFallback=null;
@@ -757,12 +757,18 @@ function handleARReport(report){
  $('#confirmFloor').textContent=report.hit?'تثبیت کف و ورود به چیدمان':'در حال شناسایی کف…';
  $('#arEditControls').hidden=true;
  $('#arSettings').hidden=!(report.placed&&arSheetMode==='settings');
- $('#arDock').hidden=!report.placed;$('#arMiniMap').hidden=!report.placed;$('#arBottomActions').hidden=!report.placed;updateCloudControls();if(report.placed){minimap.render();if(!calibrationPrompted){calibrationPrompted=true;$('#abCalibrationSheet').hidden=false;}}else $('#abInline').hidden=true;
+ $('#arDock').hidden=!report.placed;$('#arMiniMap').hidden=!report.placed&&!minimap.expanded;$('#arBottomActions').hidden=!report.placed;updateCloudControls();if(report.placed){minimap.render();if(!calibrationPrompted){calibrationPrompted=true;$('#abCalibrationSheet').hidden=false;}}else $('#abInline').hidden=true;
  if(studio?.session)void ensureLivePublisher();
  $('#arDock').classList.toggle('ready',report.placed);
  const wideSelect=$('#wideViewMode');wideSelect.disabled=!report.placed||!studio?.hasOverlay;
  $('#wideNatural').disabled=wideSelect.disabled;
  if(!report.placed)resetWideViewControls();
+ if(report.placed&&roomAutoCoverAfterScan&&studio?.session){
+  roomAutoCoverAfterScan=false;
+  const covered=studio.setWideView('normal',{natural:true});
+  if(covered.ok){$('#wideViewMode').value='normal';showWideProjection({horizontal:covered.hfov,requestedHorizontal:covered.requestedHfov,limited:covered.limited});}
+  else toast('کف تثبیت شد، اما نمایش پوشاننده دوربین در این دستگاه در دسترس نیست: '+covered.reason);
+ }
  $('#overlay').classList.toggle('floor-ready',report.placed);
  if(!report.placed){closeArSheet();$('#measureHint').hidden=true;}
  updateMeasurements();
@@ -809,6 +815,7 @@ function startScanFromRoom(){
  if(!studio)return;
  closeRoomPlanner();
  if(studio.session){toast(studio.placed?'کف قبلاً تثبیت شده است.':'اسکن کف در جریان است.');return;}
+ roomAutoCoverAfterScan=!!studio.roomPlan;
  void startAR(false);
 }
 function cycleRoomFinish(kind){
