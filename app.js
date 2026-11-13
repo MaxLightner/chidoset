@@ -35,7 +35,7 @@ const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio,{
  onClose:()=>{if(!studio?.session){$('#overlay').classList.remove('room-design-offline');$('#overlay').hidden=true;$('#arMiniMap').hidden=true;}},
  onFloor:()=>cycleRoomFinish('floor'),onWall:()=>cycleRoomFinish('wall')
 });
-let roomDesignOnLaunch=false,roomAutoCoverAfterScan=false;
+let roomDesignOnLaunch=false,roomWaitingForFloor=false;
 let chidoMenuOpen=false;
 let pendingARSession=null,calibrationPrompted=false;
 let homeExitRequested=false,homeExitBusy=false,homeExitFallback=null;
@@ -289,9 +289,10 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
     if(activeLiveSession)void endLiveShare(true);
     resetWideViewControls();closeChidoMenu();minimap.collapse();setPhotoMode(false);closeArSheet();
     $('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=true;
-    $('#measureHint').hidden=true;$('#arMiniMap').hidden=true;$('#abInline').hidden=true;$('#arBottomActions').hidden=true;$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;$('#arSurfaceActions').hidden=true;
+    $('#measureHint').hidden=true;$('#arMiniMap').hidden=true;$('#roomPlaceActions').hidden=true;$('#abInline').hidden=true;$('#arBottomActions').hidden=true;$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;$('#arSurfaceActions').hidden=true;
    }catch(error){recordRuntimeError('exit-ui-error',error);console.warn('AR controls cleanup',error);}
-    $('#overlay').hidden=true;
+    $('#overlay').classList.remove('room-design-offline','floor-ready');$('#overlay').hidden=true;
+    roomWaitingForFloor=false;
     // Home navigation must run even if an optional AR tool failed to close.
     arStarting=false;pendingARSession=null;
     if(homeExitRequested)queueMicrotask(finishChidoHomeExit);
@@ -757,23 +758,19 @@ function handleARReport(report){
  $('#confirmFloor').textContent=report.hit?'تثبیت کف و ورود به چیدمان':'در حال شناسایی کف…';
  $('#arEditControls').hidden=true;
  $('#arSettings').hidden=!(report.placed&&arSheetMode==='settings');
- $('#arDock').hidden=!report.placed;$('#arMiniMap').hidden=!report.placed&&!minimap.expanded;$('#arBottomActions').hidden=!report.placed;updateCloudControls();if(report.placed){minimap.render();if(!calibrationPrompted){calibrationPrompted=true;$('#abCalibrationSheet').hidden=false;}}else $('#abInline').hidden=true;
+ $('#arDock').hidden=!report.placed;$('#arMiniMap').hidden=!report.placed&&!minimap.expanded;$('#arBottomActions').hidden=!report.placed;updateCloudControls();if(report.placed){minimap.render();if(!calibrationPrompted&&!studio?.roomPendingPlacement&&!minimap.expanded){calibrationPrompted=true;$('#abCalibrationSheet').hidden=false;}}else $('#abInline').hidden=true;
  if(studio?.session)void ensureLivePublisher();
  $('#arDock').classList.toggle('ready',report.placed);
  const wideSelect=$('#wideViewMode');wideSelect.disabled=!report.placed||!studio?.hasOverlay;
  $('#wideNatural').disabled=wideSelect.disabled;
  if(!report.placed)resetWideViewControls();
- if(report.placed&&roomAutoCoverAfterScan&&studio?.session){
-  roomAutoCoverAfterScan=false;
-  const covered=studio.setWideView('normal',{natural:true});
-  if(covered.ok){$('#wideViewMode').value='normal';showWideProjection({horizontal:covered.hfov,requestedHorizontal:covered.requestedHfov,limited:covered.limited});}
-  else toast('کف تثبیت شد، اما نمایش پوشاننده دوربین در این دستگاه در دسترس نیست: '+covered.reason);
- }
+ if(report.placed&&roomWaitingForFloor){roomWaitingForFloor=false;toast('کف تثبیت شد. برای وارد کردن اتاق، دکمه «قرار دادن اتاق» را بزن.');}
+ $('#roomPlaceActions').hidden=!report.placed||!studio?.roomPlan||!studio?.roomPendingPlacement||minimap.expanded;
  $('#overlay').classList.toggle('floor-ready',report.placed);
  if(!report.placed){closeArSheet();$('#measureHint').hidden=true;}
  updateMeasurements();
 }
-async function startAR(basic=false,incomingSession=null){if(!studio||studio.session||arStarting)return;arStarting=true;liveSharingPaused=false;liveRetryAt=0;calibrationPrompted=false;const launchingStudio=studio;const button=$('#startAR');button.disabled=true;$('#arError').close();try{$('#overlay').hidden=false;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=false;$('#scanProgress').value=12;$('#scanStage').textContent='راه‌اندازی AR…';$('#scanPercent').textContent='۱۲٪';closeArSheet();$('#arSettings').hidden=true;$('#arStatus').textContent='در حال شناسایی کف…';resetWideViewControls();const result=await launchingStudio.startAR(message=>$('#arStatus').textContent=message,handleARReport,basic,{light:!basic&&$('#lightEnabled').checked,depth:!basic&&$('#depthEnabled').checked},incomingSession);if(studio!==launchingStudio||!launchingStudio.session)return;if(!result.hasOverlay)$('#overlay').hidden=true;$('#launchProgress').value=3;$('#launchStage').textContent='نشست AR آماده شد؛ کف را اسکن کن.';studio.setDebugVisible(debugEnabled);updateObjects();}catch(error){if(studio!==launchingStudio)return;$('#overlay').hidden=true;$('#arDock').hidden=true;button.hidden=false;$('#launchStage').textContent='ورود به AR ناموفق بود؛ جزئیات را بررسی کن.';const failure=explainXR(error);lastXRErrorReport=JSON.stringify({version:'0.4.1',mode:basic?'basic':'full',stage:failure.stage,name:failure.name,message:failure.detail,secureContext:isSecureContext,webXR:!!navigator.xr,supportCheck:supported,userAgent:navigator.userAgent},null,2);$('#arErrorMessage').textContent=failure.message;$('#arErrorDetails').textContent=lastXRErrorReport;$('#arError').showModal();console.error(error);}finally{arStarting=false;button.disabled=false;}}
+async function startAR(basic=false,incomingSession=null){if(!studio||studio.session||arStarting)return;closeRoomPlanner();$('#overlay').classList.remove('room-design-offline','floor-ready');arStarting=true;liveSharingPaused=false;liveRetryAt=0;calibrationPrompted=false;const launchingStudio=studio;const button=$('#startAR');button.disabled=true;$('#arError').close();try{$('#overlay').hidden=false;$('#roomPlaceActions').hidden=true;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=false;$('#scanProgress').value=12;$('#scanStage').textContent='راه‌اندازی AR…';$('#scanPercent').textContent='۱۲٪';closeArSheet();$('#arSettings').hidden=true;$('#arStatus').textContent='در حال شناسایی کف…';resetWideViewControls();const result=await launchingStudio.startAR(message=>$('#arStatus').textContent=message,handleARReport,basic,{light:!basic&&$('#lightEnabled').checked,depth:!basic&&$('#depthEnabled').checked},incomingSession);if(studio!==launchingStudio||!launchingStudio.session)return;if(!result.hasOverlay){await endXRSession(launchingStudio.session);throw Object.assign(new Error('دستگاه DOM Overlay را فعال نکرده است؛ کنترل اسکن و تثبیت کف بدون آن قابل نمایش نیست.'),{name:'NotSupportedError',xrStage:'overlay'});}$('#overlay').hidden=false;$('#launchProgress').value=3;$('#launchStage').textContent='نشست AR آماده شد؛ کف را اسکن کن.';studio.setDebugVisible(debugEnabled);updateObjects();}catch(error){if(studio!==launchingStudio)return;$('#overlay').hidden=true;$('#arDock').hidden=true;button.hidden=false;$('#launchStage').textContent='ورود به AR ناموفق بود؛ جزئیات را بررسی کن.';const failure=explainXR(error);lastXRErrorReport=JSON.stringify({version:'0.4.1',mode:basic?'basic':'full',stage:failure.stage,name:failure.name,message:failure.detail,secureContext:isSecureContext,webXR:!!navigator.xr,supportCheck:supported,userAgent:navigator.userAgent},null,2);$('#arErrorMessage').textContent=failure.message;$('#arErrorDetails').textContent=lastXRErrorReport;$('#arError').showModal();console.error(error);}finally{arStarting=false;button.disabled=false;}}
 function openRoomPlanner(){
  if(!studio)return;
  const layer=studio.architecture;
@@ -785,39 +782,45 @@ function openRoomPlanner(){
  $('#objectQuick').hidden=true;
  const offline=!studio.session;
  $('#overlay').hidden=false;$('#overlay').classList.toggle('room-design-offline',offline);
- $('#arMiniMap').hidden=false;
+ $('#arMiniMap').hidden=false;$('#roomPlaceActions').hidden=true;
  minimap.setExpanded(true);
 }
 function closeRoomPlanner(){
  minimap.collapse();
  $('#overlay').classList.remove('room-design-offline');
  if(!studio?.session){$('#overlay').hidden=true;$('#arMiniMap').hidden=true;}
- else $('#arMiniMap').hidden=false;
+ else $('#arMiniMap').hidden=!studio?.placed;
+ if(studio?.session)$('#roomPlaceActions').hidden=!studio.placed||!studio.roomPlan||!studio.roomPendingPlacement;
 }
 function showDesignedRoom3D(){
- if(!studio)return;
+ if(!studio?.roomPlan){toast('ابتدا ابعاد اتاق را ثبت کن.');return;}
+ if(!studio.session){startScanFromRoom();return;}
  closeRoomPlanner();
- if(studio.session){
-  if(!studio.placed){toast('برای نمای سه‌بعدی ابتدا کف را تثبیت کن.');return;}
-  const result=studio.setWideView('normal',{natural:true});
-  if(result.ok){
-   $('#wideViewMode').value='normal';
-   showWideProjection({horizontal:result.hfov,requestedHorizontal:result.requestedHfov,limited:result.limited});
-   toast('محیط مجازی روی تصویر دوربین قرار گرفت؛ ردیابی موقعیت و چرخش AR فعال است.');
-  }else toast(result.reason);
- }else{
-  previewEnabled=true;$('#viewport').classList.add('show-preview');
-  $('#preview3D').textContent='بستن پیش‌نمایش';
-  toast('نمای سه‌بعدی آماده است. برای ردیابی واقعی، اسکن AR را شروع کن.');
- }
+ if(!studio.placed){toast('اسکن کف را انجام بده و «تثبیت کف» را بزن؛ نشست AR باز می‌ماند.');return;}
+ if(studio.roomPendingPlacement){
+  $('#roomPlaceActions').hidden=false;
+  toast('کف آماده است؛ اکنون «قرار دادن اتاق» را بزن.');
+ }else toast('اتاق در AR قرار دارد؛ برای ویرایش دوباره پلان را باز کن.');
 }
 function startScanFromRoom(){
  if(!studio)return;
+ if(studio.session){showDesignedRoom3D();return;}
+ roomWaitingForFloor=true;
  closeRoomPlanner();
- if(studio.session){toast(studio.placed?'کف قبلاً تثبیت شده است.':'اسکن کف در جریان است.');return;}
- roomAutoCoverAfterScan=!!studio.roomPlan;
  void startAR(false);
 }
+$('#placeDesignedRoom').onclick=()=>{
+ if(!studio?.placeDesignedRoom()){toast('برای قرار دادن اتاق ابتدا کف را تثبیت کن.');return;}
+ $('#roomPlaceActions').hidden=true;
+ $('#abCalibrationSheet').hidden=true;
+ const result=studio.setWideView('normal',{natural:true});
+ if(result.ok){
+  $('#wideViewMode').value='normal';
+  showWideProjection({horizontal:result.hfov,requestedHorizontal:result.requestedHfov,limited:result.limited});
+  toast('اتاق در AR قرار گرفت؛ ردیابی موقعیت و چرخش گوشی فعال است.');
+ }else toast('اتاق در AR قرار گرفت؛ پوشش تمام‌صفحه در این دستگاه در دسترس نیست: '+result.reason);
+};
+$('#editDesignedRoom').onclick=()=>openRoomPlanner();
 function cycleRoomFinish(kind){
  if(!studio)return;
  const layer=studio.architecture;
@@ -1094,7 +1097,7 @@ $('#chidoMenuHome').onclick=async()=>{
    toast('در انتظار پایان نشست مرورگر؛ پس از پایان، صفحه اصلی باز می‌شود.');
   }
  },1400);
-};$('#resetAR').onclick=async()=>{try{$('#whiteFloorDialog').hidden=true;$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;studio?.architecture?.setMode(null);calibrationPrompted=false;await studio?.beginScan();$('#arSettings').open=false;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arSettings').hidden=true;}catch(error){toast('اسکن دوباره اجرا نشد.');}};$('#confirmFloor').onclick=()=>{if(studio?.confirmFloor()){calibrationPrompted=true;$('#abCalibrationSheet').hidden=false;}};$('#rescanFloor').onclick=async()=>{try{$('#whiteFloorDialog').hidden=true;await studio?.beginScan();$('#arSettings').open=false;}catch(error){toast('اسکن دوباره راه‌اندازی نشد؛ از AR خارج شو و دوباره وارد شو.');}};
+};$('#resetAR').onclick=async()=>{try{$('#whiteFloorDialog').hidden=true;$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;studio?.architecture?.setMode(null);calibrationPrompted=false;await studio?.beginScan();$('#arSettings').open=false;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arSettings').hidden=true;}catch(error){toast('اسکن دوباره اجرا نشد.');}};$('#confirmFloor').onclick=()=>{if(studio?.confirmFloor()){if(studio.roomPendingPlacement){$('#abCalibrationSheet').hidden=true;$('#roomPlaceActions').hidden=false;}else{calibrationPrompted=true;$('#abCalibrationSheet').hidden=false;}}};$('#rescanFloor').onclick=async()=>{try{$('#whiteFloorDialog').hidden=true;await studio?.beginScan();$('#arSettings').open=false;}catch(error){toast('اسکن دوباره راه‌اندازی نشد؛ از AR خارج شو و دوباره وارد شو.');}};
 $('#whiteFloorYes').onclick=()=>{studio?.setWhiteFloor(true);$('#whiteFloorDialog').hidden=true;};
 $('#whiteFloorNo').onclick=()=>{studio?.setWhiteFloor(false);$('#whiteFloorDialog').hidden=true;};
 $('#rotateAR').onclick=()=>{if(studio?.selected)studio.rotate();};$('#deleteAR').onclick=()=>studio?.remove();$('#colorAR').onclick=()=>{if(studio?.selected){const current='#'+studio.selected.material.color.getHexString();studio.color(palette[(palette.indexOf(current)+1)%palette.length]);}};$('#addAR').onclick=()=>{if(studio.items.length>=16){toast('حد آزمون این نسخه ۱۶ قطعه است.');return;}const index=Number($('#arProduct').value);if(publishedCatalogIndexes().has(index))studio.add(index);};$('#closePhoto').onclick=()=>$('#photoHelp').close();
