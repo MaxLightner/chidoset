@@ -161,6 +161,15 @@ void main(){
   this.roomGeometryTimer=setTimeout(()=>{this.roomGeometryTimer=null;this.flushRoomGeometry();},180);
   this.changed();return true;
  }
+ updateRoomLookSettings(values){
+  if(!this.roomPlan||!values)return false;
+  const next=normalizeRoomPlan({...this.roomPlan,roomLook:{...this.roomPlan.roomLook,...values}});
+  if(!next)return false;
+  this.roomPlan=next;
+  this.architecture?.applyRoomLookSettings(next.roomLook);
+  if(this.scene)this.scene.environmentIntensity=next.roomLook.ibl;
+  this.changed();return true;
+ }
  updateRoomTVSettings(values){
   if(!this.roomPlan||!values||typeof values!=='object')return false;
   const next=normalizeRoomPlan({...this.roomPlan,...values});
@@ -181,6 +190,7 @@ void main(){
   if(!this.roomGeometryDirty||!this.roomPlan)return;
   this.roomGeometryDirty=false;
   this.architecture?.restore(roomPlanToArchitecture(this.roomPlan,this.architecture?.data));
+  if(this.scene&&this.roomPlan.roomLook)this.scene.environmentIntensity=this.roomPlan.roomLook.ibl;
   if(this.whiteFloor)this.whiteFloor.visible=false;
   this.changed();
  }
