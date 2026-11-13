@@ -32,6 +32,7 @@ let studio,Scene,palette,space='پذیرایی',layout='empty',supported=false,r
 const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio,{
  getProducts:()=>[...publishedCatalogIndexes()].filter(i=>i>=0).map(index=>({index,name:getCloudProduct(index)?.name||getCloudProductInfo(index)?.name||libraryModel(index)?.name||catalogImages[index]?.[0]||'مدل'})),
  onToast:toast,on3D:showDesignedRoom3D,onStartAR:startScanFromRoom,
+ onClose:()=>{if(!studio?.session){$('#overlay').classList.remove('room-design-offline');$('#overlay').hidden=true;$('#arMiniMap').hidden=true;}},
  onFloor:()=>cycleRoomFinish('floor'),onWall:()=>cycleRoomFinish('wall')
 });
 let roomDesignOnLaunch=false;
@@ -113,7 +114,7 @@ function heading(step,title,sub,back){return `<div class="page-heading"><div><sp
 async function full(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(!document.documentElement.requestFullscreen){toast('مرورگر شما تمام‌صفحه را پشتیبانی نمی‌کند.');return;}try{await document.documentElement.requestFullscreen();}catch{toast('ورود به تمام‌صفحه ممکن نشد؛ می‌توانی ادامه بدهی.');}}
 $('#fullscreen').onclick=full;document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'خروج از تمام‌صفحه ↙':'تمام‌صفحه ⛶');
 async function support(){try{supported=!!(isSecureContext&&navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar'));}catch{supported=false;}return supported;}
-async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.16.22');Scene=m.Studio;palette=m.palette;}}
+async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.17.0');Scene=m.Studio;palette=m.palette;}}
 let draftTimer=null;
 function currentSceneRecord(){
  if(!studio)return null;
