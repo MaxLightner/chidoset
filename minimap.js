@@ -204,7 +204,9 @@ export class LiveMiniMap{
    const check=canPlaceRoomElement(plan,candidate);
    if(!check.valid){this.options.onToast?.(check.reason);return;}
    s.setRoomPlan({...plan,elements:[...plan.elements,candidate]});
-   this.selectedArch=candidate.id;this.selectedWall=null;this.tool='select';this.updateTools();
+   // Keep the chosen opening tool active for repeated placement; switch to
+   // «انتخاب» only when the user explicitly taps that tool.
+   this.selectedArch=candidate.id;this.selectedWall=null;
    this.render();return;
   }
   const arch=e.target.closest('[data-plan-el]');
