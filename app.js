@@ -19,7 +19,8 @@ import {readDraft,saveDraft,clearDraft,listCustomLayouts,saveCustomLayout,overwr
 import {ASSET_CATEGORIES,RUG_SIZE_PRESETS,isLamp,isSofa,isTable,isWallArt,variantsFor,categoryForIndex,SHEEN_CHAIR_SAMPLE} from './asset-metadata.js?v=0.16.16';
 import {savedPlanSvg} from './saved-plan.js?v=0.16.16';
 import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-materials.js';
-import {LiveMiniMap} from './minimap.js?v=0.16.15';
+import {LiveMiniMap} from './minimap.js?v=0.17.0';
+import {defaultRoomPlan} from './room-plan.js?v=0.17.0';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
 import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList} from './cloud-product-registry.js';
 import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,loadDemoLibrary,saveOfficialLayout,saveOfficialColorway,createLiveSession,findActiveLiveSession,getLiveShareLink,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.16.10';
@@ -28,7 +29,12 @@ const studioOwner=()=>cloudMembership?cloudMembership.company_id+':'+cloudMember
 const $=s=>document.querySelector(s),app=$('#app'),fa=n=>n.toLocaleString('fa-IR');
 bindAROrientation($('#overlay'));
 let studio,Scene,palette,space='پذیرایی',layout='empty',supported=false,routeVersion=0,photoURLs=[],savedItems=[],arReport=null,sceneMemory=null,arStarting=false,lastXRErrorReport='',activeSavedLayoutId=null;
-const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio);
+const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio,{
+ getProducts:()=>[...publishedCatalogIndexes()].filter(i=>i>=0).map(index=>({index,name:getCloudProduct(index)?.name||getCloudProductInfo(index)?.name||libraryModel(index)?.name||catalogImages[index]?.[0]||'مدل'})),
+ onToast:toast,on3D:showDesignedRoom3D,onStartAR:startScanFromRoom,
+ onFloor:()=>cycleRoomFinish('floor'),onWall:()=>cycleRoomFinish('wall')
+});
+let roomDesignOnLaunch=false;
 let chidoMenuOpen=false;
 let pendingARSession=null,calibrationPrompted=false;
 let homeExitRequested=false,homeExitBusy=false,homeExitFallback=null;
@@ -196,7 +202,7 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
  }
  photoURLs.forEach(URL.revokeObjectURL);photoURLs=[];
  if(route==='welcome'){
-  app.innerHTML=`<section class="welcome-screen"><div class="welcome-title"><h1>CHIDO</h1><p>خانه را جور دیگری ببینید</p></div><img class="welcome-photo" src="assets/welcome.webp?v=0.16.10" width="853" height="1280" fetchpriority="high" alt="صندلی کرم و گلدان در فضایی آرام">${cloudMembership?`<div class="welcome-bottom"><button class="primary" id="welcome">ورود به نمایشگاه <span>→</span></button><button class="quick-ar" id="quickAR">ادامه چیدمان ↗</button><button class="quick-ar quick-empty" id="startEmpty">＋ ایجاد صحنه خالی</button></div>`:`<form id="accountLoginForm" class="entry-login"><h2>ورود به اپ چیدو</h2><label for="accountUsername">نام کاربری</label><input id="accountUsername" name="username" autocomplete="username" dir="ltr" required maxlength="254"><label for="accountPassword">رمز عبور</label><input id="accountPassword" name="password" type="password" autocomplete="current-password" dir="ltr" required maxlength="128"><label class="remember-line"><input id="appRemember" type="checkbox" checked> مرا به خاطر بسپار</label><button class="primary" type="submit">ورود به اپلیکیشن</button><p id="accessMessage" role="status" aria-live="polite"></p></form>`}</section>`;
+  app.innerHTML=`<section class="welcome-screen"><div class="welcome-title"><h1>CHIDO</h1><p>خانه را جور دیگری ببینید</p></div><img class="welcome-photo" src="assets/welcome.webp?v=0.16.10" width="853" height="1280" fetchpriority="high" alt="صندلی کرم و گلدان در فضایی آرام">${cloudMembership?`<div class="welcome-bottom"><button class="primary" id="welcome">ورود به نمایشگاه <span>→</span></button><button class="quick-ar" id="quickAR">ادامه چیدمان ↗</button><button class="quick-ar quick-empty" id="startEmpty">＋ ایجاد صحنه خالی</button><button class="quick-ar" id="startRoomDesigner">▣ طراحی اتاق (نقشه دوبعدی)</button></div>`:`<form id="accountLoginForm" class="entry-login"><h2>ورود به اپ چیدو</h2><label for="accountUsername">نام کاربری</label><input id="accountUsername" name="username" autocomplete="username" dir="ltr" required maxlength="254"><label for="accountPassword">رمز عبور</label><input id="accountPassword" name="password" type="password" autocomplete="current-password" dir="ltr" required maxlength="128"><label class="remember-line"><input id="appRemember" type="checkbox" checked> مرا به خاطر بسپار</label><button class="primary" type="submit">ورود به اپلیکیشن</button><p id="accessMessage" role="status" aria-live="polite"></p></form>`}</section>`;
   recordRuntime('home-dom-ready');
   if(!cloudMembership){
    $('#accountUsername').value=accountName('chido-auth-v1');
@@ -208,6 +214,7 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
    $('#quickAR').hidden=!draft;
    $('#quickAR').onclick=()=>{loadSceneRecord(draft);location.hash='studio';};
    $('#startEmpty').onclick=()=>{layout='empty';sceneMemory=null;activeSavedLayoutId=null;previewEnabled=false;clearDraft();clearRecovery(cloudMembership);location.hash='studio';};
+    $('#startRoomDesigner').onclick=()=>{layout='empty';sceneMemory=null;activeSavedLayoutId=null;previewEnabled=false;clearDraft();clearRecovery(cloudMembership);roomDesignOnLaunch=true;location.hash='studio';};
   }
   return;
  }
@@ -262,7 +269,7 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
   <div><span>۳</span><p><strong>تثبیت و تنظیم جهت</strong><small>کف را تأیید کن و خط A—B را هم‌راستا با اتاق بگذار.</small></p></div>
  </div></div></div>
  <section id="launchLoading" class="launch-loading" role="status"><strong id="launchStage">در حال بارگذاری ابزارهای چیدو…</strong><progress id="launchProgress" value="0" max="3"></progress><small>۱. موتور سه‌بعدی · ۲. ابزارها و صحنه · ۳. نشست واقعیت افزوده</small></section>
-  <div class="launch-actions"><button id="startAR" class="primary" disabled>در حال بررسی واقعیت افزوده…</button><div class="launch-alternatives"><a href="#spaces">تغییر چیدمان</a><button id="preview3D">پیش‌نمایش سه‌بعدی</button></div></div>
+  <div class="launch-actions"><button id="startAR" class="primary" disabled>در حال بررسی واقعیت افزوده…</button><div class="launch-alternatives"><a href="#spaces">تغییر چیدمان</a><button id="preview3D">پیش‌نمایش سه‌بعدی</button><button id="openRoomPlannerBefore">▣ طراحی اتاق</button></div></div>
  </section>`;
  try{
   if(!reuseCatalog)await refreshCloudSets();if(version!==routeVersion)return;await loadScene();if(version!==routeVersion)return;
@@ -328,6 +335,8 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
  }
  bindCalibration('ar');
  $('#preview3D').onclick=()=>{previewEnabled=!previewEnabled;$('#viewport').classList.toggle('show-preview',previewEnabled);$('#preview3D').textContent=previewEnabled?'بستن پیش‌نمایش':'پیش‌نمایش سه‌بعدی';};
+  $('#openRoomPlannerBefore').onclick=()=>openRoomPlanner();
+  if(roomDesignOnLaunch){roomDesignOnLaunch=false;queueMicrotask(()=>{if(studio&&!studio.session)openRoomPlanner();});}
  const autoSession=pendingARSession;
  if(!autoSession)await support();if(version!==routeVersion)return;
  $('#startAR').textContent=supported?'شروع اسکن کف و ورود به AR ↗':'بررسی دسترسی به AR';
@@ -678,6 +687,7 @@ $('#arSurfaceDelete').onclick=()=>{
  if(studio.architecture.deleteSelected()){closeArSheet();toast('سطح انتخاب‌شده حذف شد.');}
 };
 $('#arArchitectureTool').onclick=()=>showArSheet('architecture');
+$('#arRoomTool').onclick=()=>openRoomPlanner();
 $('#arArchitectureConfirm').onclick=()=>{if(!studio?.architecture.confirmWall()){toast('دو نقطه معتبر برای دیوار مشخص کن.');return;}toast('دیوار ثبت شد؛ برای ادامه نقطه بعدی را انتخاب کن.');};
 $('#arArchitectureCancel').onclick=()=>{studio?.architecture.cancelPlacement();$('#arArchitectureActions').hidden=true;toast('ترسیم دیوار لغو شد.');};
 $('#arArchitectureFinish').onclick=()=>{if(!studio?.architecture.finish()){toast('برای ساخت کف، سه رأس معتبر و بدون تقاطع لازم است.');return;}$('#arArchitectureActions').hidden=true;toast('ابزار معماری بسته شد.');};
@@ -757,6 +767,60 @@ function handleARReport(report){
  updateMeasurements();
 }
 async function startAR(basic=false,incomingSession=null){if(!studio||studio.session||arStarting)return;arStarting=true;liveSharingPaused=false;liveRetryAt=0;calibrationPrompted=false;const launchingStudio=studio;const button=$('#startAR');button.disabled=true;$('#arError').close();try{$('#overlay').hidden=false;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=false;$('#scanProgress').value=12;$('#scanStage').textContent='راه‌اندازی AR…';$('#scanPercent').textContent='۱۲٪';closeArSheet();$('#arSettings').hidden=true;$('#arStatus').textContent='در حال شناسایی کف…';resetWideViewControls();const result=await launchingStudio.startAR(message=>$('#arStatus').textContent=message,handleARReport,basic,{light:!basic&&$('#lightEnabled').checked,depth:!basic&&$('#depthEnabled').checked},incomingSession);if(studio!==launchingStudio||!launchingStudio.session)return;if(!result.hasOverlay)$('#overlay').hidden=true;$('#launchProgress').value=3;$('#launchStage').textContent='نشست AR آماده شد؛ کف را اسکن کن.';studio.setDebugVisible(debugEnabled);updateObjects();}catch(error){if(studio!==launchingStudio)return;$('#overlay').hidden=true;$('#arDock').hidden=true;button.hidden=false;$('#launchStage').textContent='ورود به AR ناموفق بود؛ جزئیات را بررسی کن.';const failure=explainXR(error);lastXRErrorReport=JSON.stringify({version:'0.4.1',mode:basic?'basic':'full',stage:failure.stage,name:failure.name,message:failure.detail,secureContext:isSecureContext,webXR:!!navigator.xr,supportCheck:supported,userAgent:navigator.userAgent},null,2);$('#arErrorMessage').textContent=failure.message;$('#arErrorDetails').textContent=lastXRErrorReport;$('#arError').showModal();console.error(error);}finally{arStarting=false;button.disabled=false;}}
+function openRoomPlanner(){
+ if(!studio)return;
+ const layer=studio.architecture;
+ if(!studio.roomPlan&&(!layer?.data.floor?.length)&&!studio.setRoomPlan(defaultRoomPlan())){
+  toast('ساخت اتاق انجام نشد.');return;
+ }
+ closeChidoMenu();closeArSheet();
+ $('#abCalibrationSheet').hidden=true;
+ $('#objectQuick').hidden=true;
+ const offline=!studio.session;
+ $('#overlay').hidden=false;$('#overlay').classList.toggle('room-design-offline',offline);
+ $('#arMiniMap').hidden=false;
+ minimap.setExpanded(true);
+}
+function closeRoomPlanner(){
+ minimap.collapse();
+ $('#overlay').classList.remove('room-design-offline');
+ if(!studio?.session){$('#overlay').hidden=true;$('#arMiniMap').hidden=true;}
+ else $('#arMiniMap').hidden=false;
+}
+function showDesignedRoom3D(){
+ if(!studio)return;
+ closeRoomPlanner();
+ if(studio.session){
+  if(!studio.placed){toast('برای نمای سه‌بعدی ابتدا کف را تثبیت کن.');return;}
+  const result=studio.setWideView('normal',{natural:true});
+  if(result.ok){
+   $('#wideViewMode').value='normal';
+   showWideProjection({horizontal:result.hfov,requestedHorizontal:result.requestedHfov,limited:result.limited});
+   toast('محیط مجازی روی تصویر دوربین قرار گرفت؛ ردیابی موقعیت و چرخش AR فعال است.');
+  }else toast(result.reason);
+ }else{
+  previewEnabled=true;$('#viewport').classList.add('show-preview');
+  $('#preview3D').textContent='بستن پیش‌نمایش';
+  toast('نمای سه‌بعدی آماده است. برای ردیابی واقعی، اسکن AR را شروع کن.');
+ }
+}
+function startScanFromRoom(){
+ if(!studio)return;
+ closeRoomPlanner();
+ if(studio.session){toast(studio.placed?'کف قبلاً تثبیت شده است.':'اسکن کف در جریان است.');return;}
+ void startAR(false);
+}
+function cycleRoomFinish(kind){
+ if(!studio)return;
+ const layer=studio.architecture;
+ if(!layer||!studio.roomPlan){toast('ابتدا ابعاد اتاق را مشخص کن.');return;}
+ const items=kind==='floor'?FLOOR_FINISHES:WALL_FINISHES,key=kind==='floor'?'floorMaterial':'wallMaterial';
+ const current=items.findIndex(item=>item.id===layer.data[key]);
+ const next=items[(current+1)%items.length];
+ layer.data[key]=next.id;
+ layer.refresh();studio.changed();
+ toast((kind==='floor'?'کف: ':'دیوار: ')+next.label);
+}
 function resetWideViewControls(){
  const select=$('#wideViewMode');if(select){select.value='ar';select.disabled=true;}
  const natural=$('#wideNatural');if(natural)natural.disabled=true;
@@ -946,6 +1010,7 @@ function toggleChidoMenu(){
 $('#overlay').addEventListener('beforexrselect',event=>event.preventDefault());
 $('#homeAR').onclick=toggleChidoMenu;
 $('#chidoMenuContinue').onclick=closeChidoMenu;
+$('#chidoMenuDesign').onclick=()=>{closeChidoMenu();openRoomPlanner();};
 $('#chidoMenuSaved').onclick=()=>{closeChidoMenu();if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}showArSheet(activeCloudSetId?'cloud-layouts':'saved');};
 $('#chidoMenuSave').onclick=()=>{closeChidoMenu();if(cloudMembership?.role!=='company_admin'||!activeCloudSetId){toast('ذخیره رسمی فقط برای مدیر شرکت و داخل یک ست فعال است.');return;}if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}showArSheet('save');};
 $('#chidoMenuBlank').onclick=()=>{
