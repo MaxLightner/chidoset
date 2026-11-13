@@ -132,6 +132,16 @@ export class LiveMiniMap{
    const plan={...s.roomPlan,elements:s.roomPlan.elements.filter(e=>e.id!==this.selectedArch)};
    s.setRoomPlan(plan);this.selectedArch=null;this.render();return;
   }
+  if(this.selectedWall&&s.roomPlan){
+   const wall=this.selectedWall;
+   if(!['north','south','west','east'].includes(wall)){this.options.onToast?.('برای حذف، روی خود دیوار بزن نه گوشه.');return;}
+   const next=new Set(s.roomPlan.hiddenWalls||[]);
+   if(!next.has(wall)&&s.roomPlan.elements.some(el=>el.wall===wall)){
+    this.options.onToast?.('ابتدا درها و پنجره‌های این دیوار را حذف کن.');return;
+   }
+   if(next.has(wall))next.delete(wall);else next.add(wall);
+   s.setRoomPlan({...s.roomPlan,hiddenWalls:[...next]});this.render();return;
+  }
   if(s.selected){s.remove();this.render();}
  }
  turn(delta){
@@ -284,7 +294,18 @@ export class LiveMiniMap{
   let architecture='';
   if(plan){
    const x=-plan.w*50,z=-plan.d*50;
-   architecture='<rect x="'+x+'" y="'+z+'" width="'+plan.w*100+'" height="'+plan.d*100+'" fill="#f6f3ed" stroke="#697477" stroke-width="23"/>'+
+   const wallPaths=[
+    {side:'north',d:'M'+x+' '+z+'H'+(x+plan.w*100)},
+    {side:'south',d:'M'+x+' '+(z+plan.d*100)+'H'+(x+plan.w*100)},
+    {side:'west',d:'M'+x+' '+z+'V'+(z+plan.d*100)},
+    {side:'east',d:'M'+(x+plan.w*100)+' '+z+'V'+(z+plan.d*100)}
+   ];
+   const perimeter=wallPaths.map(({side,d})=>{
+    const removed=plan.hiddenWalls?.includes(side),selected=this.selectedWall===side;
+    return '<path d="'+d+'" fill="none" stroke="'+(selected?'#24886b':removed?'#a8b2a9':'#697477')+
+     '" stroke-width="'+(selected?30:removed?9:23)+'" '+(removed?'stroke-dasharray="19 15" ':'')+'pointer-events="none"/>';
+   }).join('');
+   architecture='<rect x="'+x+'" y="'+z+'" width="'+plan.w*100+'" height="'+plan.d*100+'" fill="#f6f3ed"/>'+perimeter+
     '<path d="M'+x+' '+(z-45)+'h'+plan.w*100+'" stroke="#778a83" stroke-width="1.5"/>'+
     '<text x="0" y="'+(z-60)+'" font-size="19" fill="#495b55" text-anchor="middle">'+num(plan.w)+' m</text>'+
     '<text x="'+(x-48)+'" y="0" font-size="19" fill="#495b55" text-anchor="middle" transform="rotate(-90 '+(x-48)+' 0)">'+num(plan.d)+' m</text>';
@@ -317,8 +338,10 @@ export class LiveMiniMap{
   this.angleInput.value=String(angle);this.angleInput.disabled=!selected;
   for(const key of ['[data-map-left]','[data-map-right]'])this.panel.querySelector(key).disabled=!selected;
   const arch=plan?.elements.find(el=>el.id===this.selectedArch);
-  this.panel.querySelector('[data-map-remove]').disabled=!selected&&!arch;
-  this.panel.querySelector('[data-plan-delete]').disabled=!selected&&!arch;
+  this.panel.querySelector('[data-map-remove]').disabled=!selected&&!arch&&!this.selectedWall;
+  const deleteBtn=this.panel.querySelector('[data-plan-delete]');
+  deleteBtn.disabled=!selected&&!arch&&!this.selectedWall;
+  deleteBtn.textContent=this.selectedWall&&plan?.hiddenWalls?.includes(this.selectedWall)?'↶ بازگرداندن دیوار':this.selectedWall?'× حذف دیوار':'× حذف';
   this.panel.querySelector('[data-map-angle-value]').textContent=angle.toLocaleString('fa-IR')+'°';
   this.panel.querySelector('[data-map-selected]').textContent=arch?ROOM_SPECS[arch.type].label+' · '+num(arch.u)+' متر روی دیوار '+arch.wall:
    this.selectedWall?'دیوار '+this.selectedWall+' · برای تغییر ابعاد بکش':
