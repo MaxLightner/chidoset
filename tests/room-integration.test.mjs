@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {LiveMiniMap} from '../minimap.js';
 import {defaultRoomPlan} from '../room-plan.js';
+import * as THREE from '../vendor/three.module.js';
+import {Studio} from '../studio.js';
+import {SpatialState} from '../spatial.js';
 
 const read=name=>readFileSync(new URL('../'+name,import.meta.url),'utf8');
 const pointer=(id,x,y)=>({pointerId:id,clientX:x,clientY:y,preventDefault(){}});
@@ -96,4 +99,47 @@ test('dragging a room wall freezes pan and viewbox at the original world-space z
  assert.ok(editor.viewportLock.width<locked.width,'deliberate user zoom must remain functional');
  editor.fit();
  assert.equal(editor.viewportLock,null,'fit explicitly resets the camera framing');
+});
+
+test('A/B calibration multiplies both architectural room and furniture by the same world-space factor',()=>{
+ const model=new SpatialState(),root=new THREE.Group(),floorFrame=new THREE.Group();
+ floorFrame.add(root);
+ const architecture=new THREE.Group(),furniture=new THREE.Group();
+ root.add(architecture,furniture);
+ const room=new THREE.Mesh(new THREE.BoxGeometry(6.8,.14,5.8));
+ const sofa=new THREE.Mesh(new THREE.BoxGeometry(2.1,.85,.9));
+ architecture.add(room);furniture.add(sofa);
+ const fake=Object.create(Studio.prototype);
+ Object.assign(fake,{
+  session:{},model,root,floorFrame,roomPlan:defaultRoomPlan(),
+  roomPendingPlacement:true,floorNet:{visible:true},
+  flushRoomGeometry(){},changed(){},
+  syncSpatial(){this.model.apply(this.floorFrame,this.root);}
+ });
+ // Four tracked metres between A and B correspond to two real metres.
+ model.calibrate(2);
+ const originalCorrection=model.correction;
+ assert.equal(originalCorrection,2);
+ const ok=fake.placeDesignedRoom();
+ assert.equal(ok,true);
+ assert.equal(model.correction,2,'placing the room must not reset calibrated A/B scale');
+ assert.equal(model.actualLength,2);
+ assert.equal(root.scale.x,2);
+ assert.equal(root.scale.y,2);
+ assert.equal(root.scale.z,2);
+ floorFrame.updateMatrixWorld(true);
+ const worldRoomWidth=new THREE.Box3().setFromObject(room).getSize(new THREE.Vector3()).x;
+ const worldSofaWidth=new THREE.Box3().setFromObject(sofa).getSize(new THREE.Vector3()).x;
+ assert.ok(Math.abs(worldRoomWidth-13.6)<.00001);
+ assert.ok(Math.abs(worldSofaWidth-4.2)<.00001);
+ assert.ok(Math.abs(worldSofaWidth/worldRoomWidth-2.1/6.8)<1e-10,
+  'sofa/room proportions must remain identical in world space');
+ // Recalibration afterward still applies to the entire shared room subtree.
+ model.calibrate(4);
+ fake.syncSpatial();
+ floorFrame.updateMatrixWorld(true);
+ const roomAfter=new THREE.Box3().setFromObject(room).getSize(new THREE.Vector3()).x;
+ const sofaAfter=new THREE.Box3().setFromObject(sofa).getSize(new THREE.Vector3()).x;
+ assert.ok(Math.abs(roomAfter-6.8)<.00001);
+ assert.ok(Math.abs(sofaAfter-2.1)<.00001);
 });
