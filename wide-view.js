@@ -63,6 +63,7 @@ export class WideViewRenderer{
   this.canvas.addEventListener('webglcontextrestored',()=>{this.lost=false;});
   this.mode='ar';this.natural=true;this.width=0;this.height=0;this.active=false;this.lost=false;
   this.horizontalFov=0;this.verticalFov=0;this.limited=false;
+  this.geminiQuality=null;this.geminiQualityPromise=null;this.geminiQualityFailed=false;this.disposed=false;
   this.canvas.addEventListener('webglcontextlost',event=>{
    event.preventDefault();this.lost=true;this.disable();
    this.onFailure?.('مرورگر بافت گرافیکی نمای واید را از دست داد. به AR معمولی برگشتیم.');
@@ -72,6 +73,7 @@ export class WideViewRenderer{
   if(!Object.hasOwn(WIDE_VIEW_FOV,mode)||this.lost)throw Error('Wide View is unavailable');
   this.mode=mode;this.natural=natural;this.active=true;this.canvas.hidden=false;
   this.resize(true);
+  this.ensureGeminiQuality();
  }
  resize(force=false){
   if(!this.active)return;
@@ -82,6 +84,7 @@ export class WideViewRenderer{
    this.width=width;this.height=height;
    this.camera.aspect=width/height;
    this.renderer.setSize(width,height,false);
+   this.geminiQuality?.setSize(width,height);
   }
   const projection=wideViewProjection(this.mode,this.camera.aspect,this.natural);
   const changed=Math.abs(this.horizontalFov-projection.horizontal)>.05||
@@ -93,11 +96,29 @@ export class WideViewRenderer{
   if(changed)this.onProjectionChange?.(projection);
  }
  updatePose(pose){return this.active&&copyTrackedView(this.camera,pose);}
+ ensureGeminiQuality(){
+  if(this.geminiQuality||this.geminiQualityPromise||this.geminiQualityFailed)return;
+  this.geminiQualityPromise=import('./gemini-postfx.js?v=0.17.3').then(({createGeminiPostFX})=>{
+   if(this.disposed)return;
+   this.geminiQuality=createGeminiPostFX(this.renderer,this.scene,this.camera,this.width,this.height);
+  }).catch(error=>{
+   this.geminiQualityFailed=true;
+   console.warn('Chido advanced Gemini post-processing unavailable; PBR renderer retained',error);
+  }).finally(()=>{this.geminiQualityPromise=null;});
+ }
  draw(){
   if(!this.active||this.lost)return;
   this.resize();
+  if(this.geminiQuality){
+   try{this.geminiQuality.render();return;}
+   catch(error){
+    console.warn('Gemini AO/Bloom render failed; falling back to PBR frame',error);
+    try{this.geminiQuality.dispose();}catch{}
+    this.geminiQuality=null;this.geminiQualityFailed=true;
+   }
+  }
   this.renderer.render(this.scene,this.camera);
  }
  disable(){this.active=false;this.mode='ar';this.canvas.hidden=true;}
- dispose(){this.disable();this.renderer.dispose();this.canvas.remove();}
+ dispose(){this.disposed=true;this.disable();try{this.geminiQuality?.dispose();}catch{}this.geminiQuality=null;this.renderer.dispose();this.canvas.remove();}
 }
