@@ -13,7 +13,9 @@ export function mountMaterialPanel(host,studio,mesh,{notify=()=>{}}={}){
   if(!valid())return;
   const slots=modelMaterialSlots(visual());
   if(active>=slots.length)active=-1;
-  host.innerHTML='<div class="material-slot-layout"><nav class="material-slot-buttons" aria-label="اسلات‌های واقعی متریال"></nav><section class="material-slot-options" aria-live="polite"></section></div><p class="sheet-tip material-slot-status" role="status"></p>';
+  const size=mesh.userData.product?.size||[];
+  const measured=size.length===3?'ابعاد واقعی مدل: '+size.map(v=>(v*100).toLocaleString('fa-IR',{maximumFractionDigits:1})).join(' × ')+' سانتی‌متر':'';
+  host.innerHTML='<p class="material-measured-size">'+measured+'</p><div class="material-slot-layout"><nav class="material-slot-buttons" aria-label="اسلات‌های واقعی متریال"></nav><section class="material-slot-options" aria-live="polite"></section></div><p class="sheet-tip material-slot-status" role="status"></p>';
   const buttons=host.querySelector('.material-slot-buttons'),panel=host.querySelector('.material-slot-options'),status=host.querySelector('.material-slot-status');
   const setStatus=message=>{if(valid()&&host.contains(status))status.textContent=message;};
   if(!visual()){buttons.innerHTML='<small>مدل در حال بارگذاری است…</small>';return;}
