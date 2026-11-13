@@ -2,8 +2,8 @@ import {libraryThumbnail,libraryHidden,libraryModel} from './asset-library.js?v=
 import {LiveApprovalHost} from './live-approval-host.js?v=0.16.10';
 import {bindAROrientation} from './ar-orientation.js?v=0.16.9';
 import {liveSession} from './live-approval.js?v=0.16.10';
-import {mountMaterialPanel} from './material-panel.js?v=0.18.4';
-import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.16.23';
+import {mountMaterialPanel} from './material-panel.js?v=0.18.5';
+import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.18.5';
 import {rememberAccount,accountName} from './auth-storage.js';
 import {readRecovery,saveRecovery,clearRecovery,filterPublishedScene} from './app-recovery.js';
 import {runtimeHealth,recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.16.1';
@@ -18,9 +18,9 @@ import {allowedCapacities,layoutOptions,buildLayout,layoutSummary,layoutPreviewS
 import {readDraft,saveDraft,clearDraft,listCustomLayouts,saveCustomLayout,overwriteCustomLayout,removeCustomLayout} from './layout-storage.js?v=0.5.4';
 import {ASSET_CATEGORIES,RUG_SIZE_PRESETS,isLamp,isSofa,isTable,isWallArt,variantsFor,categoryForIndex,SHEEN_CHAIR_SAMPLE} from './asset-metadata.js?v=0.16.16';
 import {savedPlanSvg} from './saved-plan.js?v=0.16.16';
-import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-materials.js?v=0.18.4';
-import {LiveMiniMap} from './minimap.js?v=0.18.4';
-import {defaultRoomPlan} from './room-plan.js?v=0.18.4';
+import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-materials.js?v=0.18.5';
+import {LiveMiniMap} from './minimap.js?v=0.18.5';
+import {defaultRoomPlan} from './room-plan.js?v=0.18.5';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
 import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList} from './cloud-product-registry.js';
 import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,loadDemoLibrary,saveOfficialLayout,saveOfficialColorway,createLiveSession,findActiveLiveSession,getLiveShareLink,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.16.10';
@@ -114,7 +114,7 @@ function heading(step,title,sub,back){return `<div class="page-heading"><div><sp
 async function full(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(!document.documentElement.requestFullscreen){toast('مرورگر شما تمام‌صفحه را پشتیبانی نمی‌کند.');return;}try{await document.documentElement.requestFullscreen();}catch{toast('ورود به تمام‌صفحه ممکن نشد؛ می‌توانی ادامه بدهی.');}}
 $('#fullscreen').onclick=full;document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'خروج از تمام‌صفحه ↙':'تمام‌صفحه ⛶');
 async function support(){try{supported=!!(isSecureContext&&navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar'));}catch{supported=false;}return supported;}
-async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.18.4');Scene=m.Studio;palette=m.palette;}}
+async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.18.5');Scene=m.Studio;palette=m.palette;}}
 let draftTimer=null;
 function currentSceneRecord(){
  if(!studio)return null;
@@ -885,7 +885,7 @@ function openRoomPlanner(){
  studio.setRoomCalibrationGuides(false);
  // Fetch Three.js postprocessing modules while the user is drawing, not after
  // they press the AR placement button. Geometry and textures are shared with Studio.
- void import('./gemini-postfx.js?v=0.18.4').catch(error=>console.warn('Gemini render warmup unavailable',error));
+ void import('./gemini-postfx.js?v=0.18.5').catch(error=>console.warn('Gemini render warmup unavailable',error));
  closeRoomFinishPicker();
  const layer=studio.architecture;
  if(!studio.roomPlan&&(!layer?.data.floor?.length)&&!studio.setRoomPlan(defaultRoomPlan())){
