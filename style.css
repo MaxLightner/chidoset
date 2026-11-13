@@ -1151,3 +1151,87 @@ html:fullscreen{padding:0!important}html:fullscreen body{max-width:none;border-r
  #overlay .ar-material-rail{width:min(169px,calc(100vw - 97px));padding:6px;}
  #overlay .room-center-actions{bottom:calc(75px + env(safe-area-inset-bottom));}
 }
+
+/* v0.18.5 — each real GLB material is one vertical numbered slot. */
+#overlay .ar-material-rail{
+ width:min(810px,calc(100vw - 96px))!important;
+ max-width:calc(100vw - 96px)!important;overflow-x:hidden;
+}
+#overlay .ar-material-rail #arMaterialRailBody{min-width:0;}
+#overlay .ar-material-rail .material-slot-layout{
+ display:grid;grid-template-columns:142px minmax(0,1fr);align-items:stretch;
+ gap:8px;min-width:0;direction:rtl;
+}
+#overlay .ar-material-rail .material-slot-buttons{
+ display:flex;flex-direction:column;gap:5px;max-height:54svh;
+ overflow-y:auto;scrollbar-width:thin;min-width:0;
+}
+#overlay .ar-material-rail .material-slot-buttons button{
+ min-height:60px;display:grid;grid-template-columns:27px minmax(0,1fr);
+ grid-template-rows:22px 21px;gap:1px 3px;
+ padding:7px;border:1px solid #b9c8bc;border-radius:10px;
+ background:#fffdf9;color:#2f5643;text-align:right;
+ align-items:center;direction:rtl;
+}
+#overlay .ar-material-rail .material-slot-buttons button[aria-pressed="true"]{
+ background:#d5eadd;border:2px solid #33775a;
+}
+#overlay .ar-material-rail .material-slot-buttons .role-icon{
+ grid-row:1/3;font-size:24px;display:grid;place-items:center;
+}
+#overlay .ar-material-rail .material-slot-buttons button span:not(.role-icon){
+ font-size:14px;font-weight:700;white-space:nowrap;
+}
+#overlay .ar-material-rail .material-slot-buttons button small{
+ font-size:10px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;
+}
+#overlay .ar-material-rail .material-slot-options{
+ min-width:0;overflow:hidden;display:flex;flex-direction:column;
+ justify-content:center;gap:8px;
+}
+#overlay .ar-material-rail .material-slot-heading{
+ font-size:14px;font-weight:700;color:#295441;
+}
+#overlay .ar-material-rail .material-slot-thumbnails{
+ display:flex;align-items:stretch;gap:7px;overflow-x:auto;
+ padding:6px 3px 9px;scrollbar-width:thin;
+ scroll-snap-type:x proximity;max-width:100%;
+}
+#overlay .ar-material-rail .material-slot-thumbnails button{
+ display:flex;flex-direction:column;align-items:center;
+ flex:0 0 104px;min-width:104px;max-width:104px;gap:5px;
+ border:2px solid #cdd3c9;border-radius:10px;padding:4px;
+ background:#fffdf8;color:#2c503f;font-size:11px;
+ scroll-snap-align:start;
+}
+#overlay .ar-material-rail .material-slot-thumbnails button.selected{
+ border-color:#307e58;background:#dbebdf;
+}
+#overlay .ar-material-rail .material-slot-thumbnails img{
+ width:94px;height:74px;object-fit:cover;border-radius:6px;
+}
+#overlay .ar-material-rail .material-slot-footer{
+ display:flex;flex-wrap:wrap;align-items:center;gap:6px;
+}
+#overlay .ar-material-rail .material-slot-footer button,
+#overlay .ar-material-rail .material-slot-footer label{
+ border:1px solid #aec0b4;border-radius:8px;padding:7px;
+ background:#f0f4ed;color:#315a48;font-size:11px;cursor:pointer;
+}
+#overlay .ar-material-rail .material-slot-footer input[type=file]{
+ display:block;max-width:200px;width:100%;font-size:10px;
+}
+#overlay .ar-material-rail .material-slot-status{
+ margin:5px 0 0;font-size:11px;min-height:18px;
+}
+@media(max-width:650px){
+ #overlay .ar-material-rail{width:calc(100vw - 94px)!important;}
+ #overlay .ar-material-rail .material-slot-layout{grid-template-columns:94px minmax(0,1fr);gap:4px;}
+ #overlay .ar-material-rail .material-slot-buttons button{
+  min-height:51px;grid-template-columns:20px minmax(0,1fr);padding:4px;
+ }
+ #overlay .ar-material-rail .material-slot-buttons .role-icon{font-size:18px;}
+ #overlay .ar-material-rail .material-slot-buttons button span:not(.role-icon){font-size:11px;}
+ #overlay .ar-material-rail .material-slot-thumbnails button{min-width:86px;flex-basis:86px;max-width:86px;}
+ #overlay .ar-material-rail .material-slot-thumbnails img{width:76px;height:68px;}
+}
