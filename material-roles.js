@@ -181,6 +181,13 @@ export async function applyMaterialSlot(visual,index,style){
  const slot=modelMaterialSlots(visual)[index];
  if(!slot)return false;
  if(style&&!validSource(style.source))throw Error('تکسچر انتخاب‌شده معتبر نیست.');
+ // A numbered fabric override must win against legacy asynchronous sofa-fabric
+ // loading. Otherwise the old AO/fabric loader may overwrite the clicked slot.
+ if(style&&slot.role==='fabric'){
+  visual.userData.roleMaterialOverrides??={};
+  visual.userData.roleMaterialOverrides.fabric=true;
+  visual.userData.fabricRequest=(visual.userData.fabricRequest||0)+1;
+ }
  let requests=slotRequests.get(visual);
  if(!requests){requests=new Map();slotRequests.set(visual,requests);}
  const ticket={};requests.set(slot.key,ticket);
