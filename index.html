@@ -80,7 +80,6 @@ if (['chidoset.ir', 'www.chidoset.ir'].includes(location.hostname) && location.p
 </section>
  <nav id="arDock" class="ar-dock" hidden aria-label="ابزارهای چیدمان واقعیت افزوده">
   <button id="arAddTool" aria-label="افزودن مدل">＋ <span>افزودن</span></button>
-  <button id="arMaterialTool" aria-label="رنگ و جنس پارچه">◩ <span>رنگ</span></button>
   <button id="arListTool" aria-label="فهرست اشیا">▤ <span>اشیا</span></button>
   
   <button id="arRulerTool" aria-pressed="false" aria-label="نمایش خط‌کش مستقل">⌗ <span>خط‌کش</span></button>
@@ -90,6 +89,20 @@ if (['chidoset.ir', 'www.chidoset.ir'].includes(location.hostname) && location.p
   <button id="arSettingsTool" aria-label="تنظیمات و خط جهت">⚙ <span>تنظیمات</span></button>
   <button id="arPhotoTool" aria-label="عکس">◎ <span>عکس</span></button>
  </nav>
+ <div id="roomArControls" class="room-ar-controls" hidden aria-label="ابزارهای اتاق در AR">
+   <button type="button" id="arRoomVisibility" aria-pressed="false" title="مخفی‌کردن اتاق و نمایش تصویر دوربین">◫ مخفی‌کردن اتاق</button>
+   <button type="button" id="arMoveCenterTool" aria-pressed="false" title="انتقال مرکز اتاق به نقطه روبه‌روی دوربین">⊕ انتقال مرکز</button>
+ </div>
+ <div id="roomCenterReticle" class="room-center-reticle" hidden aria-hidden="true"><span>＋</span></div>
+ <div id="roomCenterActions" class="room-center-actions" hidden>
+   <strong>مرکز اتاق را با نشانه‌گر تنظیم کن</strong>
+   <button type="button" class="primary" id="roomCenterConfirm">انتقال مرکز به این نقطه</button>
+   <button type="button" id="roomCenterCancel">لغو</button>
+ </div>
+ <aside id="arMaterialRail" class="ar-material-rail" hidden aria-label="تکسچرهای مدل انتخاب‌شده">
+  <div class="ar-material-rail-head"><strong id="arMaterialRailTitle">متریال</strong><button id="arMaterialRailClose" type="button" aria-label="بستن پنل متریال">×</button></div>
+  <div id="arMaterialRailBody"></div>
+ </aside>
  <div id="arSurfaceActions" class="ar-surface-actions" hidden><strong id="arSurfaceName">سطح</strong><button id="arSurfaceMaterial">◩ متریال</button><button id="arSurfaceDelete" class="danger">× حذف</button></div>
  <aside id="arToolSheet" class="ar-tool-sheet" hidden aria-label="ابزار انتخاب شده">
   <div class="ar-sheet-head"><strong id="arSheetTitle">ابزارها</strong><button id="arSheetClose" aria-label="بستن">×</button></div>
