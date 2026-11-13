@@ -81,9 +81,9 @@ export function roomPlanToArchitecture(plan,previous={}){
   windows.push({id:el.id,hostId:'room-'+el.wall,along:el.u,width:s.width,
    height:s.height,sill:s.sill,kind:s.kind,wall:el.wall});
  }
- return {floor,walls,windows,features,
-  floorMaterial:previous.floorMaterial||'ceramic-cream',
-  wallMaterial:previous.wallMaterial||'wall-ivory'};
+ return {floor,walls,windows,features,designedRoom:true,
+  floorMaterial:previous.floorMaterial||'parquet-oak',
+  wallMaterial:previous.wallMaterial||'gemini-wall-warm'};
 }
 
 // Exact rotated-rectangle bounds of existing furniture in a designed room.
