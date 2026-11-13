@@ -109,7 +109,7 @@ if (['chidoset.ir', 'www.chidoset.ir'].includes(location.hostname) && location.p
   <div id="arSheetContent"></div>
  </aside>
  <section id="arMiniMap" class="ar-minimap" hidden aria-label="پلان زنده دو بعدی چیدمان">
-    <div class="map-title"><strong>طراحی اتاق · چیدو</strong><button type="button" data-map-expand aria-label="بازکردن نقشه دوبعدی">▣</button></div>
+    <div class="map-title"><strong>طراحی اتاق · چیدو</strong><button type="button" data-plan-templates title="فهرست تمپلیت‌های چیدمان">▤ تمپلیت‌ها</button><button type="button" data-map-expand aria-label="بازکردن نقشه دوبعدی">▣</button></div>
      <div class="room-design-toolbar" role="toolbar" aria-label="ابزار طراحی اتاق">
       <div class="room-design-row room-design-row-main">
        <label title="طول اتاق به متر"><span>طول اتاق</span><input data-room-width type="number" min="3.5" max="14" step="0.1" value="6.8" inputmode="decimal"><span>متر</span></label>
@@ -139,6 +139,12 @@ if (['chidoset.ir', 'www.chidoset.ir'].includes(location.hostname) && location.p
       <button type="button" hidden data-plan-zoom-in>زوم +</button>
       <button type="button" hidden data-plan-zoom-out>زوم −</button>
      </div>
+     <section id="roomTemplatesPanel" class="room-templates-panel" hidden aria-label="تمپلیت‌های چیدمان">
+      <div class="template-panel-heading"><strong>تمپلیت‌های چیدمان من</strong><button data-close-templates type="button" aria-label="بستن تمپلیت‌ها">×</button></div>
+      <p>هنوز تمپلیتی ذخیره نشده است.</p>
+      <button type="button" disabled title="بعد از تکمیل ذخیره‌سازی مشترک سایت، اپ و پلاگین فعال می‌شود.">＋ ذخیره چیدمان به‌عنوان تمپلیت</button>
+      <small>ذخیره و همگام‌سازی تمپلیت‌ها بعد از طراحی سیستم مشترک سایت، اپلیکیشن و پلاگین فعال خواهد شد.</small>
+     </section>
      <section id="roomFinishPicker" class="room-finish-picker" hidden aria-label="انتخاب رنگ و متریال اتاق"></section>
     <svg id="arMiniSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 250" role="img" aria-label="نمای بالا از تمام مبلمان و خط A B"></svg>
     <div class="map-meta">
