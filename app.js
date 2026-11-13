@@ -273,7 +273,15 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
   <div class="launch-actions"><button id="startAR" class="primary" disabled>در حال بررسی واقعیت افزوده…</button><div class="launch-alternatives"><a href="#spaces">تغییر چیدمان</a><button id="preview3D">پیش‌نمایش سه‌بعدی</button><button id="openRoomPlannerBefore">▣ طراحی اتاق</button></div></div>
  </section>`;
  try{
-  if(!reuseCatalog)await refreshCloudSets();if(version!==routeVersion)return;await loadScene();if(version!==routeVersion)return;
+  if(!reuseCatalog){
+   if(roomDesignOnLaunch){
+    // The CAD workspace must not wait for the showroom network/catalog request.
+    void refreshCloudSets().then(()=>{if(version===routeVersion&&studio)minimap.syncRoomFields();})
+      .catch(error=>{console.warn('Catalog warmup failed',error);if(version===routeVersion)toast('کتابخانه مبلمان فعلاً در دسترس نیست. نقشه همچنان قابل ویرایش است.');});
+   }else await refreshCloudSets();
+  }
+  if(version!==routeVersion)return;
+  await loadScene();if(version!==routeVersion)return;
   $('#launchProgress').value=1;$('#launchStage').textContent='موتور سه‌بعدی آماده شد؛ در حال ساخت ابزارها…';
   const parked=studioCache.take(studioOwner());
   if(parked){studio=parked;studio.resume($('#viewport'));}else studio=new Scene($('#viewport'),updateObjects);studio.ownerKey=studioOwner();studio.onFrame=liveRuntimeFrame;
