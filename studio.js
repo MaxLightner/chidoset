@@ -155,7 +155,7 @@ void main(){
  }
  placeDesignedRoom(){
   if(!this.session||!this.model.locked||!this.roomPlan)return false;
-  this.flushRoomGeometry();this.roomPendingPlacement=false;this.root.visible=true;this.changed();return true;
+  this.flushRoomGeometry();this.roomPendingPlacement=false;this.floorNet.visible=false;this.root.visible=true;this.changed();return true;
  }
  moveRoomFurniture(id,x,z){
   if(!this.roomPlan||!Number.isFinite(x)||!Number.isFinite(z))return false;
@@ -796,7 +796,7 @@ safeObjectMotion(mesh,desired){
   });
  }
  async startAR(status,report,basic=false,options={},incomingSession=null){
-  const session=incomingSession?await incomingSession:await requestARSession(navigator.xr,document.querySelector('#overlay'),basic,options);this.session=session;this.roomPendingPlacement=!!this.roomPlan;this.onStatus=status;this.onReport=report;this.tracking=false;this.frames=0;this.fps=0;this.lastReport=performance.now();this.lastReportState='';this.lastStatus='';this.debugView.start();this.model.locked=false;this.model.heightOffset=0; // Restore saved project calibration; a new empty scene defaults to 1:1.this.anchorRig=new AnchorStabilizer();this.scanMarkers.visible=true;this.scanHits=0;this.scanDrop=null;this.scanDistance=null;this.floorNet.material.uniforms.opacity.value=.85;this.syncSpatial();this.scanner.reset();this.debugView.note('scan started');this.root.visible=false;this.floorNet.visible=false;this.ruler.visible=false;this.scene.background=null;this.status('کف را اسکن کن؛ دوربین را آرام رو به پایین حرکت بده.');
+  const session=incomingSession?await incomingSession:await requestARSession(navigator.xr,document.querySelector('#overlay'),basic,options);this.session=session;this.architecture?.setReflectionAllowed(false);this.roomPendingPlacement=!!this.roomPlan;this.onStatus=status;this.onReport=report;this.tracking=false;this.frames=0;this.fps=0;this.lastReport=performance.now();this.lastReportState='';this.lastStatus='';this.debugView.start();this.model.locked=false;this.model.heightOffset=0; // Restore saved project calibration; a new empty scene defaults to 1:1.this.anchorRig=new AnchorStabilizer();this.scanMarkers.visible=true;this.scanHits=0;this.scanDrop=null;this.scanDistance=null;this.floorNet.material.uniforms.opacity.value=.85;this.syncSpatial();this.scanner.reset();this.debugView.note('scan started');this.root.visible=false;this.floorNet.visible=false;this.ruler.visible=false;this.scene.background=null;this.status('کف را اسکن کن؛ دوربین را آرام رو به پایین حرکت بده.');
   const finish=()=>{if(this.session===session)this.endSession();};this.xrExitBinding?.dispose();this.xrExitBinding=bindXRExit(session,this.renderer.xr,finish,stage=>recordRuntime(stage,this.renderer));let stage='renderer';
   try{await this.renderer.xr.setSession(session);recordRuntime('xr-started',this.renderer);if(this.session!==session)return {hasOverlay:false,ended:true};this.cameraBinding=null;
     if(session.enabledFeatures?.includes('camera-access')&&globalThis.XRWebGLBinding){try{this.cameraBinding=new XRWebGLBinding(session,this.renderer.getContext());}catch(error){console.warn('Camera binding unavailable',error?.name||error);}}
@@ -901,6 +901,7 @@ safeObjectMotion(mesh,desired){
   clean('measure',()=>this.measureTool?.setActive(false));this.setPlacementEnabled(false);
   this.model.origin.set(0,0,0);this.model.anchorYaw=0;this.model.heightOffset=0;this.model.locked=true;this.tracking=true;this.root.visible=true;this.photoMode=false;this.scanMarkers.visible=false;
   clean('spatial',()=>this.syncSpatial());clean('guides',()=>this.setGuides());clean('effects',()=>this.effects.reset());
+  this.architecture?.setReflectionAllowed(true);this.floorNet.visible=false;
   this.scene.background=new THREE.Color('#eeeee3');this.camera.position.set(5.2,4.4,6);this.camera.lookAt(.6,0,-.5);
   clean('gesture',()=>this.cancelGesture());if(!this.exitToHome&&!this.renderer.xr.isPresenting)clean('resize',()=>this.resize());
   const overlay=document.querySelector('#overlay');if(overlay)overlay.hidden=true;
@@ -949,7 +950,7 @@ safeObjectMotion(mesh,desired){
       this.floorNet.material.uniforms.pulse.value=1-eased;
       this.floorNet.material.uniforms.opacity.value=.85-.46*eased;
       this.root.visible=t>.68&&!this.roomPendingPlacement;
-      if(t>=1)this.revealStart=null;
+      if(t>=1){this.revealStart=null;this.floorNet.visible=false;}
      }
      this.updateAnchor(frame,space,time);if(!this.photoMode)this.status('A: جابه‌جایی مرجع و چیدمان · B: تنظیم راستا · اندازه واقعی از پنل A/B');}
    this.debugView.tick(frame,space,this,time);this.effects.update(frame,time,this.fps);this.effects.updateShadowAnchor?.(this.floorFrame.position);this.frames++;if(time-this.lastReport>=750){this.fps=Math.round(this.frames*1000/(time-this.lastReport));this.frames=0;this.lastReport=time;}
