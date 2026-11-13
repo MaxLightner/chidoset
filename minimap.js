@@ -9,7 +9,7 @@ const len=(p,q)=>Math.hypot(p.x-q.x,p.y-q.y);
 export class LiveMiniMap{
  constructor(panel,getStudio,options={}){
   this.panel=panel;this.getStudio=getStudio;this.options=options;this.svg=panel.querySelector('svg');
-  this.expanded=false;this.tool='select';this.selectedArch=null;
+  this.expanded=false;this.tool='select';this.selectedArch=null;this.selectedWall=null;
   this.zoom=1;this.panX=0;this.panZ=0;this.viewport=null;
   this.pointers=new Map();this.gesture=null;
   this.angleInput=panel.querySelector('[data-map-angle]');
@@ -21,7 +21,7 @@ export class LiveMiniMap{
   this.angleInput.oninput=()=>{const studio=getStudio();if(!studio?.selected)return;const next=Number(this.angleInput.value);if(Number.isFinite(next))studio.rotate(next);};
   panel.querySelector('[data-plan-create]').onclick=()=>this.applyDimensions();
   panel.querySelectorAll('[data-plan-tool]').forEach(btn=>btn.onclick=()=>{
-   this.tool=btn.dataset.planTool;this.selectedArch=null;this.updateTools();
+   this.tool=btn.dataset.planTool;this.selectedArch=null;this.selectedWall=null;this.updateTools();
   });
   panel.querySelector('[data-plan-add]').onclick=()=>this.addFurniture();
   panel.querySelector('[data-plan-delete]').onclick=()=>this.removeSelected();
@@ -82,9 +82,10 @@ export class LiveMiniMap{
   const d=Number(this.panel.querySelector('[data-room-depth]').value);
   const next=s.roomPlan?sizedRoomPlan(s.roomPlan,w,d):sizedRoomPlan(defaultRoomPlan(),w,d);
   if(!next||!s.setRoomPlan(next)){this.options.onToast?.('ابعاد معتبر نیست یا پنجره‌ها و درها در ابعاد جدید جا نمی‌شوند.');this.syncRoomFields();return;}
-  this.fit();
+  this.syncRoomFields();this.fit();
+  this.options.onToast?.('ابعاد اتاق اعمال شد: '+num(next.w)+' × '+num(next.d)+' متر');
  }
- closestWall(point,plan){
+ closestWall(point,plan,type=this.tool){
   const walls=[
    {wall:'north',distance:Math.abs(point.z+plan.d/2),u:point.x+plan.w/2},
    {wall:'south',distance:Math.abs(point.z-plan.d/2),u:point.x+plan.w/2},
@@ -93,9 +94,21 @@ export class LiveMiniMap{
   ].sort((a,b)=>a.distance-b.distance);
   const win=walls[0];
   if(win.distance>.8)return null;
-  const spec=ROOM_SPECS[this.tool]||ROOM_SPECS.tv;
+  const spec=ROOM_SPECS[type]||ROOM_SPECS.tv;
   win.u=clamp(Math.round(win.u*10)/10,spec.width/2+.18,wallLength(plan,win.wall)-spec.width/2-.18);
   return win;
+ }
+ nearWall(point,plan){
+  if(!plan)return null;
+  const delta=.20;
+  const edges=[['west',Math.abs(point.x+plan.w/2)],['east',Math.abs(point.x-plan.w/2)],['north',Math.abs(point.z+plan.d/2)],['south',Math.abs(point.z-plan.d/2)]];
+  const nearby=edges.filter(([,d])=>d<=delta).map(([name])=>name);
+  if(!nearby.length)return null;
+  if(nearby.length>1)return 'corner-'+nearby.sort().join('-');
+  const wall=nearby[0];
+  if(['west','east'].includes(wall)&&Math.abs(point.z)>plan.d/2+delta)return null;
+  if(['north','south'].includes(wall)&&Math.abs(point.x)>plan.w/2+delta)return null;
+  return wall;
  }
  point(event){
   const matrix=this.svg.getScreenCTM();if(!matrix)return null;
@@ -148,25 +161,33 @@ export class LiveMiniMap{
    const check=canPlaceRoomElement(plan,candidate);
    if(!check.valid){this.options.onToast?.(check.reason);return;}
    s.setRoomPlan({...plan,elements:[...plan.elements,candidate]});
-   this.selectedArch=candidate.id;
+   this.selectedArch=candidate.id;this.selectedWall=null;this.tool='select';this.updateTools();
    this.render();return;
   }
   const arch=e.target.closest('[data-plan-el]');
   if(arch&&s.roomPlan){
    const el=s.roomPlan.elements.find(x=>x.id===arch.dataset.planEl);
-   if(el){s.select(null);this.selectedArch=el.id;this.gesture={type:'architecture',id:el.id};this.render();return;}
+   if(el){s.select(null);this.selectedArch=el.id;this.selectedWall=null;this.gesture={type:'architecture',id:el.id};this.render();return;}
   }
   const furniture=e.target.closest('[data-object-id]');
   if(furniture){
    const mesh=s.items.find(m=>m.userData.id===Number(furniture.dataset.objectId));
    if(mesh){
-    s.select(mesh);this.selectedArch=null;
+    s.select(mesh);this.selectedArch=null;this.selectedWall=null;
     const pos=s.roomPlan?{x:mesh.position.x,z:mesh.position.z}:s.planPosition(mesh);
     this.gesture={type:'furniture',id:mesh.userData.id,dx:pos.x-point.x,dz:pos.z-point.z};
     this.render();return;
    }
   }
-  s.select(null);this.selectedArch=null;
+  const wall=this.nearWall(point,s.roomPlan);
+  if(wall){
+   s.select(null);this.selectedArch=null;this.selectedWall=wall;
+   const matrix=this.svg.getScreenCTM(),scale=1/(Math.max(.001,Math.abs(matrix?.a||1))*100);
+   this.gesture={type:'wall',wall,startX:e.clientX,startY:e.clientY,
+    startW:s.roomPlan.w,startD:s.roomPlan.d,metersPerPixel:scale};
+   this.render();return;
+  }
+  s.select(null);this.selectedArch=null;this.selectedWall=null;
   this.gesture={type:'pan',x:e.clientX,y:e.clientY,panX:this.panX,panZ:this.panZ,
     sx:this.viewport?.width||6,sz:this.viewport?.height||5,
     pixelWidth:Math.max(1,this.svg.clientWidth),pixelHeight:Math.max(1,this.svg.clientHeight)};
@@ -194,7 +215,17 @@ export class LiveMiniMap{
   }
   if(this.pointers.size!==1)return;
   const p=this.point(e);if(!p)return;
-  if(g.type==='furniture'){
+  if(g.type==='wall'&&s.roomPlan){
+   const dx=(e.clientX-g.startX)*g.metersPerPixel,dz=(e.clientY-g.startY)*g.metersPerPixel;
+   let w=g.startW,d=g.startD;
+   if(g.wall.includes('east'))w+=dx;
+   if(g.wall.includes('west'))w-=dx;
+   if(g.wall.includes('south'))d+=dz;
+   if(g.wall.includes('north'))d-=dz;
+   w=clamp(Math.round(w*10)/10,3.5,14);d=clamp(Math.round(d*10)/10,3.5,14);
+   const next=sizedRoomPlan(s.roomPlan,w,d);
+   if(next&&s.setRoomPlan(next)){this.syncRoomFields();this.render();}
+  }else if(g.type==='furniture'){
    const mesh=s.items.find(m=>m.userData.id===g.id);
    if(!mesh)return;
    let x=p.x+g.dx,z=p.z+g.dz;
@@ -203,14 +234,12 @@ export class LiveMiniMap{
     x=clamp(x,-s.roomPlan.w/2+halfX,s.roomPlan.w/2-halfX);
     z=clamp(z,-s.roomPlan.d/2+halfZ,s.roomPlan.d/2-halfZ);
    }
-   if(s.roomPlan){
-    const m=s.model,c=Math.cos(m.layoutYaw),sn=Math.sin(m.layoutYaw),k=m.correction;
-    s.moveObjectFromPlan(g.id,m.layoutOffset.x+(x*c+z*sn)*k,m.layoutOffset.z+(-x*sn+z*c)*k);
-   }else s.moveObjectFromPlan(g.id,x,z);
+   if(s.roomPlan)s.moveRoomFurniture(g.id,x,z);
+   else s.moveObjectFromPlan(g.id,x,z);
   }else if(g.type==='architecture'&&s.roomPlan){
    const el=s.roomPlan.elements.find(x=>x.id===g.id);
    if(!el)return;
-   const snap=this.closestWall(p,s.roomPlan);if(!snap)return;
+   const snap=this.closestWall(p,s.roomPlan,el.type);if(!snap)return;
    const candidate={...el,wall:snap.wall,u:snap.u};
    if(canPlaceRoomElement(s.roomPlan,candidate).valid){
     s.setRoomPlan({...s.roomPlan,elements:s.roomPlan.elements.map(x=>x.id===el.id?candidate:x)});
@@ -287,8 +316,12 @@ export class LiveMiniMap{
   const angle=selected?Math.round(Math.atan2(Math.sin(selected.rotation.y),Math.cos(selected.rotation.y))*180/Math.PI):0;
   this.angleInput.value=String(angle);this.angleInput.disabled=!selected;
   for(const key of ['[data-map-left]','[data-map-right]'])this.panel.querySelector(key).disabled=!selected;
-  this.panel.querySelector('[data-map-remove]').disabled=!selected;
+  const arch=plan?.elements.find(el=>el.id===this.selectedArch);
+  this.panel.querySelector('[data-map-remove]').disabled=!selected&&!arch;
+  this.panel.querySelector('[data-plan-delete]').disabled=!selected&&!arch;
   this.panel.querySelector('[data-map-angle-value]').textContent=angle.toLocaleString('fa-IR')+'°';
-  this.panel.querySelector('[data-map-selected]').textContent=selected?selected.userData.product.name:'انتخاب مدل · جابه‌جایی با یک انگشت، چرخش با دو انگشت';
+  this.panel.querySelector('[data-map-selected]').textContent=arch?ROOM_SPECS[arch.type].label+' · '+num(arch.u)+' متر روی دیوار '+arch.wall:
+   this.selectedWall?'دیوار '+this.selectedWall+' · برای تغییر ابعاد بکش':
+   selected?selected.userData.product.name:'یک آیتم یا دیوار را انتخاب و جابه‌جا کن؛ چرخش مبل با دو انگشت';
  }
 }
