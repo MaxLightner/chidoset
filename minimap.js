@@ -20,6 +20,8 @@ export class LiveMiniMap{
   panel.querySelector('[data-map-right]').onclick=()=>{const studio=getStudio();if(studio?.selected)studio.rotate(studio.selected.rotation.y*180/Math.PI+45);};
   this.angleInput.oninput=()=>{const studio=getStudio();if(!studio?.selected)return;const next=Number(this.angleInput.value);if(Number.isFinite(next))studio.rotate(next);};
   panel.querySelector('[data-plan-create]').onclick=()=>this.applyDimensions();
+  const toolSelect=panel.querySelector('[data-plan-tool-select]');
+  if(toolSelect)toolSelect.onchange=()=>{this.tool=toolSelect.value;this.selectedArch=null;this.selectedWall=null;this.updateTools();};
   panel.querySelectorAll('[data-plan-tool]').forEach(btn=>btn.onclick=()=>{
    this.tool=btn.dataset.planTool;this.selectedArch=null;this.selectedWall=null;this.updateTools();
   });
@@ -47,6 +49,7 @@ export class LiveMiniMap{
  }
  updateTools(){
   this.panel.querySelectorAll('[data-plan-tool]').forEach(b=>b.classList.toggle('active',b.dataset.planTool===this.tool));
+  const menu=this.panel.querySelector('[data-plan-tool-select]');if(menu)menu.value=this.tool;
  }
  syncRoomFields(){
   const s=this.getStudio(),p=s?.roomPlan;
@@ -97,6 +100,27 @@ export class LiveMiniMap{
   const spec=ROOM_SPECS[type]||ROOM_SPECS.tv;
   win.u=clamp(Math.round(win.u*10)/10,spec.width/2+.18,wallLength(plan,win.wall)-spec.width/2-.18);
   return win;
+ }
+ roomElementAt(point,plan){
+  if(!plan)return null;
+  // Larger touch zone around an opening. This wins over both wall resize and pan.
+  let closest=null,min=Infinity;
+  for(const el of plan.elements){
+   const anchor=wallAnchor(plan,el.wall,el.u),spec=ROOM_SPECS[el.type];if(!spec)continue;
+   const vertical=el.wall==='east'||el.wall==='west';
+   const across=vertical?Math.abs(point.x-anchor.x):Math.abs(point.z-anchor.z);
+   const along=vertical?Math.abs(point.z-anchor.z):Math.abs(point.x-anchor.x);
+   if(across>.46||along>spec.width/2+.20)continue;
+   const score=across+Math.max(0,along-spec.width/2)*2;
+   if(score<min){closest=el;min=score;}
+  }
+  return closest;
+ }
+ nearRoomEdge(point,plan){
+  if(!plan)return false;
+  const d=.72,hw=plan.w/2,hd=plan.d/2;
+  if(Math.abs(point.x)>hw+d||Math.abs(point.z)>hd+d)return false;
+  return Math.min(Math.abs(Math.abs(point.x)-hw),Math.abs(Math.abs(point.z)-hd))<d;
  }
  nearWall(point,plan){
   if(!plan)return null;
@@ -175,8 +199,8 @@ export class LiveMiniMap{
    this.render();return;
   }
   const arch=e.target.closest('[data-plan-el]');
-  if(arch&&s.roomPlan){
-   const el=s.roomPlan.elements.find(x=>x.id===arch.dataset.planEl);
+  if(s.roomPlan){
+   const el=(arch?s.roomPlan.elements.find(x=>x.id===arch.dataset.planEl):null)||this.roomElementAt(point,s.roomPlan);
    if(el){s.select(null);this.selectedArch=el.id;this.selectedWall=null;this.gesture={type:'architecture',id:el.id};this.render();return;}
   }
   const furniture=e.target.closest('[data-object-id]');
@@ -198,6 +222,7 @@ export class LiveMiniMap{
    this.render();return;
   }
   s.select(null);this.selectedArch=null;this.selectedWall=null;
+  if(this.nearRoomEdge(point,s.roomPlan)){this.gesture=null;this.render();return;}
   this.gesture={type:'pan',x:e.clientX,y:e.clientY,panX:this.panX,panZ:this.panZ,
     sx:this.viewport?.width||6,sz:this.viewport?.height||5,
     pixelWidth:Math.max(1,this.svg.clientWidth),pixelHeight:Math.max(1,this.svg.clientHeight)};
