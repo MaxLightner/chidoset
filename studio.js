@@ -106,7 +106,7 @@ void main(){
   this.artFloorHandle=new THREE.Group();this.artFloorHandle.visible=false;this.root.add(this.artFloorHandle);
   const bar=new THREE.Mesh(new THREE.BoxGeometry(.62,.016,.05),new THREE.MeshBasicMaterial({color:0x55b39c,depthTest:false}));bar.position.y=.035;bar.renderOrder=20;this.artFloorHandle.add(bar);
   const link=new THREE.Mesh(new THREE.CylinderGeometry(.005,.005,1,6),new THREE.MeshBasicMaterial({color:0x55b39c,transparent:true,opacity:.7,depthTest:false}));link.name='art-floor-link';link.renderOrder=20;this.artFloorHandle.add(link);
-  this.ray=new THREE.Raycaster();this.pointer=new THREE.Vector2();this.events=new AbortController();const opts={signal:this.events.signal};
+  this.ray=new THREE.Raycaster();this.ray.layers.enable(1);this.pointer=new THREE.Vector2();this.events=new AbortController();const opts={signal:this.events.signal};
   this.attachInput(host,opts);const surface=document.querySelector('#arSurface');if(surface)this.attachInput(surface,opts);
   this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(host);this.syncSpatial();this.resize();this.renderer.setAnimationLoop((time,frame)=>this.frame(time,frame));
  }
