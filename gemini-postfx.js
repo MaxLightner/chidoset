@@ -53,7 +53,7 @@ function installWallOnlyGTAO(renderer,scene,camera,gtaoPass,width,height){
   minFilter:THREE.NearestFilter,magFilter:THREE.NearestFilter,
   depthBuffer:true,stencilBuffer:false
  });
- const depthMaterial=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking});
+ const depthMaterial=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,side:THREE.DoubleSide});
  const blend=gtaoPass.blendMaterial;
  blend.uniforms.tSceneDepth={value:gtaoPass.depthTexture};
  blend.uniforms.tWallDepth={value:target.texture};
@@ -113,6 +113,7 @@ export function createGeminiPostFX(renderer,scene,camera,width,height,{scale=1}=
  try{
   gtaoPass=new GTAOPass(scene,camera,width,height);
   gtaoPass.output=GTAOPass.OUTPUT.Default;
+  gtaoPass.normalMaterial.side=THREE.DoubleSide; // room camera sees the interior wall faces
   gtaoPass.blendIntensity=.84;
   // Longer-radius GTAO catches architectural corners and furniture nearing
   // the wall, but never darkens upholstery or produces shadows on the floor.
