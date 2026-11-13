@@ -162,10 +162,9 @@ void main(){
  }
  placeDesignedRoom(){
   if(!this.session||!this.model.locked||!this.roomPlan)return false;
-  // The model and architecture both use metre units, with no inherited A/B
-  // calibration multiplier or old layout offset in a newly placed AR room.
-  if(this.model.correction!==1)this.model.resetCalibration();
-  this.model.layoutOffset.set(0,0,0);
+  // Preserve A/B calibration: room architecture and every furniture mesh
+  // share this.root, whose uniform scale is the measured correction factor.
+  // Never reset calibration or shift the layout when inserting the room.
   this.syncSpatial();
   this.flushRoomGeometry();this.roomPendingPlacement=false;this.floorNet.visible=false;this.root.visible=true;this.changed();return true;
  }
