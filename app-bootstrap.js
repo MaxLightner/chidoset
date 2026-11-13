@@ -7,7 +7,7 @@ function loadApplication(){
   const message=host.querySelector('[data-app-loading] p');
   if(message)message.textContent='بارگذاری طول کشیده؛ اتصال اینترنت را بررسی کن. هنوز در حال تلاش هستیم…';
  },10000);
- import('./app.js?v=0.18.2').catch(()=>{
+ import('./app.js?v=0.18.3').catch(()=>{
   host.innerHTML='<section class="page" role="alert"><h1>چیدو باز نشد</h1><p>دریافت فایل‌های اپلیکیشن کامل نشد. اتصال اینترنت را بررسی کن و دوباره تلاش کن.</p><button type="button" class="primary" data-retry-app>تلاش دوباره</button> <a href="website/">بازگشت به سایت</a></section>';
   host.querySelector('[data-retry-app]').onclick=()=>location.reload();
  }).finally(()=>clearTimeout(loadingTimer));
