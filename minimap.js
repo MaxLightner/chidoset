@@ -1,7 +1,7 @@
 // Full-screen room editor built on Chido's existing Studio and live furniture scene.
 // The 2D canvas only edits spatial/architecture data. No second 3D engine.
 import * as THREE from './vendor/three.module.js';
-import {ROOM_SPECS,defaultRoomPlan,canPlaceRoomElement,sizedRoomPlan,wallLength,wallAnchor} from './room-plan.js?v=0.18.5';
+import {ROOM_SPECS,defaultRoomPlan,canPlaceRoomElement,sizedRoomPlan,wallLength,wallAnchor} from './room-plan.js?v=0.18.7';
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const num=n=>Number(n).toFixed(2);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
