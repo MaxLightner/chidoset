@@ -71,8 +71,8 @@ test('Gemini tone mapping stays Reinhard and retains restrained punch',()=>{
   assert.match(src,/toneMapping=THREE\.ReinhardToneMapping/);
   assert.match(src,/toneMappingExposure=1\.45/);
  }
- assert.match(fx,/uContrast:\s*\{ value:\s*1\.12/);
- assert.match(fx,/uVibrance:\s*\{ value:\s*0\.16/);
+ assert.match(fx,/uContrast:\s*\{ value:\s*1\.07/);
+ assert.match(fx,/uVibrance:\s*\{ value:\s*0\.05/);
 });
 
 test('room CAD exposes a full architecture row with touch-sized tablet controls',()=>{
