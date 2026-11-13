@@ -139,6 +139,12 @@ void main(){
  setRoomPlan(data){
   const next=normalizeRoomPlan(data);if(!next)return false;
   this.roomPlan=next;
+  // Authored rooms do not show the legacy pulsing selection box, emissive rim or edge overlay.
+  for(const item of this.items){
+   item.userData.edges.visible=false;item.userData.edges.material.opacity=0;
+   if(item.userData.selectionHalo)item.userData.selectionHalo.visible=false;
+   if(item.material?.emissive&&!isLamp(item.userData.index))item.material.emissiveIntensity=0;
+  }
   if(this.session){this.roomPendingPlacement=true;this.root.visible=false;}
   // Keep CAD dragging responsive; build the single shared 3D scene after edits settle.
   this.roomGeometryDirty=true;
@@ -156,6 +162,11 @@ void main(){
  }
  placeDesignedRoom(){
   if(!this.session||!this.model.locked||!this.roomPlan)return false;
+  // The model and architecture both use metre units, with no inherited A/B
+  // calibration multiplier or old layout offset in a newly placed AR room.
+  if(this.model.correction!==1)this.model.resetCalibration();
+  this.model.layoutOffset.set(0,0,0);
+  this.syncSpatial();
   this.flushRoomGeometry();this.roomPendingPlacement=false;this.floorNet.visible=false;this.root.visible=true;this.changed();return true;
  }
  moveRoomFurniture(id,x,z){
@@ -203,7 +214,8 @@ void main(){
   const baseProduct=cloud?{name:cloud.name,size:cloud.size_m,price:0}:sheenChair?SHEEN_CHAIR_SAMPLE:{...CATALOG[index],name:getCloudProductInfo(index)?.name||CATALOG[index].name},product=options.size?{...baseProduct,size:options.size}:baseProduct,id=++this.serial,[w,h,d]=product.size;
   const color=palette[index]||'#c6b7a3';const mesh=isImportedModel(index)?createImportedModel(index,product.size,options.fabric||'dark'):index<4?createFurniture(index,product.size,color,options.seats):createDecor(index,product.size,color);
   const edges=new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry),new THREE.LineBasicMaterial({color:0x9f927f,transparent:true,opacity:.15,depthWrite:false}));mesh.add(edges);
-  const dimensions=`${product.name} · ${product.size.map(v=>fa(v*100)).join(' × ')} cm`;const label=this.makeLabel(dimensions);label.position.y=h/2+.18;label.scale.set(1.5,.22,1);mesh.add(label);
+  // Do not build furniture dimension sprites: the 3D and tracked AR rooms remain visually clean.
+  const label=null;
   mesh.userData={...mesh.userData,id,index,height:h,price:product.price,product,edges,label,fabric:options.fabric||'dark',materialStyles:copyMaterialStyles(options.materialStyles),
   asset:assetMetadata(index,product.size),seats:options.seats||(index===0?3:1),cushionPreset:'none',
   collisionBox:new THREE.Box3(new THREE.Vector3(-w/2,-h/2,-d/2),new THREE.Vector3(w/2,h/2,d/2))};
@@ -274,12 +286,17 @@ void main(){
  }
  select(mesh){if(mesh)this.architecture?.clearSurface();this.selected=mesh;this.updateArtFloorHandle();
   for(const m of this.items){
-   m.userData.edges.material.color.set(m===mesh?'#d3a66e':'#8d7e6d');
-   m.userData.edges.material.opacity=m===mesh?.48:.13;
-   if(m.material?.emissive&&!isLamp(m.userData.index)){m.material.emissive.set(m===mesh?'#b79363':'#000000');m.material.emissiveIntensity=m===mesh?.17:0;}
-   if(m.userData.selectionHalo)m.userData.selectionHalo.visible=m===mesh;
+   const highlighted=m===mesh&&!this.roomPlan;
+   m.userData.edges.material.color.set(highlighted?'#d3a66e':'#8d7e6d');
+   m.userData.edges.material.opacity=highlighted?.48:0;
+   m.userData.edges.visible=highlighted&&!this.photoMode;
+   if(m.material?.emissive&&!isLamp(m.userData.index)){
+    m.material.emissive.set(highlighted?'#b79363':'#000000');
+    m.material.emissiveIntensity=highlighted?.17:0;
+   }
+   if(m.userData.selectionHalo)m.userData.selectionHalo.visible=highlighted&&!this.photoMode;
   }
-  if(mesh&&!mesh.userData.selectionHalo){
+  if(mesh&&!this.roomPlan&&!mesh.userData.selectionHalo){
    const [w,h,d]=mesh.userData.product.size;
    const geometry=new THREE.EdgesGeometry(new THREE.BoxGeometry(w+.08,Math.max(.04,h)+.09,d+.08));
    const halo=new THREE.LineSegments(geometry,new THREE.LineBasicMaterial({
@@ -782,7 +799,7 @@ safeObjectMotion(mesh,desired){
  }
  up(e,target){const wasMoving=['object','twist'].includes(this.gesture?.kind);this.points.delete(e.pointerId);if(this.points.size===1&&this.selected&&!this.moveLayoutMode){const remaining=[...this.points.values()][0],p=this.pointOnFloor(remaining,target);this.gesture=p&&!isWallArt(this.selected.userData.index)?{kind:'object',offset:this.selected.position.clone().sub(this.rootLocal(p))}:null;}else if(!this.points.size){if(wasMoving)this.settleObjectsAfterDrag();this.setDragOcclusion(false);this.gesture=null;this.changed();}}
  cancelGesture(){const wasMoving=['object','twist'].includes(this.gesture?.kind);this.points.clear();if(wasMoving)this.settleObjectsAfterDrag();this.setDragOcclusion(false);this.gesture=null;}
- setGuides(){const show=!this.photoMode;if(this.placementMarker)this.placementMarker.visible=show&&this.model.locked&&this.placementEnabled;if(this.measureTool)this.measureTool.group.visible=show&&this.model.locked&&this.measureTool.active;this.updateArtFloorHandle();this.floorNet.visible=show&&(this.model.locked||this.scanner.ready);this.ruler.visible=show&&this.model.locked;for(const m of this.items){m.userData.edges.visible=show&&m===this.selected;m.userData.label.visible=show;if(m.userData.selectionHalo)m.userData.selectionHalo.visible=show&&m===this.selected;}}
+ setGuides(){const show=!this.photoMode;if(this.placementMarker)this.placementMarker.visible=show&&this.model.locked&&this.placementEnabled;if(this.measureTool)this.measureTool.group.visible=show&&this.model.locked&&this.measureTool.active;this.updateArtFloorHandle();this.floorNet.visible=show&&(this.model.locked||this.scanner.ready)&&!(this.roomPlan&&this.model.locked);this.ruler.visible=show&&this.model.locked&&!this.roomPlan;for(const m of this.items){m.userData.edges.visible=show&&!this.roomPlan&&m===this.selected;if(m.userData.label)m.userData.label.visible=false;if(m.userData.selectionHalo)m.userData.selectionHalo.visible=show&&!this.roomPlan&&m===this.selected;}}
  setPhotoMode(enabled){if(enabled&&this.wideMode!=='ar'){this.setWideView('ar');this.onWideViewReset?.();}this.cancelGesture();this.photoMode=enabled;this.setGuides();this.changed();}
  status(message){if(this.lastStatus!==message){this.lastStatus=message;this.onStatus?.(message);}}
  dropAnchor({release=true}={}){this.anchorGeneration++;if(release)for(const item of this.anchorNodes)try{item.anchor.delete();}catch{}this.anchorNodes=[];this.anchorCandidates=[];this.anchorActive=false;this.anchorRig=new AnchorStabilizer();this.needsAnchor=false;this.anchorPending=false;this.anchorState='مختصات ثابت';}
@@ -960,7 +977,7 @@ safeObjectMotion(mesh,desired){
   }
   if(this.session&&this.model.locked){
    this.updatePlacementMarker(time);
-   if(this.selected?.userData.edges){
+   if(!this.roomPlan&&this.selected?.userData.edges){
     this.selected.userData.edges.material.opacity=.38+.10*Math.sin(time*.0035);
     if(this.selected.userData.selectionHalo)this.selected.userData.selectionHalo.material.opacity=.36+.14*Math.sin(time*.0028);
     if(this.selected.material?.emissive&&!isLamp(this.selected.userData.index))this.selected.material.emissiveIntensity=.13+.07*Math.sin(time*.0026);
@@ -980,7 +997,7 @@ safeObjectMotion(mesh,desired){
   }
  }
  scaleLabels(){if(this.photoMode)return;const camera=this.activeCamera(),eye=camera.getWorldPosition(new THREE.Vector3()),height=this.session?document.querySelector('#arSurface').clientHeight:this.host.clientHeight;
-  const labels=[this.rulerLabel,this.handleA.children[0],this.handleB.children[0],...this.items.map(m=>m.userData.label)];
+  const labels=[this.rulerLabel,this.handleA.children[0],this.handleB.children[0]];
   for(const label of labels){if(!label.visible||!label.material.map)continue;const distance=eye.distanceTo(label.getWorldPosition(new THREE.Vector3())),pixels=label===this.selected?.userData.label?34:label===this.rulerLabel?32:label.parent===this.handleA||label.parent===this.handleB?34:24;
    const parentScale=label.parent.getWorldScale(new THREE.Vector3()),worldHeight=2*distance*pixels/(Math.max(height,1)*camera.projectionMatrix.elements[5]);const image=label.material.map.image;label.scale.set(worldHeight*(image.width/image.height)/parentScale.x,worldHeight/parentScale.y,1);
   }
