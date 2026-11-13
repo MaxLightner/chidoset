@@ -318,7 +318,7 @@ export class ArchitectureLayer {
    cove.dispose();plaster.dispose();
    // Ambient daylight makes window-free rooms readable without artificial
    // overhead or point-light hot spots on the parquet.
-   const daylight=new THREE.HemisphereLight(0xe8f3ff,0xc2b6a2,1.45);
+   const daylight=new THREE.HemisphereLight(0xe8f3ff,0xc2b6a2,1.2);
    this.group.add(daylight);
    // Each actual glazed opening is a daylight source. Directions point from
    // outdoors through the opening into the room, rather than from the ceiling.
@@ -329,7 +329,7 @@ export class ArchitectureLayer {
     const dx=(wall.x2-wall.x1)/length,dz=(wall.z2-wall.z1)/length;
     const x=wall.x1+dx*window.along,z=wall.z1+dz*window.along;
     const inward={'north':[0,1],'south':[0,-1],'west':[1,0],'east':[-1,0]}[window.wall]||[0,1];
-    const sun=new THREE.DirectionalLight(0xeef6ff,Math.min(3.5,2.1+window.width*.4));
+    const sun=new THREE.DirectionalLight(0xeef6ff,Math.min(6.5,4.0+window.width*.65));
     const atY=Math.min(height-.2,window.sill+window.height*.62);
     sun.position.set(x-inward[0]*1.3,atY+.65,z-inward[1]*1.3);
     sun.target.position.set(x+inward[0]*Math.min(2.4,width*.5),1.0,z+inward[1]*Math.min(2.4,depth*.5));
