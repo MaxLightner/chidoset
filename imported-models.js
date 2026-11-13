@@ -129,7 +129,19 @@ export function normalizeBakedAO(material,hasColorUV){
  installColorAO(pbr,mask);
  material.dispose();return pbr;
 }
-function configureMeshes(model,index){
+// Both Tripo Prep's baked RGBA plane and legacy shadow masks use this alpha offset.
+export function applyBakedShadowAlpha(material){
+ if(!material)return;
+ material.depthWrite=false;
+ material.toneMapped=false;
+ material.transparent=true;
+ material.onBeforeCompile=shader=>{
+  shader.fragmentShader=shader.fragmentShader.replace('#include <alphamap_fragment>','#include <alphamap_fragment>\ndiffuseColor.a = clamp(diffuseColor.a - 0.5, 0.0, 1.0);');
+ };
+ material.customProgramCacheKey=()=> 'chido-baked-shadow-alpha-minus-0.5';
+ material.needsUpdate=true;
+}
+export function configureMeshes(model,index){
  model.traverse(object=>{
   if(!object.isMesh)return;
   // The original material maps, transmission, alpha and PBR values remain intact.
@@ -139,7 +151,9 @@ function configureMeshes(model,index){
   else if(object.material)object.material=object.material.clone();
   if(object.userData.tripo_prep_collision){object.visible=false;object.userData.chidoCollider=true;return;}
   if(object.userData.tripo_prep_contact_shadow){
-   object.userData.chidoBakedShadow=true;object.material.depthWrite=false;object.material.toneMapped=false;object.renderOrder=-1;return;
+   object.userData.chidoBakedShadow=true;
+   for(const material of Array.isArray(object.material)?object.material:[object.material])applyBakedShadowAlpha(material);
+   object.renderOrder=-1;return;
   }
   let uvOwner=object;while(uvOwner&&!uvOwner.userData.chido_color_uv_v1)uvOwner=uvOwner.parent;
   const colorUV=uvOwner?.userData.chido_color_uv_v1;
@@ -159,10 +173,7 @@ function configureMeshes(model,index){
    object.material=new THREE.MeshBasicMaterial({name:'Chido Baked Shadow',color:0x000000,
     alphaMap:mask,transparent:true,opacity:1,depthWrite:false,
     side:THREE.DoubleSide,toneMapped:false});
-   object.material.onBeforeCompile=shader=>{
-    shader.fragmentShader=shader.fragmentShader.replace('#include <alphamap_fragment>','#include <alphamap_fragment>\ndiffuseColor.a = clamp(diffuseColor.a - 0.5, 0.0, 1.0);');
-   };
-   object.material.customProgramCacheKey=()=> 'chido-baked-shadow-alpha-minus-0.5';
+   applyBakedShadowAlpha(object.material);
    previous?.dispose();
    object.userData.chidoBakedShadow=true;
    object.castShadow=false;object.receiveShadow=false;
