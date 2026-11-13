@@ -32,8 +32,8 @@ export function installColorAO(material,texture){
  material.onBeforeCompile=shader=>{
   baseCompile?.call(material,shader);
   shader.uniforms.chidoColorAO=state.uniform;
-  shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\\nattribute vec2 chidoAoUv; varying vec2 vChidoAoUv;').replace('#include <uv_vertex>','#include <uv_vertex>\\nvChidoAoUv=chidoAoUv;');
-  shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\\nuniform sampler2D chidoColorAO; varying vec2 vChidoAoUv;').replace('#include <map_fragment>','#include <map_fragment>\\ndiffuseColor.rgb *= clamp(texture2D(chidoColorAO,vChidoAoUv).r + 0.2, 0.0, 1.0);');
+  shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nattribute vec2 chidoAoUv; varying vec2 vChidoAoUv;').replace('#include <uv_vertex>','#include <uv_vertex>\nvChidoAoUv=chidoAoUv;');
+  shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D chidoColorAO; varying vec2 vChidoAoUv;').replace('#include <map_fragment>','#include <map_fragment>\ndiffuseColor.rgb *= clamp(texture2D(chidoColorAO,vChidoAoUv).r + 0.2, 0.0, 1.0);');
  };
  material.customProgramCacheKey=()=>baseCacheKey()+'-chido-color-ao-v1';
  material.needsUpdate=true;
