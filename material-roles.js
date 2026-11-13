@@ -149,3 +149,77 @@ export async function materialImage(file){
  if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>12*1024*1024)throw Error('یک عکس JPG، WebP یا PNG با حجم کمتر از ۱۲ مگابایت انتخاب کن.');
  const image=await createImageBitmap(file);try{const c=document.createElement('canvas');let data;for(const side of [512,256,128]){const scale=Math.min(1,side/Math.max(image.width,image.height));c.width=Math.max(1,Math.round(image.width*scale));c.height=Math.max(1,Math.round(image.height*scale));const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(image,0,0,c.width,c.height);data=c.toDataURL('image/jpeg',.76);if(data.length<=90000)return {source:data};}throw Error('سبک‌سازی تصویر ممکن نشد.');}finally{image.close();}
 }
+
+
+// Exact GLB material slots, independent of high-level Fabric/Wood/Metal roles.
+// A named material stays one slot across multiple child meshes; different
+// Blender material names remain independent even when their roles match.
+export function modelMaterialSlots(visual){
+ const slots=[],byKey=new Map();
+ visual?.traverse(node=>{
+  if(!node.isMesh||!node.geometry?.attributes?.uv||node.userData?.chidoCollider||
+    node.userData?.collisionProxy||node.userData?.chidoBakedShadow)return;
+  const materials=Array.isArray(node.material)?node.material:[node.material];
+  materials.forEach((material,index)=>{
+   if(!material||(!material.isMeshStandardMaterial&&!material.isMeshPhysicalMaterial&&!(material.isMeshBasicMaterial&&material.userData.chido_baked_lighting_v1)))return;
+   const name=String(material.name||'').trim();
+   const key=name?'name:'+name:'unnamed:'+(material.map?.uuid||material.uuid);
+   let slot=byKey.get(key);
+   if(!slot){
+    const inferred=materialRole(material.userData?.tripo_prep_role||name);
+    slot={id:slots.length,key,name:name||'متریال '+(slots.length+1),
+      role:inferred&&MATERIAL_ROLES.includes(inferred)?inferred:visual?.userData.legacyFabric?'fabric':'wood',entries:[]};
+    slots.push(slot);byKey.set(key,slot);
+   }
+   slot.entries.push({node,material,index});
+  });
+ });
+ return slots;
+}
+const slotOriginals=new WeakMap(),slotRequests=new WeakMap();
+export async function applyMaterialSlot(visual,index,style){
+ const slot=modelMaterialSlots(visual)[index];
+ if(!slot)return false;
+ if(style&&!validSource(style.source))throw Error('تکسچر انتخاب‌شده معتبر نیست.');
+ let requests=slotRequests.get(visual);
+ if(!requests){requests=new Map();slotRequests.set(visual,requests);}
+ const ticket={};requests.set(slot.key,ticket);
+ let texture=null;
+ if(style){
+  const entry=textureFor(style.source,slot.role);
+  await entry.ready;
+  if(requests.get(slot.key)!==ticket||visual.userData.disposed)return false;
+  texture=entry.texture;
+ }
+ for(const {material:m,node} of slot.entries){
+  if(!slotOriginals.has(m))slotOriginals.set(m,{
+   map:m.map,color:m.color?.clone(),roughness:m.roughness,metalness:m.metalness,
+   normalMap:m.normalMap,roughnessMap:m.roughnessMap,metalnessMap:m.metalnessMap,
+   onBeforeCompile:m.onBeforeCompile,customProgramCacheKey:m.customProgramCacheKey
+  });
+  const original=slotOriginals.get(m);
+  if(!style){
+   clearBakedRoleTexture(m);
+   m.map=original.map;
+   if(original.color&&m.color)m.color.copy(original.color);
+   if(original.roughness!==undefined)m.roughness=original.roughness;
+   if(original.metalness!==undefined)m.metalness=original.metalness;
+   m.normalMap=original.normalMap;m.roughnessMap=original.roughnessMap;m.metalnessMap=original.metalnessMap;
+   m.onBeforeCompile=original.onBeforeCompile;
+   m.customProgramCacheKey=original.customProgramCacheKey;
+  }else if(m.userData.chido_baked_ao_v1||m.userData.chido_baked_lighting_v1){
+   if(!node.geometry.getAttribute('chidoTileUv'))
+    throw Error('این متریال به UV_COLOR جداگانه نیاز دارد.');
+   const copy=texture.clone();copy.repeat.setScalar(1);copy.needsUpdate=true;
+   installBakedRoleTexture(m,copy);
+  }else{
+   m.map=texture;
+   if(m.color)m.color.set(0xffffff);
+   if(slot.role==='fabric'){m.roughness=.88;m.metalness=0;m.normalMap=null;m.roughnessMap=null;m.metalnessMap=null;}
+   if(slot.role==='wood'){m.roughness=.55;m.metalness=0;}
+   if(slot.role==='metal'){m.roughness=.3;m.metalness=.9;}
+  }
+  m.needsUpdate=true;
+ }
+ return true;
+}
