@@ -173,12 +173,13 @@ export class ArchitectureLayer {
   bar(thick,height,depth,width/2-thick/2,sill+height/2,0);
   const divisions=width>=2.2?3:2;
   for(let i=1;i<divisions;i++)bar(.038,height,depth*.8,-width/2+width*i/divisions,sill+height/2,0);
-  const glassMat=new THREE.MeshPhysicalMaterial({color:0xeaf6ff,transparent:true,opacity:.16,
-   roughness:.05,metalness:.05,reflectivity:.9,side:THREE.DoubleSide,depthWrite:false});
+  const glassMat=new THREE.MeshPhysicalMaterial({color:0xf5fbff,transparent:true,opacity:.052,
+   roughness:.018,metalness:0,reflectivity:.88,envMapIntensity:1.65,
+   clearcoat:.9,clearcoatRoughness:.045,side:THREE.DoubleSide,depthWrite:false});
   const glass=new THREE.Mesh(new THREE.PlaneGeometry(width-thick*2,height-thick*2),glassMat);
   glass.position.y=sill+height/2;group.add(glass);
   const curtainMat=new THREE.MeshStandardMaterial({color:0xf7f3eb,roughness:.92,
-   transparent:true,opacity:.84,side:THREE.DoubleSide});
+   transparent:true,opacity:.39,side:THREE.DoubleSide});
   const curtainW=Math.min(.42,width*.25),curtainH=2.92;
   const curtainGeo=new THREE.PlaneGeometry(curtainW,curtainH,10,4);
   const pos=curtainGeo.attributes.position;
