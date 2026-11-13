@@ -196,6 +196,20 @@ function createPlasterTextures() {
         rCtx.fill();
     }
 
+        // Fine plaster grain, deterministic and baked only once into the existing
+    // 512px canvas atlas. Avoid costly procedural fragment shaders and large maps.
+    for(let i=0;i<5400;i++){
+        const x=(i*127+Math.floor(i/29)*53)%size;
+        const y=(i*233+Math.floor(i/37)*19)%size;
+        const grain=.55+(i%9)*.13;
+        const tone=224+(i%25);
+        dCtx.fillStyle='rgba('+tone+','+tone+','+tone+',0.075)';
+        dCtx.fillRect(x,y,grain,grain);
+        const roughTone=160+(i%60);
+        rCtx.fillStyle='rgba('+roughTone+','+roughTone+','+roughTone+',0.12)';
+        rCtx.fillRect(x,y,grain,grain);
+    }
+
     const map = new THREE.CanvasTexture(diffCanvas);
     map.colorSpace = THREE.SRGBColorSpace;
     map.wrapS = map.wrapT = THREE.RepeatWrapping;
