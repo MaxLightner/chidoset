@@ -141,6 +141,9 @@ export function applyBakedShadowAlpha(material){
  material.customProgramCacheKey=()=> 'chido-baked-shadow-alpha-minus-0.5';
  material.needsUpdate=true;
 }
+export function isCollisionHelper(object){
+ return !!(object?.userData?.tripo_prep_collision||object?.userData?.chidoCollider||/(^|[_\\s.\\-])(collision|collider|coll)([_\\s.\\-]|$)/i.test(object?.name||''));
+}
 export function configureMeshes(model,index){
  model.traverse(object=>{
   if(!object.isMesh)return;
@@ -149,7 +152,10 @@ export function configureMeshes(model,index){
   object.geometry=object.geometry.clone();
   if(Array.isArray(object.material))object.material=object.material.map(m=>m.clone());
   else if(object.material)object.material=object.material.clone();
-  if(object.userData.tripo_prep_collision){object.visible=false;object.userData.chidoCollider=true;return;}
+  if(isCollisionHelper(object)){
+   object.visible=false;object.layers.set(1);object.userData.chidoCollider=true;
+   object.castShadow=false;object.receiveShadow=false;return;
+  }
   if(object.userData.tripo_prep_contact_shadow){
    object.userData.chidoBakedShadow=true;
    for(const material of Array.isArray(object.material)?object.material:[object.material])applyBakedShadowAlpha(material);
@@ -234,6 +240,9 @@ export function createImportedModel(index,size,fabric='dark'){
  const proxy=new THREE.Mesh(new THREE.BoxGeometry(...pickSize),
   new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,depthWrite:false}));
  proxy.name='chido-model-'+spec.file;
+ // Ray-picking layer 1 only. Default color/depth/normal/AO/shadow cameras
+ // render layer 0, so the proxy contributes to none of those passes.
+ proxy.layers.set(1);proxy.castShadow=false;proxy.receiveShadow=false;
  proxy.userData.imported=true;
  proxy.userData.collisionProxy=proxy;
  proxy.userData.assetSource=spec.file;
@@ -267,10 +276,19 @@ export function createImportedModel(index,size,fabric='dark'){
   visual.position.z-=center.z;
   visual.position.y-=box.min.y+size[1]/2;
   visual.name='imported-visual';
-  for(const [node,parent] of helpers)parent.add(node);
+  // The packed shadow plane belongs in the visual scene. Authored collision
+  // meshes do not: temporarily measure them and discard their draw resources.
+  const colliders=helpers.filter(([node])=>node.userData.chidoCollider);
+  for(const [node,parent] of colliders){
+   parent.add(node);
+   visual.updateMatrixWorld(true);
+   const cb=new THREE.Box3().setFromObject(node);
+   if(!cb.isEmpty())proxy.userData.authoredCollisionSize=cb.getSize(new THREE.Vector3()).toArray();
+   parent.remove(node);
+   node.traverse(part=>{part.geometry?.dispose();const mats=part.material?(Array.isArray(part.material)?part.material:[part.material]):[];for(const mat of mats)mat.dispose();});
+  }
+  for(const [node,parent] of helpers)if(node.userData.chidoBakedShadow)parent.add(node);
   proxy.add(visual);
-  const collider=helpers.find(([node])=>node.userData.chidoCollider)?.[0];
-  if(collider){visual.updateMatrixWorld(true);const cb=new THREE.Box3().setFromObject(collider);proxy.userData.authoredCollisionSize=cb.getSize(new THREE.Vector3()).toArray();}
   for(const shadow of bakedShadows)shadow.visible=true;
   if(SOFA_AO[index])applySofaFabric(visual,proxy.userData.fabric||'dark',index);
   if(isImportedLight(index))addLampLight(proxy,index,size);
