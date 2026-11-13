@@ -1,3 +1,4 @@
+import {librarySwatch} from './asset-library.js?v=0.16.23';
 import * as THREE from './vendor/three.module.js';
 export const MATERIAL_ROLES=['fabric','wood','metal','glass'];
 const SUPPORTED_ROLES=[...MATERIAL_ROLES,'detail'];
@@ -5,13 +6,13 @@ export const ROLE_LABELS={fabric:'پارچه',wood:'چوب',metal:'فلز',glass
 export function materialRole(name){const lower=String(name||'').toLowerCase(),matches=MATERIAL_ROLES.filter(role=>lower.includes(role));if(!matches.length&&lower.includes('body'))return 'wood';if(!matches.length&&lower.includes('detail'))return 'detail';return matches.length===1?matches[0]:null;}
 const fabricPresets=[['dark','آبی تیره'],['creme','کرم'],['gray','خاکستری']].map(([id,label])=>({source:'fabric:'+id,label,url:'assets/chido/'+id+'-fabric.jpg'}));
 const woodColors={oak:[174,130,77],walnut:[95,58,35],black:[44,39,34]},woodLabels={oak:'بلوط روشن',walnut:'گردویی',black:'چوب تیره'},woodImages=new Map();
-function woodImage(id){return 'assets/chido/wood-'+id+'.jpg?v=0.16.19';}
+function woodImage(id){return librarySwatch('wood',id)||'assets/chido/wood-'+id+'.jpg?v=0.16.19';}
 const surfaceColors={silver:[186,190,193],brass:[167,128,63],black:[49,51,52],clear:[245,248,247],smoke:[139,151,153]};
 function surfaceImage(id){const key='surface:'+id;if(!woodImages.has(key)){const c=document.createElement('canvas');c.width=c.height=64;const ctx=c.getContext('2d');ctx.fillStyle='rgb('+surfaceColors[id].join(',')+')';ctx.fillRect(0,0,64,64);woodImages.set(key,c.toDataURL('image/jpeg',.8));}return woodImages.get(key);}
 export function materialPresets(role){if(role==='fabric')return fabricPresets;if(role==='metal')return [['silver','نقره‌ای'],['brass','برنجی'],['black','مشکی']].map(([id,label])=>({source:'surface:'+id,label,url:surfaceImage(id)}));if(role==='glass')return [['clear','شفاف روشن'],['smoke','دودی']].map(([id,label])=>({source:'surface:'+id,label,url:surfaceImage(id)}));const woods=Object.keys(woodColors).map(id=>({source:'wood:'+id,label:woodLabels[id],url:woodImage(id)}));return role==='wood'?woods:[...fabricPresets,...woods];}
 const validSource=value=>typeof value==='string'&&(fabricPresets.some(p=>p.source===value)||Object.keys(woodColors).some(id=>'wood:'+id===value)||Object.keys(surfaceColors).some(id=>'surface:'+id===value)||(/^data:image\/(jpeg|webp);base64,[a-zA-Z0-9+/=]+$/.test(value)&&value.length<=90000));
 export function copyMaterialStyles(styles){const out={};for(const role of SUPPORTED_ROLES){const style=styles?.[role]||(role==='wood'?styles?.body:null);if(validSource(style?.source))out[role]={source:style.source};}return out;}
-function sourceURL(source){if(source.startsWith('surface:'))return surfaceImage(source.slice(8));if(source.startsWith('wood:'))return woodImage(source.slice(5));return fabricPresets.find(p=>p.source===source)?.url||source;}
+function sourceURL(source){if(source.startsWith('surface:'))return surfaceImage(source.slice(8));if(source.startsWith('wood:'))return woodImage(source.slice(5));const preset=fabricPresets.find(p=>p.source===source);return preset?(librarySwatch('fabric',source.slice(7))||preset.url):source;}
 export function roleMaterials(visual){
  const entries=[];visual?.traverse(node=>{if(node.isMesh&&node.geometry?.attributes.uv)for(const m of Array.isArray(node.material)?node.material:[node.material])if(m?.isMeshStandardMaterial||(m?.isMeshBasicMaterial&&m.userData.chido_baked_lighting_v1))entries.push({node,material:m,role:materialRole(m.userData.tripo_prep_role||m.name)});});
  const named=entries.some(e=>SUPPORTED_ROLES.concat('body').some(role=>String(e.material.name||'').toLowerCase().includes(role)));

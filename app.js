@@ -1,8 +1,9 @@
+import {libraryThumbnail,libraryHidden,libraryModel} from './asset-library.js?v=0.16.23';
 import {LiveApprovalHost} from './live-approval-host.js?v=0.16.10';
 import {bindAROrientation} from './ar-orientation.js?v=0.16.9';
 import {liveSession} from './live-approval.js?v=0.16.10';
-import {mountMaterialPanel} from './material-panel.js?v=0.16.21';
-import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.16.21';
+import {mountMaterialPanel} from './material-panel.js?v=0.16.23';
+import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.16.23';
 import {rememberAccount,accountName} from './auth-storage.js';
 import {readRecovery,saveRecovery,clearRecovery,filterPublishedScene} from './app-recovery.js';
 import {runtimeHealth,recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.16.1';
@@ -478,7 +479,7 @@ function showArSheet(mode){
   title.textContent=replacing?'تعویض مدل با حفظ جایگاه':'انتخاب مدل برای نشانگر +';
   if(!replacing)studio.setPlacementEnabled(true);
   const activeSet=getActiveCloudSet(),allowedProducts=publishedCatalogIndexes();
-  const categories=ASSET_CATEGORIES.map(c=>({...c,indexes:[...new Set([...c.indexes.filter(i=>!getCloudProductInfo(i)?.metadata.category||getCloudProductInfo(i).metadata.category===c.id),...cloudProductInfoList().filter(p=>(p.catalog_index<32||getCloudProduct(p.catalog_index))&&p.metadata.category===c.id).map(p=>p.catalog_index)])]}));
+  const categories=ASSET_CATEGORIES.map(c=>({...c,indexes:[...new Set([...c.indexes.filter(i=>!libraryHidden(i)&&(!getCloudProductInfo(i)?.metadata.category||getCloudProductInfo(i).metadata.category===c.id)),...cloudProductInfoList().filter(p=>(p.catalog_index<32||getCloudProduct(p.catalog_index))&&p.metadata.category===c.id).map(p=>p.catalog_index)])]}));
   const groups=replacing&&selected?
    categories.map(c=>({...c,indexes:variantsFor(selected.userData.index).filter(i=>c.indexes.includes(i)&&(!allowedProducts||allowedProducts.has(i)))})).filter(c=>c.indexes.length):
    categories.map(c=>({...c,indexes:c.indexes.filter(i=>i!==5&&(!allowedProducts||allowedProducts.has(i)))})).filter(c=>c.indexes.length);
@@ -488,7 +489,7 @@ function showArSheet(mode){
    ${groups.some(c=>c.id==='wall-art')?'<small class="sheet-tip">تابلوها فعلاً روی یک صفحه عمودی مجازی در موقعیت تقریبی قرار می‌گیرند؛ تشخیص خودکار دیوار واقعی نیاز به WebXR Plane Detection دارد.</small>':''}`;
   function populate(category){
    const group=groups.find(c=>c.id===category)||groups[0];if(!group)return;
-   const holder=body.querySelector('#categoryObjects');holder.innerHTML=group.indexes.map(i=>{const cloud=getCloudProduct(i)||getCloudProductInfo(i),name=(i===1000?SHEEN_CHAIR_SAMPLE.name:cloud?.name||catalogImages[i]?.[0]||'مدل').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));return `<button data-add-object="${i}" class="catalog-tile"><span class="catalog-preview">${cloud&&i>=32&&!cloud.thumbnail_url?'<span class="catalog-no-preview">◈<small>مدل سه‌بعدی</small></span>':`<img src="${cloud?.thumbnail_url||`assets/chido/thumbs/${i}.jpg?v=${i===1000?'0.16.10':'0.7.0'}`}" width="192" height="192" loading="lazy" decoding="async" alt="پیش‌نمایش ${name}">`}</span><span class="catalog-name">${name}</span></button>`;}).join('');
+   const holder=body.querySelector('#categoryObjects');holder.innerHTML=group.indexes.map(i=>{const cloud=getCloudProduct(i)||getCloudProductInfo(i),name=(i===1000?SHEEN_CHAIR_SAMPLE.name:cloud?.name||libraryModel(i)?.name||catalogImages[i]?.[0]||'مدل').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));return `<button data-add-object="${i}" class="catalog-tile"><span class="catalog-preview">${cloud&&i>=32&&!cloud.thumbnail_url&&!libraryThumbnail(i)?'<span class="catalog-no-preview">◈<small>مدل سه‌بعدی</small></span>':`<img src="${cloud?.thumbnail_url||libraryThumbnail(i)||`assets/chido/thumbs/${i}.jpg?v=${i===1000?'0.16.10':'0.7.0'}`}" width="192" height="192" loading="lazy" decoding="async" alt="پیش‌نمایش ${name}">`}</span><span class="catalog-name">${name}</span></button>`;}).join('');
    body.querySelectorAll('[data-category]').forEach(btn=>btn.classList.toggle('selected',btn.dataset.category===group.id));
    holder.querySelectorAll('[data-add-object]').forEach(btn=>btn.onclick=()=>{
     if(studio.items.length>=24&&!replacing){toast('به محدودیت ۲۴ آبجکت رسیدی.');return;}

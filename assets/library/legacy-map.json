@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "models": {
+    "assets/chido/mani--maniset--tak--e3585876.glb": {
+      "catalog_index": 32,
+      "thumbnail": "assets/library/models/legacy-cc854a28b10765793268/thumbnail.jpg",
+      "name": "mani--maniset--tak--e3585876",
+      "category": "seating"
+    },
+    "assets/chido/SheenChair.glb": {
+      "catalog_index": 1000,
+      "thumbnail": "assets/library/models/legacy-d337ad454a38ff86e494/thumbnail.jpg",
+      "name": "SheenChair",
+      "category": "seating"
+    },
+    "assets/chido/sofaA1.glb": {
+      "catalog_index": 22,
+      "thumbnail": "assets/library/models/legacy-56eb3b988979caa9c34c/thumbnail.jpg",
+      "name": "sofaA1",
+      "category": "seating"
+    },
+    "assets/chido/SofaC1.glb": {
+      "catalog_index": 23,
+      "thumbnail": "assets/library/models/legacy-3e17d7d4658d0daf4c55/thumbnail.jpg",
+      "name": "SofaC1",
+      "category": "seating"
+    },
+    "assets/chido/sofab1.glb": {
+      "catalog_index": 24,
+      "thumbnail": "assets/library/models/legacy-af4bbddb1fdfdcfa256d/thumbnail.jpg",
+      "name": "sofab1",
+      "category": "seating"
+    },
+    "assets/chido/desks2.glb": {
+      "catalog_index": 25,
+      "thumbnail": "assets/library/models/legacy-1bc9f62518bf10db9cfd/thumbnail.jpg",
+      "name": "desks2",
+      "category": "low-tables"
+    },
+    "assets/chido/desks1.glb": {
+      "catalog_index": 26,
+      "thumbnail": "assets/library/models/legacy-6eac9de1291a2bd7b677/thumbnail.jpg",
+      "name": "desks1",
+      "category": "low-tables"
+    },
+    "assets/chido/minidesk1.glb": {
+      "catalog_index": 27,
+      "thumbnail": "assets/library/models/legacy-a64c2bb754ddf86bd172/thumbnail.jpg",
+      "name": "minidesk1",
+      "category": "low-tables"
+    },
+    "assets/chido/lamp1.glb": {
+      "catalog_index": 28,
+      "thumbnail": "assets/library/models/legacy-3fb3ed723ba99175c8e5/thumbnail.jpg",
+      "name": "lamp1",
+      "category": "decor"
+    },
+    "assets/chido/Lamp2.glb": {
+      "catalog_index": 29,
+      "thumbnail": "assets/library/models/legacy-a4a52b0e38d6214f31df/thumbnail.jpg",
+      "name": "Lamp2",
+      "category": "decor"
+    },
+    "assets/chido/decor1.glb": {
+      "catalog_index": 30,
+      "thumbnail": "assets/library/models/legacy-802f7ac6528e950702c2/thumbnail.jpg",
+      "name": "decor1",
+      "category": "decor"
+    },
+    "assets/chido/rug.glb": {
+      "catalog_index": 31,
+      "thumbnail": "assets/library/models/legacy-4e2a6c62815a82abf827/thumbnail.jpg",
+      "name": "rug",
+      "category": "rugs"
+    }
+  }
+}

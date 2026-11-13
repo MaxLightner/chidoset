@@ -1,6 +1,6 @@
 import * as THREE from './vendor/three.module.js';
-import {createImportedModel} from './imported-models.js?v=0.16.16';
-import {applyRoleMaterial,materialPresets,roleMaterials} from './material-roles.js?v=0.16.16';
+import {createImportedModel} from './imported-models.js?v=0.16.23';
+import {applyRoleMaterial,materialPresets,roleMaterials} from './material-roles.js?v=0.16.23';
 import {footprint,moveWithoutOverlap,footprintsOverlap} from './collision.js?v=0.16.16';
 const host=document.querySelector('#view'),status=document.querySelector('#status');
 const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));host.append(renderer.domElement);

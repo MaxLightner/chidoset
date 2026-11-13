@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.js';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
 import {getCloudProduct} from './cloud-product-registry.js';
-import {materialRole,installColorAO} from './material-roles.js?v=0.16.21';
+import {materialRole,installColorAO} from './material-roles.js?v=0.16.23';
 import {loadModelBytes} from './model-asset-cache.js?v=0.16.17';
 
 // All units are metres. Native Blender GLB dimensions are preserved; the

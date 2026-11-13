@@ -1,0 +1,439 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "legacy-cc854a28b10765793268",
+      "kind": "model",
+      "name": "mani--maniset--tak--e3585876",
+      "company": "",
+      "category": "seating",
+      "collection": "",
+      "material": "",
+      "files": {
+        "glb": "assets/chido/mani--maniset--tak--e3585876.glb",
+        "thumbnail": "assets/library/models/legacy-cc854a28b10765793268/thumbnail.jpg"
+      },
+      "bytes": 1055956,
+      "status": "published",
+      "legacy": true,
+      "catalog_index": 32,
+      "compatibility_paths": {},
+      "thumbnail_bytes": 4551
+    },
+    {
+      "id": "legacy-d337ad454a38ff86e494",
+      "kind": "model",
+      "name": "SheenChair",
+      "company": "",
+      "category": "seating",
+      "collection": "",
+      "material": "",
+      "files": {
+        "glb": "assets/chido/SheenChair.glb",
+        "thumbnail": "assets/library/models/legacy-d337ad454a38ff86e494/thumbnail.jpg"
+      },
+      "bytes": 1421812,
+      "status": "published",
+      "legacy": true,
+      "catalog_index": 1000,
+      "compatibility_paths": {
+        "thumbnail": [
+          "assets/chido/thumbs/1000.jpg"
+        ]
+      },
+      "thumbnail_bytes": 6973
+    },
+    {
+      "id": "legacy-56eb3b988979caa9c34c",
+      "kind": "model",
+      "name": "sofaA1",
+      "company": "",
+      "category": "seating",
+      "collection": "",
+      "material": "",
+      "files": {
+        "glb": "assets/chido/sofaA1.glb",
+        "thumbnail": "assets/library/models/legacy-56eb3b988979caa9c34c/thumbnail.jpg"
+      },
+      "bytes": 695492,
+      "status": "published",
+      "legacy": true,
+      "catalog_index": 22,
+      "compatibility_paths": {
+        "thumbnail": [
+          "assets/chido/thumbs/22.jpg"
+        ]
+      },
+      "thumbnail_bytes": 4481
+    },
+    {
+      "id": "legacy-3e17d7d4658d0daf4c55",
+      "kind": "model",
+      "name": "SofaC1",
+      "company": "",
+      "category": "seating",
+      "collection": "",
+      "material": "",
+      "files": {
+        "glb": "assets/chido/SofaC1.glb",
+        "thumbnail": "assets/library/models/legacy-3e17d7d4658d0daf4c55/thumbnail.jpg"
+      },
+      "bytes": 618996,
+      "status": "published",
+      "legacy": true,
+      "catalog_index": 23,
+      "compatibility_paths": {
+        "thumbnail": [
+          "assets/chido/thumbs/23.jpg"
+        ]
+      },
+      "thumbnail_bytes": 4364
+    },
+    {
+      "id": "legacy-af4bbddb1fdfdcfa256d",
+      "kind": "model",
+      "name": "sofab1",
+      "company": "",
+      "category": "seating",
+      "collection": "",
+      "material": "",
+      "files": {
+        "glb": "assets/chido/sofab1.glb",
+        "thumbnail": "assets/library/models/legacy-af4bbddb1fdfdcfa256d/thumbnail.jpg"
+      },
+      "bytes": 517296,
+      "status": "published",
+      "legacy": true,
+      "catalog_index": 24,
+      "compatibility_paths": {
+        "thumbnail": [
+          "assets/chido/thumbs/24.jpg"
+        ]
+      },
+      "thumbnail_bytes": 4531
+    },
+    {
+      "id": "legacy-1bc9f62518bf10db9cfd",
+      "kind": "model",
+      "name": "desks2",
+      "company": "",
+      "category": "low-tables",
+      "collection": "",
+      "material": "",
+      "files": {
+        "glb": "assets/chido/desks2.glb",
+        "thumbnail": "assets/library/models/legacy-1bc9f62518bf10db9cfd/thumbnail.jpg"
+      },
+      "bytes": 798476,
+      "status": "published",
+      "legacy": true,
+      "catalog_index": 25,
+      "compatibility_paths": {
+        "thumbnail": [
+          "assets/chido/thumbs/25.jpg"
+        ]
+      },
+      "thumbnail_bytes": 5001
+    },
+    {
+      "id": "legacy-6eac9de1291a2bd7b677",
+      "kind": "model",
+      "name": "desks1",
+      "company": "",
+      "category": "low-tables",
+      "collection": "",
+      "material": "",
+      "files": {
+        "glb": "assets/chido/desks1.glb",
+        "thumbnail": "assets/library/models/legacy-6eac9de1291a2bd7b677/thumbnail.jpg"
+      },
+      "bytes": 795844,
+      "status": "published",
+      "legacy": true,
+      "catalog_index": 26,
+      "compatibility_paths": {
+        "thumbnail": [
+          "assets/chido/thumbs/26.jpg"
+        ]
+      },
+      "thumbnail_bytes": 6526
+    },
+    {
+      "id": "legacy-a64c2bb754ddf86bd172",
+      "kind": "model",
+      "name": "minidesk1",
+      "company": "",
+      "category": "low-tables",
+      "collection": "",
+      "material": "",
+      "files": {
+        "glb": "assets/chido/minidesk1.glb",
+        "thumbnail": "assets/library/models/legacy-a64c2bb754ddf86bd172/thumbnail.jpg"
+      },
+      "bytes": 3170364,
+      "status": "published",
+      "legacy": true,
+      "catalog_index": 27,
+      "compatibility_paths": {
+        "thumbnail": [
+          "assets/chido/thumbs/27.jpg"
+        ]
+      },
+      "thumbnail_bytes": 7024
+    },
+    {
+      "id": "legacy-3fb3ed723ba99175c8e5",
+      "kind": "model",
+      "name": "lamp1",
+      "company": "",
+      "category": "decor",
+      "collection": "",
+      "material": "",
+      "files": {
+        "glb": "assets/chido/lamp1.glb",
+        "thumbnail": "assets/library/models/legacy-3fb3ed723ba99175c8e5/thumbnail.jpg"
+      },
+      "bytes": 3470112,
+      "status": "published",
+      "legacy": true,
+      "catalog_index": 28,
+      "compatibility_paths": {
+        "thumbnail": [
+          "assets/chido/thumbs/28.jpg"
+        ]
+      },
+      "thumbnail_bytes": 8846
+    },
+    {
+      "id": "legacy-a4a52b0e38d6214f31df",
+      "kind": "model",
+      "name": "Lamp2",
+      "company": "",
+      "category": "decor",
+      "collection": "",
+      "material": "",
+      "files": {
+        "glb": "assets/chido/Lamp2.glb",
+        "thumbnail": "assets/library/models/legacy-a4a52b0e38d6214f31df/thumbnail.jpg"
+      },
+      "bytes": 579444,
+      "status": "published",
+      "legacy": true,
+      "catalog_index": 29,
+      "compatibility_paths": {
+        "thumbnail": [
+          "assets/chido/thumbs/29.jpg"
+        ]
+      },
+      "thumbnail_bytes": 2276
+    },
+    {
+      "id": "legacy-802f7ac6528e950702c2",
+      "kind": "model",
+      "name": "decor1",
+      "company": "",
+      "category": "decor",
+      "collection": "",
+      "material": "",
+      "files": {
+        "glb": "assets/chido/decor1.glb",
+        "thumbnail": "assets/library/models/legacy-802f7ac6528e950702c2/thumbnail.jpg"
+      },
+      "bytes": 847964,
+      "status": "published",
+      "legacy": true,
+      "catalog_index": 30,
+      "compatibility_paths": {
+        "thumbnail": [
+          "assets/chido/thumbs/30.jpg"
+        ]
+      },
+      "thumbnail_bytes": 7033
+    },
+    {
+      "id": "legacy-4e2a6c62815a82abf827",
+      "kind": "model",
+      "name": "rug",
+      "company": "",
+      "category": "rugs",
+      "collection": "",
+      "material": "",
+      "files": {
+        "glb": "assets/chido/rug.glb",
+        "thumbnail": "assets/library/models/legacy-4e2a6c62815a82abf827/thumbnail.jpg"
+      },
+      "bytes": 95596,
+      "status": "published",
+      "legacy": true,
+      "catalog_index": 31,
+      "compatibility_paths": {
+        "thumbnail": [
+          "assets/chido/thumbs/31.jpg"
+        ]
+      },
+      "thumbnail_bytes": 2875
+    },
+    {
+      "id": "legacy-fabric-dark",
+      "kind": "fabric",
+      "name": "dark",
+      "company": "Unspecified",
+      "category": "upholstery",
+      "collection": "Existing Chido swatches",
+      "material": "Unspecified",
+      "files": {
+        "color": "assets/library/materials/fabric/legacy-fabric-dark/color.jpg",
+        "thumbnail": "assets/library/materials/fabric/legacy-fabric-dark/thumbnail.jpg"
+      },
+      "width_cm": 70.0,
+      "height_cm": 70.0,
+      "normal_strength": 1.0,
+      "rotation": 0,
+      "bytes": 192016,
+      "status": "draft",
+      "legacy": true,
+      "needs_normal": true,
+      "compatibility_paths": {
+        "color": [
+          "assets/chido/dark-fabric.jpg"
+        ]
+      },
+      "thumbnail_bytes": 19574
+    },
+    {
+      "id": "legacy-fabric-creme",
+      "kind": "fabric",
+      "name": "creme",
+      "company": "Unspecified",
+      "category": "upholstery",
+      "collection": "Existing Chido swatches",
+      "material": "Unspecified",
+      "files": {
+        "color": "assets/library/materials/fabric/legacy-fabric-creme/color.jpg",
+        "thumbnail": "assets/library/materials/fabric/legacy-fabric-creme/thumbnail.jpg"
+      },
+      "width_cm": 70.0,
+      "height_cm": 70.0,
+      "normal_strength": 1.0,
+      "rotation": 0,
+      "bytes": 171209,
+      "status": "draft",
+      "legacy": true,
+      "needs_normal": true,
+      "compatibility_paths": {
+        "color": [
+          "assets/chido/creme-fabric.jpg"
+        ]
+      },
+      "thumbnail_bytes": 17385
+    },
+    {
+      "id": "legacy-fabric-gray",
+      "kind": "fabric",
+      "name": "gray",
+      "company": "Unspecified",
+      "category": "upholstery",
+      "collection": "Existing Chido swatches",
+      "material": "Unspecified",
+      "files": {
+        "color": "assets/library/materials/fabric/legacy-fabric-gray/color.jpg",
+        "thumbnail": "assets/library/materials/fabric/legacy-fabric-gray/thumbnail.jpg"
+      },
+      "width_cm": 70.0,
+      "height_cm": 70.0,
+      "normal_strength": 1.0,
+      "rotation": 0,
+      "bytes": 180862,
+      "status": "draft",
+      "legacy": true,
+      "needs_normal": true,
+      "compatibility_paths": {
+        "color": [
+          "assets/chido/gray-fabric.jpg"
+        ]
+      },
+      "thumbnail_bytes": 18605
+    },
+    {
+      "id": "legacy-wood-oak",
+      "kind": "wood",
+      "name": "oak",
+      "company": "Unspecified",
+      "category": "wood",
+      "collection": "Existing Chido swatches",
+      "material": "Unspecified",
+      "files": {
+        "color": "assets/library/materials/wood/legacy-wood-oak/color.jpg",
+        "thumbnail": "assets/library/materials/wood/legacy-wood-oak/thumbnail.jpg"
+      },
+      "width_cm": 70.0,
+      "height_cm": 70.0,
+      "normal_strength": 1.0,
+      "rotation": 0,
+      "bytes": 70121,
+      "status": "draft",
+      "legacy": true,
+      "needs_normal": true,
+      "compatibility_paths": {
+        "color": [
+          "assets/chido/wood-oak.jpg"
+        ]
+      },
+      "thumbnail_bytes": 8906
+    },
+    {
+      "id": "legacy-wood-walnut",
+      "kind": "wood",
+      "name": "walnut",
+      "company": "Unspecified",
+      "category": "wood",
+      "collection": "Existing Chido swatches",
+      "material": "Unspecified",
+      "files": {
+        "color": "assets/library/materials/wood/legacy-wood-walnut/color.jpg",
+        "thumbnail": "assets/library/materials/wood/legacy-wood-walnut/thumbnail.jpg"
+      },
+      "width_cm": 70.0,
+      "height_cm": 70.0,
+      "normal_strength": 1.0,
+      "rotation": 0,
+      "bytes": 65479,
+      "status": "draft",
+      "legacy": true,
+      "needs_normal": true,
+      "compatibility_paths": {
+        "color": [
+          "assets/chido/wood-walnut.jpg"
+        ]
+      },
+      "thumbnail_bytes": 8765
+    },
+    {
+      "id": "legacy-wood-black",
+      "kind": "wood",
+      "name": "black",
+      "company": "Unspecified",
+      "category": "wood",
+      "collection": "Existing Chido swatches",
+      "material": "Unspecified",
+      "files": {
+        "color": "assets/library/materials/wood/legacy-wood-black/color.jpg",
+        "thumbnail": "assets/library/materials/wood/legacy-wood-black/thumbnail.jpg"
+      },
+      "width_cm": 70.0,
+      "height_cm": 70.0,
+      "normal_strength": 1.0,
+      "rotation": 0,
+      "bytes": 52439,
+      "status": "draft",
+      "legacy": true,
+      "needs_normal": true,
+      "compatibility_paths": {
+        "color": [
+          "assets/chido/wood-black.jpg"
+        ]
+      },
+      "thumbnail_bytes": 6492
+    }
+  ]
+}
