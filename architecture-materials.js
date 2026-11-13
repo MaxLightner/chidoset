@@ -1,8 +1,13 @@
 import * as THREE from './vendor/three.module.js';
+import {geminiFloorMaterial,geminiPlasterMaterial} from './gemini-room-materials.js?v=0.17.3';
 
 // Stable procedural, tileable colour and tangent-space normal maps.
 // Floor UVs are real world metres: one ceramic repeat = exactly 1 m × 1 m.
 export const FLOOR_FINISHES=Object.freeze([
+ {id:'parquet-oak',label:'پارکت بلوط · Gemini',kind:'gemini-floor',geminiKey:'oak',color:[201,162,118],roughness:.44},
+ {id:'parquet-walnut',label:'پارکت گردو · Gemini',kind:'gemini-floor',geminiKey:'walnut',color:[109,71,48],roughness:.42},
+ {id:'stone-marble',label:'سنگ مرمر · Gemini',kind:'gemini-floor',geminiKey:'marble',color:[236,234,228],roughness:.22},
+ {id:'polished-concrete',label:'بتن صیقلی · Gemini',kind:'gemini-floor',geminiKey:'concrete',color:[156,163,175],roughness:.55},
  {id:'ceramic-cream',label:'سرامیک کرم روشن',kind:'ceramic',color:[229,218,198],roughness:.27},
  {id:'ceramic-white',label:'سرامیک سفید',kind:'ceramic',color:[239,237,228],roughness:.22},
  {id:'ceramic-grey',label:'سرامیک خاکستری مات',kind:'ceramic',color:[176,176,171],roughness:.48},
@@ -11,6 +16,11 @@ export const FLOOR_FINISHES=Object.freeze([
  {id:'carpet-burgundy',label:'موکت عنابی',kind:'carpet',color:[114,52,63],roughness:.94}
 ]);
 export const WALL_FINISHES=Object.freeze([
+ {id:'gemini-wall-warm',label:'سفید گچی گرم · Gemini',kind:'gemini-wall',color:[244,239,230],hex:'#f4efe6',roughness:.86},
+ {id:'gemini-wall-cream',label:'کرم استخوانی · Gemini',kind:'gemini-wall',color:[232,222,203],hex:'#e8decb',roughness:.86},
+ {id:'gemini-wall-grey',label:'طوسی روشن · Gemini',kind:'gemini-wall',color:[216,218,223],hex:'#d8dadf',roughness:.86},
+ {id:'gemini-wall-beige',label:'بژ سنگی · Gemini',kind:'gemini-wall',color:[213,207,194],hex:'#d5cfc2',roughness:.86},
+ {id:'gemini-wall-sage',label:'سبز مریم‌گلی · Gemini',kind:'gemini-wall',color:[207,216,207],hex:'#cfd8cf',roughness:.86},
  {id:'wall-ivory',label:'سفید استخوانی',kind:'wall',color:[231,225,211],roughness:.88},
  {id:'wall-cream',label:'کرم روشن',kind:'wall',color:[219,204,181],roughness:.88},
  {id:'wall-grey',label:'خاکستری گرم',kind:'wall',color:[184,182,175],roughness:.90},
@@ -63,6 +73,8 @@ export function finishTextures(id){
 }
 export function finishMaterial(id){
  const finish=[...FLOOR_FINISHES,...WALL_FINISHES].find(x=>x.id===id)||FLOOR_FINISHES[0];
+ if(finish.kind==='gemini-floor')return geminiFloorMaterial(finish.geminiKey);
+ if(finish.kind==='gemini-wall')return geminiPlasterMaterial(finish.hex);
  const maps=finishTextures(finish.id);
  const tile=finish.kind==='ceramic';
  return new THREE.MeshPhysicalMaterial({
@@ -75,6 +87,11 @@ export function finishMaterial(id){
 // Preview is generated from the very same procedural texture, no external image requests.
 export function finishPreviewDataUrl(id){
  if(typeof document==='undefined')return '';
+ const finish=[...FLOOR_FINISHES,...WALL_FINISHES].find(x=>x.id===id)||FLOOR_FINISHES[0];
+ if(finish.kind.startsWith('gemini-')){
+  const material=finishMaterial(id),canvas=document.createElement('canvas');canvas.width=canvas.height=64;
+  const ctx=canvas.getContext('2d');ctx.drawImage(material.map.image,0,0,64,64);material.dispose();return canvas.toDataURL('image/png');
+ }
  const {map}=finishTextures(id),c=document.createElement('canvas');c.width=c.height=64;
  const ctx=c.getContext('2d'),raw=map.image.data,src=new ImageData(new Uint8ClampedArray(raw),256,256);
  const tmp=document.createElement('canvas');tmp.width=tmp.height=256;tmp.getContext('2d').putImageData(src,0,0);
