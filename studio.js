@@ -2,7 +2,7 @@ import * as THREE from './vendor/three.module.js';
 import {copyMaterialStyles,applyRoleMaterial,applyMaterialSlot,disposeRoleMaterials} from './material-roles.js?v=0.16.23';
 import {getCloudProduct,getCloudProductInfo,registerCloudProducts,cloudProductList} from './cloud-product-registry.js';
 import {ArchitectureLayer} from './architecture.js?v=0.18.4';
-import {normalizeRoomPlan,roomPlanToArchitecture,constrainFurnitureToRoom} from './room-plan.js?v=0.18.4';
+import {normalizeRoomPlan,roomPlanToArchitecture,constrainFurnitureToRoom,roomWallCollisionFootprints} from './room-plan.js?v=0.18.4';
 import {updateGeminiTV} from './gemini-room-materials.js?v=0.18.4';
 import {createFurniture,furnitureHit} from './furniture.js?v=0.5.4';
 import {createDecor} from './decor.js?v=0.5.4';
@@ -691,8 +691,9 @@ void main(){
    return footprint(mesh.userData.authoredCollisionSize||size,x,z,angle);
   }
   collisionObstacles(excluded=null,ignored=[]){
-   return this.items.filter(m=>m!==excluded&&!ignored.includes(m)&&m.visible&&isFloorSolid(m.userData.index))
+   const furniture=this.items.filter(m=>m!==excluded&&!ignored.includes(m)&&m.visible&&isFloorSolid(m.userData.index))
     .map(m=>this.collisionShape(m));
+   return this.roomPlan?furniture.concat(roomWallCollisionFootprints(this.roomPlan)):furniture;
   }
   linkedChairs(mesh){
     return mesh.userData.index===10?this.items.filter(item=>item.userData.tableId===mesh.userData.id&&item!==mesh):[];
@@ -834,8 +835,14 @@ safeObjectMotion(mesh,desired){
     if(!Number.isFinite(dist)||dist<.004)return;
     const step=this.session ? .28 : .65,factor=dist>step?step/dist:1;
     const desired={x:mesh.position.x+dx*factor,z:mesh.position.z+dz*factor};
-    const dxMove=desired.x-mesh.position.x,dzMove=desired.z-mesh.position.z;for(const chair of this.linkedChairs(mesh)){chair.position.x+=dxMove;chair.position.z+=dzMove;}
-    mesh.position.x=desired.x;mesh.position.z=desired.z;
+    if(this.roomPlan){
+     const safe=this.safeObjectMotion(mesh,desired);
+     mesh.position.x=safe.x;mesh.position.z=safe.z;
+    }else{
+     const dxMove=desired.x-mesh.position.x,dzMove=desired.z-mesh.position.z;
+     for(const chair of this.linkedChairs(mesh)){chair.position.x+=dxMove;chair.position.z+=dzMove;}
+     mesh.position.x=desired.x;mesh.position.z=desired.z;
+    }
     if([4,14,28].includes(this.selected.userData.index)){this.snapToSupport(this.selected);}else{this.keepOnFloor(this.selected);if(this.selected.userData.attachment){const link=this.selected.userData.attachment,base=this.items.find(m=>m.userData.id===link.id);if(base){const offset=this.selected.position.clone().sub(base.position).applyAxisAngle(new THREE.Vector3(0,1,0),-base.rotation.y);link.offset[0]=offset.x;link.offset[2]=offset.z;}}this.refreshAttachments();}}
   else if(g.kind==='A'){this.model.moveA(this.floorLocal(p).add(g.offset));this.syncSpatial();}
   else if(g.kind==='B'){this.model.moveB(this.floorLocal(p).add(g.offset));this.syncSpatial();}
