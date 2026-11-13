@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import * as THREE from '../vendor/three.module.js';
 import {roleMaterials,installBakedRoleTexture,materialPresets} from '../material-roles.js';
 import {isFloorSolid} from '../collision.js';
-import {IMPORTED_MODELS,markBakedRoleMaterials,normalizeBakedAO} from '../imported-models.js';
+import {IMPORTED_MODELS,markBakedRoleMaterials,normalizeBakedAO,configureMeshes} from '../imported-models.js';
 test('Mani baked model includes authored shadow, collider, physical UV and independent roles',()=>{
  assert.equal(isFloorSolid(32),true);
  const b=readFileSync(new URL('../assets/chido/'+IMPORTED_MODELS[32].file,import.meta.url));
@@ -14,6 +14,26 @@ test('Mani baked model includes authored shadow, collider, physical UV and indep
  assert.ok(d.nodes.some(n=>n.extras?.chido_color_uv_v1?.tileCm===70));
  assert.ok(d.meshes.some(m=>m.primitives.some(p=>p.attributes.TEXCOORD_1!==undefined)));
  for(const role of ['Fabric','Wood'])assert.ok(d.materials.some(m=>m.extras?.tripo_prep_role===role&&m.extensions?.KHR_materials_unlit));
+});
+test('Mani tagged baked RGBA shadow receives the requested -0.5 alpha adjustment',()=>{
+ const bytes=readFileSync(new URL('../assets/chido/'+IMPORTED_MODELS[32].file,import.meta.url));
+ const json=JSON.parse(bytes.toString('utf8',20,20+bytes.readUInt32LE(12)));
+ const exportedShadow=json.nodes.find(n=>n.extras?.tripo_prep_shadow_baked&&n.mesh!==undefined);
+ assert.equal(exportedShadow.extras.tripo_prep_contact_shadow,true,'the real GLB uses the early shadow branch');
+ const texture=new THREE.Texture();
+ const material=new THREE.MeshBasicMaterial({map:texture,transparent:true});
+ const mesh=new THREE.Mesh(new THREE.PlaneGeometry(1,1),material);
+ mesh.userData.tripo_prep_contact_shadow=true;
+ const root=new THREE.Group();root.add(mesh);
+ configureMeshes(root,32);
+ assert.equal(mesh.userData.chidoBakedShadow,true);
+ assert.equal(mesh.material.transparent,true);
+ assert.equal(mesh.material.depthWrite,false);
+ assert.equal(mesh.material.toneMapped,false);
+ const shader={fragmentShader:'#include <alphamap_fragment>'};
+ mesh.material.onBeforeCompile(shader);
+ assert.ok(shader.fragmentShader.includes('diffuseColor.a = clamp(diffuseColor.a - 0.5, 0.0, 1.0);'));
+ assert.ok(mesh.material.customProgramCacheKey().includes('minus-0.5'));
 });
 test('baked AO multiplies final color with a +0.15 lift instead of affecting only indirect light',()=>{
  const tex=new THREE.Texture();tex.colorSpace=THREE.SRGBColorSpace;
