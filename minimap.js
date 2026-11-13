@@ -35,6 +35,7 @@ export class LiveMiniMap{
   panel.querySelector('[data-plan-start-ar]').onclick=()=>this.options.onStartAR?.();
   panel.querySelector('[data-plan-floor]').onclick=()=>this.options.onFloor?.();
   panel.querySelector('[data-plan-wall]').onclick=()=>this.options.onWall?.();
+  panel.querySelector('[data-plan-templates]').onclick=()=>this.options.onTemplates?.();
   this.svg.addEventListener('pointerdown',e=>this.start(e));
   this.svg.addEventListener('pointermove',e=>this.move(e));
   for(const kind of ['pointerup','pointercancel','lostpointercapture'])
