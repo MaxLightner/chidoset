@@ -33,7 +33,13 @@ export class Studio{
   this.roomPlan=null;this.roomPendingPlacement=false;this.roomGeometryTimer=null;this.roomGeometryDirty=false;this.model=new SpatialState();this.scanner=new FloorScanner();this.anchorRig=new AnchorStabilizer();this.anchorNodes=[];this.anchorCandidates=[];this.anchorActive=false;this.anchorLastTime=0;this.extraHitSources=[];this.scanHits=0;this.scanDrop=null;this.scanDistance=null;this.revealStart=null;this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#eeeee3');this.debugView=new ARDebugView(this.scene);this.debugView.setVisible(false);
   this.camera=new THREE.PerspectiveCamera(48,1,.03,40);this.camera.position.set(5.2,4.4,6);this.camera.lookAt(.6,0,-.5);
   this.renderPolicy=rendererPolicy({coarse:!!globalThis.matchMedia?.('(pointer:coarse)').matches,pixelRatio:globalThis.devicePixelRatio||1});
-  this.renderer=new THREE.WebGLRenderer({antialias:this.renderPolicy.antialias,alpha:true,preserveDrawingBuffer:this.renderPolicy.preserveDrawingBuffer});this.renderer.setPixelRatio(this.renderPolicy.pixelRatio);this.renderer.xr.enabled=true;this.renderer.xr.setFramebufferScaleFactor(this.renderPolicy.xrScale);this.renderer.xr.setReferenceSpaceType('local');host.prepend(this.renderer.domElement);
+  this.renderer=new THREE.WebGLRenderer({antialias:this.renderPolicy.antialias,alpha:true,preserveDrawingBuffer:this.renderPolicy.preserveDrawingBuffer});this.renderer.setPixelRatio(this.renderPolicy.pixelRatio);
+  // Same Reinhard exposure as the Gemini virtual Wide View; do not substitute
+  // ACES, AgX or Neutral when switching to the native scene/AR renderer.
+  this.renderer.outputColorSpace=THREE.SRGBColorSpace;
+  this.renderer.toneMapping=THREE.ReinhardToneMapping;
+  this.renderer.toneMappingExposure=1.45;
+  this.renderer.xr.enabled=true;this.renderer.xr.setFramebufferScaleFactor(this.renderPolicy.xrScale);this.renderer.xr.setReferenceSpaceType('local');host.prepend(this.renderer.domElement);
   recordRuntime('renderer-created',this.renderer);
   this.renderer.domElement.addEventListener('webglcontextlost',event=>{event.preventDefault();this.contextLost=true;recordRuntime('context-lost',this.renderer);this.renderer.setAnimationLoop(null);if(this.session)void endXRSession(this.session).catch(()=>{});this.onHint?.('نمای گرافیکی موقتاً قطع شد؛ در حال بازیابی است.');});
   this.renderer.domElement.addEventListener('webglcontextrestored',()=>{this.contextLost=false;recordRuntime('context-restored',this.renderer);if(!this.suspended)this.renderer.setAnimationLoop((time,frame)=>this.frame(time,frame));});
