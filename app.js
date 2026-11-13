@@ -31,7 +31,7 @@ bindAROrientation($('#overlay'));
 let studio,Scene,palette,space='پذیرایی',layout='empty',supported=false,routeVersion=0,photoURLs=[],savedItems=[],arReport=null,sceneMemory=null,arStarting=false,lastXRErrorReport='',activeSavedLayoutId=null;
 const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio,{
  getProducts:()=>[...publishedCatalogIndexes()].filter(i=>i>=0).map(index=>({index,name:getCloudProduct(index)?.name||getCloudProductInfo(index)?.name||libraryModel(index)?.name||catalogImages[index]?.[0]||'مدل'})),
- onToast:toast,on3D:showDesignedRoom3D,onStartAR:startScanFromRoom,onTV:showRoomTVPicker,
+ onToast:toast,on3D:showDesignedRoom3D,onStartAR:startScanFromRoom,onTV:showRoomTVPicker,onTemplates:toggleRoomTemplates,
  onClose:()=>{if(!studio?.session){$('#overlay').classList.remove('room-design-offline');$('#overlay').hidden=true;$('#arMiniMap').hidden=true;}},
  onFloor:()=>cycleRoomFinish('floor'),onWall:()=>cycleRoomFinish('wall')
 });
@@ -900,7 +900,7 @@ function openRoomPlanner(){
  minimap.setExpanded(true);
 }
 function closeRoomPlanner(){
- closeRoomFinishPicker();
+ closeRoomTemplates();closeRoomFinishPicker();
  minimap.collapse();
  $('#overlay').classList.remove('room-design-offline');
  if(!studio?.session){$('#overlay').hidden=true;$('#arMiniMap').hidden=true;}
@@ -960,11 +960,20 @@ function showRoomTVPicker(){
   studio.setRoomPlan({...studio.roomPlan,tvOn:e.target.checked});showRoomTVPicker();
  };
 }
+function closeRoomTemplates(){
+ const panel=$('#roomTemplatesPanel');if(panel)panel.hidden=true;
+}
+function toggleRoomTemplates(){
+ const panel=$('#roomTemplatesPanel');if(!panel||!minimap.expanded)return;
+ const open=panel.hidden;closeRoomFinishPicker();panel.hidden=!open;
+ if(open)panel.querySelector('[data-close-templates]').onclick=closeRoomTemplates;
+}
 function closeRoomFinishPicker(){
  const host=$('#roomFinishPicker');
  if(host){host.hidden=true;host.replaceChildren();host.dataset.kind='';}
 }
 function cycleRoomFinish(kind){
+ closeRoomTemplates();
  if(!studio?.roomPlan){toast('ابتدا اتاق را ایجاد کن.');return;}
  const host=$('#roomFinishPicker');if(!host||!minimap.expanded)return;
  if(!host.hidden&&host.dataset.kind===kind){closeRoomFinishPicker();return;}
