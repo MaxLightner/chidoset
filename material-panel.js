@@ -1,44 +1,60 @@
-import {MATERIAL_ROLES,ROLE_LABELS,roleMaterials,materialPresets,materialImage} from './material-roles.js?v=0.16.23';
+import {modelMaterialSlots,materialPresets,materialImage,ROLE_LABELS} from './material-roles.js?v=0.16.23';
+
+// Material slots 1..N are taken from the model's actual glTF materials. A
+// fabric/wood role selects the correct *catalogue* of thumbnails, not which
+// materials are edited. Thus two fabric materials remain independently editable.
 export function mountMaterialPanel(host,studio,mesh,{notify=()=>{}}={}){
- let active='fabric',renderVersion=0;
- const icons={fabric:'🧵',wood:'🪵',metal:'⚙',glass:'◈'};
+ let active=-1,requestVersion=0;
+ const icons={fabric:'🧵',wood:'🪵',metal:'⚙️',glass:'◈'};
  const valid=()=>host.isConnected&&studio.items.includes(mesh)&&studio.selected===mesh&&!mesh.userData.disposed;
  const visual=()=>mesh.getObjectByName('imported-visual');
+ const escape=value=>String(value||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const render=()=>{
   if(!valid())return;
-  const groups=roleMaterials(visual()),matches=groups.filter(e=>e.role===active);
-  host.innerHTML='<div class="material-tabs" role="tablist" aria-label="بخش متریال">'+MATERIAL_ROLES.map(role=>`<button type="button" role="tab" id="material-tab-${role}" aria-controls="material-role-panel" aria-selected="${role===active}" tabindex="${role===active?0:-1}" data-role="${role}"><span class="role-icon" aria-hidden="true">${icons[role]}</span><span>${ROLE_LABELS[role]}</span></button>`).join('')+'</div><section role="tabpanel" id="material-role-panel" aria-labelledby="material-tab-'+active+'"></section><p class="sheet-tip" data-material-status role="status"></p>';
-  const panel=host.querySelector('[role=tabpanel]'),status=host.querySelector('[data-material-status]');
-  const setStatus=text=>{if(host.isConnected)status.textContent=text;};
-  const apply=async style=>{
-   if(!valid()){setStatus('آبجکت انتخاب‌شده عوض شده؛ پنل متریال را دوباره باز کن.');return;}
-   const requestedRole=active,requestVersion=++renderVersion;
-   setStatus('در حال بارگذاری تکسچر…');
-   try{
-    const ok=await studio.setMaterialStyle(requestedRole,style,mesh);
-    if(!valid()||requestVersion!==renderVersion||active!==requestedRole)return;
-    if(!ok){setStatus('تغییر انجام نشد؛ یک انتخاب جدیدتر در حال اعمال است.');return;}
-    render();host.querySelector('[data-material-status]').textContent='متریال همین آبجکت تغییر کرد؛ می‌توانی دوباره انتخاب کنی.';
-   }catch(error){
-    if(requestVersion!==renderVersion||!valid())return;
-    setStatus(error.message||'بارگذاری تکسچر انجام نشد.');
-    notify(error.message||'بارگذاری تکسچر انجام نشد.');
-   }
-  };
-  if(!visual())panel.innerHTML='<p class="sheet-tip">مدل هنوز آماده نشده است.</p>';
-  else if(!matches.length)panel.innerHTML='<p class="sheet-tip">این مدل متریال «'+ROLE_LABELS[active]+'» ندارد. نام متریال در فایل مدل باید شامل '+active+' باشد و UV داشته باشد.</p>';
+  const slots=modelMaterialSlots(visual());
+  if(active>=slots.length)active=-1;
+  host.innerHTML='<div class="material-slot-layout"><nav class="material-slot-buttons" aria-label="اسلات‌های واقعی متریال"></nav><section class="material-slot-options" aria-live="polite"></section></div><p class="sheet-tip material-slot-status" role="status"></p>';
+  const buttons=host.querySelector('.material-slot-buttons'),panel=host.querySelector('.material-slot-options'),status=host.querySelector('.material-slot-status');
+  const setStatus=message=>{if(valid()&&host.contains(status))status.textContent=message;};
+  if(!visual()){buttons.innerHTML='<small>مدل در حال بارگذاری است…</small>';return;}
+  if(!slots.length){panel.innerHTML='<small>این مدل متریال قابل تغییر ندارد.</small>';return;}
+  buttons.innerHTML=slots.map((slot,i)=>'<button type="button" data-slot="'+i+'" aria-pressed="'+(active===i)+'" title="'+escape(slot.name)+'">'+
+   '<span class="role-icon" aria-hidden="true">'+(icons[slot.role]||'◩')+'</span>'+
+   '<span>متریال '+(i+1)+'</span><small>'+escape(slot.name)+'</small></button>').join('');
+  if(active<0){panel.innerHTML='<p class="sheet-tip">برای دیدن تکسچرهای هر بخش، شماره همان متریال را انتخاب کن.</p>';}
   else{
-   const presets=materialPresets(active),current=mesh.userData.materialStyles?.[active]?.source;
-   panel.innerHTML='<div class="sofa-fabric-grid">'+presets.map((p,i)=>`<button type="button" data-preset="${i}" class="${current===p.source?'selected':''}" aria-pressed="${current===p.source}"><img src="${p.url}" alt="" width="120" height="90" loading="lazy"><span>${p.label}</span></button>`).join('')+'</div><label class="material-upload">انتخاب عکس از دستگاه<input type="file" accept="image/jpeg,image/png,image/webp" data-material-image></label><button type="button" class="material-reset">بازگشت این بخش به متریال اصلی</button>';
-   if(current?.startsWith('data:')){const img=document.createElement('img');img.className='material-current';img.alt='تکسچر انتخاب‌شده';img.src=current;panel.append(img);}
+   const slot=slots[active],presets=materialPresets(slot.role);
+   const current=mesh.userData.materialSlotStyles?.[active]?.source;
+   panel.innerHTML='<div class="material-slot-heading">'+(icons[slot.role]||'◩')+' '+escape(slot.name)+' · '+escape(ROLE_LABELS[slot.role]||'متریال')+'</div>'+
+    '<div class="material-slot-thumbnails">'+presets.map((p,i)=>'<button type="button" data-preset="'+i+'" class="'+(current===p.source?'selected':'')+'" aria-pressed="'+(current===p.source)+'">'+
+    '<img src="'+escape(p.url)+'" alt="" width="104" height="82" loading="lazy"><span>'+escape(p.label)+'</span></button>').join('')+'</div>'+
+    '<div class="material-slot-footer"><label>انتخاب تکسچر شخصی<input type="file" accept="image/jpeg,image/png,image/webp" data-material-image></label>'+
+    '<button type="button" data-material-reset>بازگردانی متریال اصلی</button></div>';
+   const apply=async style=>{
+    const index=active,version=++requestVersion;
+    setStatus('در حال اعمال متریال '+(index+1)+'…');
+    try{
+     const applied=await studio.setMaterialSlotStyle(index,style,mesh);
+     if(!valid()||version!==requestVersion||active!==index)return;
+     if(!applied){setStatus('این اسلات در مدل قابل تغییر نیست.');return;}
+     render();host.querySelector('.material-slot-status').textContent='فقط متریال '+(index+1)+' تغییر کرد.';
+    }catch(error){if(version!==requestVersion)return;setStatus(error.message||'بارگذاری این تکسچر انجام نشد.');notify(error.message||'خطای متریال');}
+   };
    panel.querySelectorAll('[data-preset]').forEach(button=>button.onclick=()=>void apply({source:presets[Number(button.dataset.preset)].source}));
-   panel.querySelector('.material-reset').onclick=()=>void apply(null);
-   panel.querySelector('[data-material-image]').onchange=async event=>{const file=event.target.files?.[0];if(!file)return;setStatus('در حال سبک‌سازی عکس…');try{const style=await materialImage(file);if(valid()&&host.contains(event.target))await apply(style);}catch(error){setStatus(error.message||'خواندن عکس ممکن نشد.');}};
-   if(visual().userData.legacyFabric&&!groups.some(e=>e.role!=='fabric'&&e.role))setStatus('مدل‌های قدیمی ممکن است فقط یک بخش پارچه داشته باشند. تغییر فقط روی آبجکت انتخاب‌شده است.');
+   panel.querySelector('[data-material-reset]').onclick=()=>void apply(null);
+   panel.querySelector('[data-material-image]').onchange=async e=>{
+    const file=e.target.files?.[0];if(!file)return;
+    setStatus('در حال کوچک‌سازی تصویر…');
+    try{const style=await materialImage(file);if(valid())await apply(style);}
+    catch(error){setStatus(error.message||'تکسچر خوانده نشد.');}
+   };
   }
-  const tabs=[...host.querySelectorAll('[role=tab]')];
-  const choose=role=>{active=role;renderVersion++;render();host.querySelector('[data-role='+role+']')?.focus();};
-  tabs.forEach((tab,i)=>{tab.onclick=()=>choose(tab.dataset.role);tab.onkeydown=event=>{let next;if(event.key==='ArrowLeft')next=(i+1)%MATERIAL_ROLES.length;else if(event.key==='ArrowRight')next=(i+MATERIAL_ROLES.length-1)%MATERIAL_ROLES.length;else if(event.key==='Home')next=0;else if(event.key==='End')next=MATERIAL_ROLES.length-1;if(next!==undefined){event.preventDefault();choose(MATERIAL_ROLES[next]);}};});
+  buttons.querySelectorAll('[data-slot]').forEach(button=>button.onclick=()=>{
+   const next=Number(button.dataset.slot);
+   active=active===next?-1:next;
+   requestVersion++;render();
+  });
  };
- render();if(!visual())void mesh.userData.loadPromise?.then(()=>{if(valid())render();});
+ render();
+ if(!visual())void mesh.userData.loadPromise?.then(()=>{if(valid())render();});
 }
