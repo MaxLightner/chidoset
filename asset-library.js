@@ -24,3 +24,5 @@ export const libraryThumbnail=index=>{const i=libraryModel(index);return i&&i.st
 export const libraryHidden=index=>['archived','deleted'].includes(libraryModel(index)?.status);
 export function librarySwatch(kind,id){const item=items.get('legacy-'+kind+'-'+id);return item&&item.status!=='deleted'?assetPath(item.files.color):null;}
 if(typeof document!=='undefined')void loadAssetLibrary();
+
+export function librarySwatchThumbnail(kind,id){const item=items.get('legacy-'+kind+'-'+id);return item&&item.status!=='deleted'?assetPath(item.files.thumbnail):null;}
