@@ -230,6 +230,21 @@ export class ArchitectureLayer {
   group.userData.archKind='kitchen';group.userData.archId=opening.id;
   parent.add(group);
  }
+ pickTelevision(ray){
+  if(!this.data.designedRoom||!this.group.visible)return null;
+  const tvGroups=[];
+  this.group.traverse(node=>{if(node.userData?.archKind==='tv'&&node.userData?.archId)tvGroups.push(node);});
+  if(!tvGroups.length)return null;
+  const hits=ray.intersectObjects(tvGroups,true);
+  for(const hit of hits){
+   let node=hit.object;
+   while(node&&node!==this.group){
+    if(node.userData?.archKind==='tv')return node.userData.archId;
+    node=node.parent;
+   }
+  }
+  return null;
+ }
  makeGeminiTelevision(container,wall,feature){
   // The panel geometry, proportions and surfaces follow the original Gemini
   // 85-inch TV feature wall, but live in Chido's tracked architecture group.
