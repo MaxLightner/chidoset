@@ -29,7 +29,7 @@ const fa=n=>n.toLocaleString('fa-IR',{maximumFractionDigits:1});
 export class Studio{
  constructor(host,changed){
   Object.assign(this,{host,changed,items:[],serial:0,selected:null,session:null,photoMode:false,tracking:true,anchor:null,anchorGeneration:0,anchorPending:false,anchorState:'بدون Anchor',lastStatus:'',lastReport:0,frames:0,fps:0,points:new Map(),gesture:null,needsAnchor:false,wideMode:'ar',wideView:null});
-  this.roomPlan=null;this.model=new SpatialState();this.scanner=new FloorScanner();this.anchorRig=new AnchorStabilizer();this.anchorNodes=[];this.anchorCandidates=[];this.anchorActive=false;this.anchorLastTime=0;this.extraHitSources=[];this.scanHits=0;this.scanDrop=null;this.scanDistance=null;this.revealStart=null;this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#eeeee3');this.debugView=new ARDebugView(this.scene);this.debugView.setVisible(false);
+  this.roomPlan=null;this.roomPendingPlacement=false;this.roomGeometryTimer=null;this.roomGeometryDirty=false;this.model=new SpatialState();this.scanner=new FloorScanner();this.anchorRig=new AnchorStabilizer();this.anchorNodes=[];this.anchorCandidates=[];this.anchorActive=false;this.anchorLastTime=0;this.extraHitSources=[];this.scanHits=0;this.scanDrop=null;this.scanDistance=null;this.revealStart=null;this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#eeeee3');this.debugView=new ARDebugView(this.scene);this.debugView.setVisible(false);
   this.camera=new THREE.PerspectiveCamera(48,1,.03,40);this.camera.position.set(5.2,4.4,6);this.camera.lookAt(.6,0,-.5);
   this.renderPolicy=rendererPolicy({coarse:!!globalThis.matchMedia?.('(pointer:coarse)').matches,pixelRatio:globalThis.devicePixelRatio||1});
   this.renderer=new THREE.WebGLRenderer({antialias:this.renderPolicy.antialias,alpha:true,preserveDrawingBuffer:this.renderPolicy.preserveDrawingBuffer});this.renderer.setPixelRatio(this.renderPolicy.pixelRatio);this.renderer.xr.enabled=true;this.renderer.xr.setFramebufferScaleFactor(this.renderPolicy.xrScale);this.renderer.xr.setReferenceSpaceType('local');host.prepend(this.renderer.domElement);
@@ -135,7 +135,36 @@ void main(){
    return {ok:false,reason:'این دستگاه نتوانست نمای واید مستقل را اجرا کند: '+(error?.message||error)};
   }
  }
- setRoomPlan(data){const next=normalizeRoomPlan(data);if(!next)return false;this.roomPlan=next;this.architecture?.restore(roomPlanToArchitecture(next,this.architecture?.data));if(this.whiteFloor)this.whiteFloor.visible=false;this.changed();return true;}
+ setRoomPlan(data){
+  const next=normalizeRoomPlan(data);if(!next)return false;
+  this.roomPlan=next;
+  if(this.session){this.roomPendingPlacement=true;this.root.visible=false;}
+  // Keep CAD dragging responsive; build the single shared 3D scene after edits settle.
+  this.roomGeometryDirty=true;
+  if(this.roomGeometryTimer!==null)clearTimeout(this.roomGeometryTimer);
+  this.roomGeometryTimer=setTimeout(()=>{this.roomGeometryTimer=null;this.flushRoomGeometry();},180);
+  this.changed();return true;
+ }
+ flushRoomGeometry(){
+  if(this.roomGeometryTimer!==null){clearTimeout(this.roomGeometryTimer);this.roomGeometryTimer=null;}
+  if(!this.roomGeometryDirty||!this.roomPlan)return;
+  this.roomGeometryDirty=false;
+  this.architecture?.restore(roomPlanToArchitecture(this.roomPlan,this.architecture?.data));
+  if(this.whiteFloor)this.whiteFloor.visible=false;
+  this.changed();
+ }
+ placeDesignedRoom(){
+  if(!this.session||!this.model.locked||!this.roomPlan)return false;
+  this.flushRoomGeometry();this.roomPendingPlacement=false;this.root.visible=true;this.changed();return true;
+ }
+ moveRoomFurniture(id,x,z){
+  if(!this.roomPlan||!Number.isFinite(x)||!Number.isFinite(z))return false;
+  const mesh=this.items.find(m=>m.userData.id===id);if(!mesh)return false;
+  const safe=this.safeObjectMotion(mesh,{x,z});
+  mesh.position.x=safe.x;mesh.position.z=safe.z;
+  if([4,14,28].includes(mesh.userData.index))this.snapToSupport(mesh);else this.keepOnFloor(mesh);
+  this.refreshAttachments();this.updateArtFloorHandle();this.changed();return true;
+ }
   get placed(){return this.model.locked;}
  updateArtFloorHandle(){if(!this.artFloorHandle)return;const mesh=this.selected;if(!mesh||!isWallArt(mesh.userData.index)||this.photoMode){this.artFloorHandle.visible=false;return;}this.artFloorHandle.visible=true;this.artFloorHandle.position.set(mesh.position.x,0,mesh.position.z);this.artFloorHandle.rotation.y=mesh.rotation.y;const link=this.artFloorHandle.getObjectByName('art-floor-link');const h=Math.max(.12,mesh.position.y);link.scale.y=h;link.position.y=h/2;}
  hitArtHandle(e,target){if(!this.artFloorHandle.visible)return false;const rect=target.getBoundingClientRect(),point=this.artFloorHandle.getWorldPosition(new THREE.Vector3()).project(this.activeCamera());if(point.z< -1||point.z>1)return false;return Math.hypot(rect.left+(point.x+1)*rect.width/2-e.clientX,rect.top+(1-point.y)*rect.height/2-e.clientY)<52;}
@@ -432,7 +461,7 @@ void main(){
  }
 
  remove(){const m=this.selected;if(!m)return;this.items=this.items.filter(x=>x!==m);for(const child of this.items)if(child.userData.attachment?.id===m.userData.id){child.userData.attachment=null;this.keepOnFloor(child);}this.root.remove(m);this.disposeObject(m);this.select(this.items[0]||null);}
- clear(){this.roomPlan=null;for(const m of this.items){this.root.remove(m);this.disposeObject(m);}this.items=[];this.selected=null;this.serial=0;this.architecture?.restore({floor:[],walls:[],windows:[]});this.changed();}
+ clear(){if(this.roomGeometryTimer!==null)clearTimeout(this.roomGeometryTimer);this.roomGeometryTimer=null;this.roomGeometryDirty=false;this.roomPendingPlacement=false;this.roomPlan=null;for(const m of this.items){this.root.remove(m);this.disposeObject(m);}this.items=[];this.selected=null;this.serial=0;this.architecture?.restore({floor:[],walls:[],windows:[]});this.changed();}
  disposeObject(object){disposeRoleMaterials(object.getObjectByName('imported-visual'));const imported=!!object.userData.imported;object.userData.disposed=true;object.traverse(o=>{o.geometry?.dispose();if(o.material){const materials=Array.isArray(o.material)?o.material:[o.material];for(const material of materials){if(!imported)material.map?.dispose();material.dispose();}}});}
  rotate(degrees){if(!this.selected)return;const mesh=this.selected;const desired=degrees===undefined?mesh.rotation.y+Math.PI/4:degrees*Math.PI/180;
   mesh.rotation.y=this.safeObjectRotation(mesh,desired);
@@ -468,7 +497,7 @@ void main(){
  seats:m.userData.seats||null,tableId:m.userData.tableId||null,hidden:!!m.userData.hidden,
  rugStyle:m.userData.rugStyle||null,artImage:m.userData.artImage||null,lampOn:!!m.userData.lampOn,
  cushionPreset:m.userData.cushionPreset||'none',fabric:m.userData.fabric||null,materialStyles:copyMaterialStyles(m.userData.materialStyles)}))};}
- restoreState(state){registerCloudProducts(state.cloudProducts);this.model.restore(state.spatial);this.roomPlan=normalizeRoomPlan(state.roomPlan)||null;this.architecture?.restore(state.architecture||{floor:[],walls:[],windows:[]});if(this.whiteFloor)this.whiteFloor.visible=!!state.whiteFloor&&!this.architecture?.data.floor.length;for(const x of state.items){const mesh=this.add(x.index,x.position?new THREE.Vector3(...x.position):undefined,{size:[22,23,24].includes(x.index)?undefined:x.size,seats:x.seats,silentSelect:true,cushionPreset:x.cushionPreset,lampOn:x.lampOn,fabric:x.fabric,materialStyles:x.materialStyles});mesh.userData.id=x.id;mesh.position.fromArray(x.position);if([22,23,24].includes(x.index))mesh.position.y=CATALOG[x.index].size[1]/2;mesh.rotation.y=x.rotation;mesh.material.color.set(x.color);if(x.tint)this.tintItem(mesh,x.tint);mesh.userData.attachment=x.attachment||null;mesh.userData.capacity=x.capacity||null;mesh.userData.seats=x.seats||mesh.userData.seats;mesh.userData.tableId=x.tableId||null;mesh.userData.hidden=!!x.hidden;mesh.visible=!x.hidden;if(x.rugStyle)applyRugStyle(mesh,x.rugStyle);if(x.artImage)this.setWallArtImage(x.artImage,mesh);if(isLamp(mesh.userData.index))this.initializeLamp(mesh,x.lampOn===true);}this.serial=Math.max(0,...state.items.map(x=>x.id));this.measureTool.setCorrection(this.model.correction);this.refreshAttachments();this.syncSpatial();this.select(this.items[0]||null);}
+ restoreState(state){registerCloudProducts(state.cloudProducts);this.model.restore(state.spatial);this.roomPlan=normalizeRoomPlan(state.roomPlan)||null;this.roomPendingPlacement=!!this.roomPlan;this.architecture?.restore(state.architecture||{floor:[],walls:[],windows:[]});if(this.whiteFloor)this.whiteFloor.visible=!!state.whiteFloor&&!this.architecture?.data.floor.length;for(const x of state.items){const mesh=this.add(x.index,x.position?new THREE.Vector3(...x.position):undefined,{size:[22,23,24].includes(x.index)?undefined:x.size,seats:x.seats,silentSelect:true,cushionPreset:x.cushionPreset,lampOn:x.lampOn,fabric:x.fabric,materialStyles:x.materialStyles});mesh.userData.id=x.id;mesh.position.fromArray(x.position);if([22,23,24].includes(x.index))mesh.position.y=CATALOG[x.index].size[1]/2;mesh.rotation.y=x.rotation;mesh.material.color.set(x.color);if(x.tint)this.tintItem(mesh,x.tint);mesh.userData.attachment=x.attachment||null;mesh.userData.capacity=x.capacity||null;mesh.userData.seats=x.seats||mesh.userData.seats;mesh.userData.tableId=x.tableId||null;mesh.userData.hidden=!!x.hidden;mesh.visible=!x.hidden;if(x.rugStyle)applyRugStyle(mesh,x.rugStyle);if(x.artImage)this.setWallArtImage(x.artImage,mesh);if(isLamp(mesh.userData.index))this.initializeLamp(mesh,x.lampOn===true);}this.serial=Math.max(0,...state.items.map(x=>x.id));this.measureTool.setCorrection(this.model.correction);this.refreshAttachments();this.syncSpatial();this.select(this.items[0]||null);}
  attachInput(target,opts){target.addEventListener('pointerdown',e=>this.down(e,target),opts);target.addEventListener('pointermove',e=>this.drag(e,target),opts);target.addEventListener('pointerup',e=>this.up(e,target),opts);target.addEventListener('pointercancel',()=>this.cancelGesture(),opts);target.addEventListener('lostpointercapture',e=>{if(this.points.has(e.pointerId))this.up(e,target);},opts);}
 
  exportLiveState(){
@@ -767,7 +796,7 @@ safeObjectMotion(mesh,desired){
   });
  }
  async startAR(status,report,basic=false,options={},incomingSession=null){
-  const session=incomingSession?await incomingSession:await requestARSession(navigator.xr,document.querySelector('#overlay'),basic,options);this.session=session;this.onStatus=status;this.onReport=report;this.tracking=false;this.frames=0;this.fps=0;this.lastReport=performance.now();this.lastReportState='';this.lastStatus='';this.debugView.start();this.model.locked=false;this.model.heightOffset=0; // Restore saved project calibration; a new empty scene defaults to 1:1.this.anchorRig=new AnchorStabilizer();this.scanMarkers.visible=true;this.scanHits=0;this.scanDrop=null;this.scanDistance=null;this.floorNet.material.uniforms.opacity.value=.85;this.syncSpatial();this.scanner.reset();this.debugView.note('scan started');this.root.visible=false;this.floorNet.visible=false;this.ruler.visible=false;this.scene.background=null;this.status('کف را اسکن کن؛ دوربین را آرام رو به پایین حرکت بده.');
+  const session=incomingSession?await incomingSession:await requestARSession(navigator.xr,document.querySelector('#overlay'),basic,options);this.session=session;this.roomPendingPlacement=!!this.roomPlan;this.onStatus=status;this.onReport=report;this.tracking=false;this.frames=0;this.fps=0;this.lastReport=performance.now();this.lastReportState='';this.lastStatus='';this.debugView.start();this.model.locked=false;this.model.heightOffset=0; // Restore saved project calibration; a new empty scene defaults to 1:1.this.anchorRig=new AnchorStabilizer();this.scanMarkers.visible=true;this.scanHits=0;this.scanDrop=null;this.scanDistance=null;this.floorNet.material.uniforms.opacity.value=.85;this.syncSpatial();this.scanner.reset();this.debugView.note('scan started');this.root.visible=false;this.floorNet.visible=false;this.ruler.visible=false;this.scene.background=null;this.status('کف را اسکن کن؛ دوربین را آرام رو به پایین حرکت بده.');
   const finish=()=>{if(this.session===session)this.endSession();};this.xrExitBinding?.dispose();this.xrExitBinding=bindXRExit(session,this.renderer.xr,finish,stage=>recordRuntime(stage,this.renderer));let stage='renderer';
   try{await this.renderer.xr.setSession(session);recordRuntime('xr-started',this.renderer);if(this.session!==session)return {hasOverlay:false,ended:true};this.cameraBinding=null;
     if(session.enabledFeatures?.includes('camera-access')&&globalThis.XRWebGLBinding){try{this.cameraBinding=new XRWebGLBinding(session,this.renderer.getContext());}catch(error){console.warn('Camera binding unavailable',error?.name||error);}}
@@ -790,7 +819,7 @@ safeObjectMotion(mesh,desired){
     }catch(error){console.debug('Auxiliary WebXR hit test unavailable',error?.name||error);break;}
    }
   }}
- confirmFloor(){if(this.model.locked||!this.scanner.ready||!this.scanner.point)return false;this.model.lock(this.scanner.point);if(this.measureTool)this.measureTool.group.visible=this.measureTool.active;this.debugView.note('floor confirmed',{origin:this.model.origin.toArray()});this.model.heightOffset=0;this.syncSpatial();this.root.visible=false;this.revealStart=performance.now();this.scanMarkers.visible=false;this.setGuides();this.needsAnchor=true;this.initialFloorOrigin=this.model.origin.toArray();this.anchorCandidates=[...this.scanner.observations];this.anchorCandidates.unshift(this.scanner.point.clone());this.status('کف ثابت شد. A و B را روی مرجع معلوم بگذار؛ سپس طول واقعی را وارد کن.');this.changed();return true;}
+ confirmFloor(){if(this.model.locked||!this.scanner.ready||!this.scanner.point)return false;this.model.lock(this.scanner.point);if(this.measureTool)this.measureTool.group.visible=this.measureTool.active;this.debugView.note('floor confirmed',{origin:this.model.origin.toArray()});this.model.heightOffset=0;this.syncSpatial();this.root.visible=false;this.revealStart=performance.now();this.scanMarkers.visible=false;this.setGuides();this.needsAnchor=true;this.initialFloorOrigin=this.model.origin.toArray();this.anchorCandidates=[...this.scanner.observations];this.anchorCandidates.unshift(this.scanner.point.clone());this.status(this.roomPendingPlacement?'کف ثابت شد؛ برای نمایش اتاق «قرار دادن اتاق» را بزن.':'کف ثابت شد. A و B را روی مرجع معلوم بگذار؛ سپس طول واقعی را وارد کن.');this.changed();return true;}
  updateAnchor(frame,space,time){
   if(this.needsAnchor){
    this.needsAnchor=false;
@@ -919,7 +948,7 @@ safeObjectMotion(mesh,desired){
       this.floorNet.material.uniforms.reveal.value=.65+3.6*eased;
       this.floorNet.material.uniforms.pulse.value=1-eased;
       this.floorNet.material.uniforms.opacity.value=.85-.46*eased;
-      this.root.visible=t>.68;
+      this.root.visible=t>.68&&!this.roomPendingPlacement;
       if(t>=1)this.revealStart=null;
      }
      this.updateAnchor(frame,space,time);if(!this.photoMode)this.status('A: جابه‌جایی مرجع و چیدمان · B: تنظیم راستا · اندازه واقعی از پنل A/B');}
