@@ -387,3 +387,32 @@
  #overlay .ar-minimap.expanded .room-design-toolbar [data-plan-fit]{font-size:17px!important;}
  #overlay .ar-minimap.expanded .room-finish-picker{top:calc(env(safe-area-inset-top,0px) + 179px)!important;}
 }
+
+/* v0.18.5 — future cross-app room templates, no misleading local save. */
+#overlay .ar-minimap.expanded .map-title [data-plan-templates]{
+ margin-inline-start:auto;font-size:14px;min-height:35px;
+ border:1px solid #a9b7aa;background:#edf4eb;color:#2e654d;
+ border-radius:8px;padding:4px 10px;font-weight:700;
+}
+#overlay .ar-minimap.expanded .room-templates-panel[hidden]{display:none!important;}
+#overlay .ar-minimap.expanded .room-templates-panel{
+ display:grid;gap:11px;position:absolute;z-index:8;
+ top:calc(env(safe-area-inset-top,0px) + 54px);left:10px;
+ width:min(420px,calc(100vw - 20px));max-height:60dvh;overflow:auto;
+ background:#fcfaf5;padding:13px;border-radius:13px;border:1px solid #bcc6b8;
+ box-shadow:0 16px 36px #112c2535;direction:rtl;
+}
+#overlay .ar-minimap.expanded .room-templates-panel .template-panel-heading{
+ display:flex;align-items:center;justify-content:space-between;gap:10px;
+}
+#overlay .ar-minimap.expanded .room-templates-panel strong{font-size:15px;color:#2d5140;}
+#overlay .ar-minimap.expanded .room-templates-panel p{
+ font-size:13px;padding:18px 9px;text-align:center;border:1px dashed #bcc7bb;
+ border-radius:9px;color:#647768;background:#f6f8f1;margin:0;
+}
+#overlay .ar-minimap.expanded .room-templates-panel button{
+ min-height:38px;border:1px solid #b7c6b7;background:#edf4ee;
+ border-radius:8px;color:#355a43;padding:7px;
+}
+#overlay .ar-minimap.expanded .room-templates-panel button:disabled{opacity:.6;cursor:not-allowed;}
+#overlay .ar-minimap.expanded .room-templates-panel small{font-size:12px;color:#62766c;line-height:1.8;}
