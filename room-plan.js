@@ -75,7 +75,7 @@ export function roomPlanToArchitecture(plan,previous={}){
   {id:'room-south',x1:-x,z1:z,x2:x,z2:z},
   {id:'room-west',x1:-x,z1:-z,x2:-x,z2:z},
   {id:'room-east',x1:x,z1:-z,x2:x,z2:z}
- ].filter(w=>!plan.hiddenWalls?.includes(w.id.slice(5))).map(w=>({...w,height:3.10,thickness:.24}));
+ ].filter(w=>!plan.hiddenWalls?.includes(w.id.slice(5))).map(w=>({...w,height:3.0,thickness:.24}));
  const windows=[],features=[];
  for(const el of plan.elements){
   const s=ROOM_SPECS[el.type];
