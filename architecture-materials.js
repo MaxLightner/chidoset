@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three.module.js';
-import {geminiFloorMaterial,geminiPlasterMaterial} from './gemini-room-materials.js?v=0.18.0';
+import {geminiFloorMaterial,geminiPlasterMaterial} from './gemini-room-materials.js?v=0.18.1';
 
 // Stable procedural, tileable colour and tangent-space normal maps.
 // Floor UVs are real world metres: one ceramic repeat = exactly 1 m × 1 m.
