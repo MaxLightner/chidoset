@@ -781,6 +781,7 @@ function handleARReport(report){
 async function startAR(basic=false,incomingSession=null){if(!studio||studio.session||arStarting)return;closeRoomPlanner();$('#overlay').classList.remove('room-design-offline','floor-ready');arStarting=true;liveSharingPaused=false;liveRetryAt=0;calibrationPrompted=false;const launchingStudio=studio;const button=$('#startAR');button.disabled=true;$('#arError').close();try{$('#overlay').hidden=false;$('#roomPlaceActions').hidden=true;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=false;$('#scanProgress').value=12;$('#scanStage').textContent='راه‌اندازی AR…';$('#scanPercent').textContent='۱۲٪';closeArSheet();$('#arSettings').hidden=true;$('#arStatus').textContent='در حال شناسایی کف…';resetWideViewControls();const result=await launchingStudio.startAR(message=>$('#arStatus').textContent=message,handleARReport,basic,{light:!basic&&$('#lightEnabled').checked,depth:!basic&&$('#depthEnabled').checked},incomingSession);if(studio!==launchingStudio||!launchingStudio.session)return;if(!result.hasOverlay){await endXRSession(launchingStudio.session);throw Object.assign(new Error('دستگاه DOM Overlay را فعال نکرده است؛ کنترل اسکن و تثبیت کف بدون آن قابل نمایش نیست.'),{name:'NotSupportedError',xrStage:'overlay'});}$('#overlay').hidden=false;$('#launchProgress').value=3;$('#launchStage').textContent='نشست AR آماده شد؛ کف را اسکن کن.';studio.setDebugVisible(debugEnabled);updateObjects();}catch(error){if(studio!==launchingStudio)return;$('#overlay').hidden=true;$('#arDock').hidden=true;button.hidden=false;$('#launchStage').textContent='ورود به AR ناموفق بود؛ جزئیات را بررسی کن.';const failure=explainXR(error);lastXRErrorReport=JSON.stringify({version:'0.4.1',mode:basic?'basic':'full',stage:failure.stage,name:failure.name,message:failure.detail,secureContext:isSecureContext,webXR:!!navigator.xr,supportCheck:supported,userAgent:navigator.userAgent},null,2);$('#arErrorMessage').textContent=failure.message;$('#arErrorDetails').textContent=lastXRErrorReport;$('#arError').showModal();console.error(error);}finally{arStarting=false;button.disabled=false;}}
 function openRoomPlanner(){
  if(!studio)return;
+ closeRoomFinishPicker();
  const layer=studio.architecture;
  if(!studio.roomPlan&&(!layer?.data.floor?.length)&&!studio.setRoomPlan(defaultRoomPlan())){
   toast('ساخت اتاق انجام نشد.');return;
@@ -794,6 +795,7 @@ function openRoomPlanner(){
  minimap.setExpanded(true);
 }
 function closeRoomPlanner(){
+ closeRoomFinishPicker();
  minimap.collapse();
  $('#overlay').classList.remove('room-design-offline');
  if(!studio?.session){$('#overlay').hidden=true;$('#arMiniMap').hidden=true;}
@@ -829,16 +831,32 @@ $('#placeDesignedRoom').onclick=()=>{
  }else toast('اتاق در AR قرار گرفت؛ پوشش تمام‌صفحه در این دستگاه در دسترس نیست: '+result.reason);
 };
 $('#editDesignedRoom').onclick=()=>openRoomPlanner();
+function closeRoomFinishPicker(){
+ const host=$('#roomFinishPicker');
+ if(host){host.hidden=true;host.replaceChildren();host.dataset.kind='';}
+}
 function cycleRoomFinish(kind){
- if(!studio)return;
- const layer=studio.architecture;
- if(!layer||!studio.roomPlan){toast('ابتدا ابعاد اتاق را مشخص کن.');return;}
- const items=kind==='floor'?FLOOR_FINISHES:WALL_FINISHES,key=kind==='floor'?'floorMaterial':'wallMaterial';
- const current=items.findIndex(item=>item.id===layer.data[key]);
- const next=items[(current+1)%items.length];
- layer.data[key]=next.id;
- layer.refresh();studio.changed();
- toast((kind==='floor'?'کف: ':'دیوار: ')+next.label);
+ if(!studio?.roomPlan){toast('ابتدا اتاق را ایجاد کن.');return;}
+ const host=$('#roomFinishPicker');if(!host||!minimap.expanded)return;
+ if(!host.hidden&&host.dataset.kind===kind){closeRoomFinishPicker();return;}
+ const presets=kind==='floor'?FLOOR_FINISHES:WALL_FINISHES;
+ const key=kind==='floor'?'floorMaterial':'wallMaterial';
+ const current=studio.architecture.data[key];
+ host.dataset.kind=kind;host.hidden=false;
+ host.innerHTML='<div class="picker-header"><strong>'+(kind==='floor'?'جنس و رنگ کف · Gemini':'رنگ گچ دیوار · Gemini')+'</strong><button type="button" data-close-finish>بستن ×</button></div>'+
+  '<div class="finish-options">'+presets.map(item=>
+   '<button type="button" data-room-finish="'+item.id+'" class="'+(current===item.id?'selected':'')+'">'+
+   '<img src="'+finishPreviewDataUrl(item.id)+'" alt="">'+item.label+'</button>').join('')+'</div>';
+ host.querySelector('[data-close-finish]').onclick=closeRoomFinishPicker;
+ host.querySelectorAll('[data-room-finish]').forEach(button=>button.onclick=()=>{
+  const id=button.dataset.roomFinish;
+  studio.flushRoomGeometry();
+  studio.architecture.data[key]=id;
+  studio.architecture.refresh();
+  studio.changed();
+  closeRoomFinishPicker();
+  toast((kind==='floor'?'کف: ':'دیوار: ')+presets.find(item=>item.id===id).label);
+ });
 }
 function resetWideViewControls(){
  const select=$('#wideViewMode');if(select){select.value='ar';select.disabled=true;}
