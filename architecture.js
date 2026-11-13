@@ -151,7 +151,9 @@ export class ArchitectureLayer {
   const len=wallLength(w),ux=(w.x2-w.x1)/len,uz=(w.z2-w.z1)/len,along=(a+b)/2;
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(b-a,y1-y0,thickness),mat.clone());
   mesh.position.set(w.x1+ux*along,(y0+y1)/2,w.z1+uz*along);
-  mesh.rotation.y=-Math.atan2(uz,ux);mesh.userData.archWindow=owner;mesh.userData.archKind=owner?'window':'wall';mesh.userData.archId=owner||w.id;group.add(mesh);return mesh;
+  mesh.rotation.y=-Math.atan2(uz,ux);mesh.userData.archWindow=owner;mesh.userData.archKind=owner?'window':'wall';mesh.userData.archId=owner||w.id;
+  if(!owner)mesh.layers.enable(2); // visible in normal scene and in the wall-only GTAO mask
+  group.add(mesh);return mesh;
  }
  makeGeminiWindow(parent,wall,opening){
   const length=wallLength(wall),ux=(wall.x2-wall.x1)/length,uz=(wall.z2-wall.z1)/length;
@@ -300,7 +302,7 @@ export class ArchitectureLayer {
     applyMetricFloorUV(geo,this.data.floorMaterial,material);
     surface=new THREE.Mesh(geo,material);surface.position.y=-.008;
    }
-   surface.receiveShadow=true;surface.renderOrder=-2;surface.userData.archKind='floor';surface.userData.archId='floor';
+   surface.receiveShadow=!this.data.designedRoom;surface.renderOrder=-2;surface.userData.archKind='floor';surface.userData.archId='floor';
    this.group.add(surface);this.floorMesh=surface;
   }
   if(!floor.length)this.floorMesh=null;
@@ -341,6 +343,15 @@ export class ArchitectureLayer {
   for(const w of this.data.walls){
    const len=wallLength(w);if(len<.1)continue;
    const wallMat=finishMaterial(w.material||this.data.wallMaterial);
+   if(this.data.designedRoom){
+    // Keep Gemini's procedural plaster normal/roughness. Opposing walls
+    // have slightly different reflectance, as a real daylight interior does.
+    const side=w.id.replace(/^room-/,'');
+    const daylightFactors={north:1.025,south:.965,west:1.0,east:.94};
+    wallMat.color.multiplyScalar(daylightFactors[side]||.985);
+    wallMat.roughness=Math.min(.93,Math.max(.74,wallMat.roughness+.025));
+    if(wallMat.normalScale)wallMat.normalScale.set(.48,.48);
+   }
    const openings=this.data.windows.filter(o=>o.hostId===w.id).sort((a,b)=>a.along-b.along);
    const container=new THREE.Group();container.userData.wallId=w.id;this.group.add(container);
    let before=0;
