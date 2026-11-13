@@ -98,10 +98,10 @@ test('selected materials are a vertical left-side UI, not in bottom AR dock',()=
  assert.doesNotMatch(html,/id="arMaterialTool"/);
  for(const id of ['arMaterialRail','arRoomVisibility','arMoveCenterTool','roomCenterReticle','roomCenterConfirm'])
   assert.ok(html.includes('id="'+id+'"'),id);
- assert.match(app,/mountMaterialPanel\(body,studio,mesh,\{notify:toast\}\)/);
+ assert.match(app,/renderMaterialSlotThumbnails\(body,studio,mesh,slot,\{notify:toast\}\)/);
  assert.match(css,/\.ar-material-rail\s*\{/);
  assert.match(css,/\.material-tabs\s*\{[\s\S]*?flex-direction:column/);
- assert.match(read('material-panel.js'),/class="role-icon"/);
+ assert.match(read('material-panel.js'),/materialSlotDescriptors/);
 });
 
 test('Reinhard remains with natural reduced vibrance',()=>{
