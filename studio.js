@@ -2,7 +2,7 @@ import * as THREE from './vendor/three.module.js';
 import {copyMaterialStyles,applyRoleMaterial,disposeRoleMaterials} from './material-roles.js?v=0.16.23';
 import {getCloudProduct,getCloudProductInfo,registerCloudProducts,cloudProductList} from './cloud-product-registry.js';
 import {ArchitectureLayer} from './architecture.js?v=0.9.0';
-import {normalizeRoomPlan,roomPlanToArchitecture} from './room-plan.js?v=0.17.0';
+import {normalizeRoomPlan,roomPlanToArchitecture,constrainFurnitureToRoom} from './room-plan.js?v=0.17.0';
 import {createFurniture,furnitureHit} from './furniture.js?v=0.5.4';
 import {createDecor} from './decor.js?v=0.5.4';
 import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.16.23';
@@ -631,11 +631,13 @@ void main(){
    }
 safeObjectMotion(mesh,desired){
     if(!isFloorSolid(mesh.userData.index))return desired;
-    const linked=this.linkedChairs(mesh),start=this.collisionShape(mesh);
+    const linked=this.linkedChairs(mesh),parts=[this.collisionShape(mesh),...linked.map(m=>this.collisionShape(m))];
     const fixed=this.collisionObstacles(mesh,linked);
-    const safe=linked.length?
-     moveGroupWithoutOverlap([start,...linked.map(m=>this.collisionShape(m))],desired,fixed):
-     moveWithoutOverlap(start,desired,fixed);
+    const inside=this.roomPlan?constrainFurnitureToRoom(this.roomPlan,parts,desired):desired;
+    if(!inside)return {x:mesh.position.x,z:mesh.position.z};
+    const solved=linked.length?moveGroupWithoutOverlap(parts,inside,fixed):moveWithoutOverlap(parts[0],inside,fixed);
+    const safe=this.roomPlan?constrainFurnitureToRoom(this.roomPlan,parts,solved):solved;
+    if(!safe)return {x:mesh.position.x,z:mesh.position.z};
     const dx=safe.x-mesh.position.x,dz=safe.z-mesh.position.z;
     for(const chair of linked){chair.position.x+=dx;chair.position.z+=dz;}
     return safe;
@@ -646,6 +648,16 @@ safeObjectMotion(mesh,desired){
     const safe=linked.length?
      rotateGroupWithoutOverlap([this.collisionShape(mesh),...linked.map(m=>this.collisionShape(m))],desired,fixed):
      rotateWithoutOverlap(this.collisionShape(mesh),desired,fixed);
+    if(this.roomPlan){
+     const diffPreview=safe-mesh.rotation.y,cp=Math.cos(diffPreview),sp=Math.sin(diffPreview);
+     const future=[this.collisionShape(mesh,mesh.position.x,mesh.position.z,safe),
+      ...linked.map(chair=>{
+       const dx=chair.position.x-mesh.position.x,dz=chair.position.z-mesh.position.z;
+       return this.collisionShape(chair,mesh.position.x+dx*cp+dz*sp,mesh.position.z-dx*sp+dz*cp,chair.rotation.y+diffPreview);
+      })];
+     const checked=constrainFurnitureToRoom(this.roomPlan,future,{x:mesh.position.x,z:mesh.position.z});
+     if(!checked||Math.hypot(checked.x-mesh.position.x,checked.z-mesh.position.z)>.001)return mesh.rotation.y;
+    }
     const diff=safe-mesh.rotation.y,c=Math.cos(diff),s=Math.sin(diff);
     for(const chair of linked){
      const dx=chair.position.x-mesh.position.x,dz=chair.position.z-mesh.position.z;
@@ -657,7 +669,20 @@ safeObjectMotion(mesh,desired){
    }
    tryPlaceNew(mesh,previous=null,maxRadius=2.3){
    if(!mesh||!isFloorSolid(mesh.userData.index))return !!mesh;
-   const found=nearestFreeFootprint(this.collisionShape(mesh),this.collisionObstacles(mesh),maxRadius);
+   let found=null;
+   if(this.roomPlan){
+    const moving=this.collisionShape(mesh),blockers=this.collisionObstacles(mesh);
+    const candidates=[{x:moving.x,z:moving.z}];
+    const {w,d}=this.roomPlan;
+    for(let x=-w/2+.2;x<=w/2-.2;x+=.42)for(let z=-d/2+.2;z<=d/2-.2;z+=.42)candidates.push({x,z});
+    candidates.sort((a,b)=>Math.hypot(a.x-moving.x,a.z-moving.z)-Math.hypot(b.x-moving.x,b.z-moving.z));
+    for(const goal of candidates){
+     const bounded=constrainFurnitureToRoom(this.roomPlan,[moving],goal);
+     if(!bounded||Math.hypot(bounded.x-goal.x,bounded.z-goal.z)>.002)continue;
+     if(blockers.some(obstacle=>footprintsOverlap(this.collisionShape(mesh,bounded.x,bounded.z),obstacle)))continue;
+     found=bounded;break;
+    }
+   }else found=nearestFreeFootprint(this.collisionShape(mesh),this.collisionObstacles(mesh),maxRadius);
    if(!found){
     this.items=this.items.filter(m=>m!==mesh);this.root.remove(mesh);this.disposeObject(mesh);
     this.select(previous&&this.items.includes(previous)?previous:(this.items[0]||null));
