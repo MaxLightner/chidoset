@@ -1012,11 +1012,16 @@ function applyWideMode(){
  const outcome=studio?.setWideView(mode,{natural:$('#wideNatural').checked})||
   {ok:false,reason:'جلسه AR فعال نیست.'};
  if(!outcome.ok){select.value=studio?.wideMode||'ar';toast(outcome.reason);return;}
+ if(studio?.wideView?.active)studio.wideView.setAmbientOcclusion($('#wideAoEnabled').checked);
  if(mode==='ar')$('#wideViewHint').textContent='تصویر دوربین واقعی · ردیابی AR';
  else showWideProjection({horizontal:outcome.hfov,requestedHorizontal:outcome.requestedHfov,limited:outcome.limited});
 }
 $('#wideViewMode').onchange=applyWideMode;
 $('#wideNatural').onchange=()=>{if(studio?.session&&studio.wideMode!=='ar')applyWideMode();};
+$('#wideAoEnabled').onchange=()=>{
+ if(studio?.wideView?.active)studio.wideView.setAmbientOcclusion($('#wideAoEnabled').checked);
+ toast($('#wideAoEnabled').checked?'GTAO فعال است؛ Bloom و تون‌مپینگ تغییری نکرد.':'فقط GTAO غیرفعال شد؛ Bloom، Reinhard و سایر تنظیمات ثابت‌اند.');
+};
 let debugEnabled=false;
 function refreshDebugPanel(){
  const panel=$('#arDebugPanel');if(!panel||panel.hidden||!studio)return;
