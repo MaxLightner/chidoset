@@ -16,9 +16,9 @@ export class LiveMiniMap{
   panel.querySelector('[data-map-expand]').onclick=()=>this.setExpanded(!this.expanded);
   panel.querySelector('[data-map-add]').onclick=()=>this.addFurniture();
   panel.querySelector('[data-map-remove]').onclick=()=>this.removeSelected();
-  panel.querySelector('[data-map-left]').onclick=()=>this.turn(-45);
-  panel.querySelector('[data-map-right]').onclick=()=>this.turn(45);
-  this.angleInput.oninput=()=>{const s=getStudio();if(s?.selected)s.rotate(+this.angleInput.value);};
+  panel.querySelector('[data-map-left]').onclick=()=>{const studio=getStudio();if(studio?.selected)studio.rotate(studio.selected.rotation.y*180/Math.PI-45);};
+  panel.querySelector('[data-map-right]').onclick=()=>{const studio=getStudio();if(studio?.selected)studio.rotate(studio.selected.rotation.y*180/Math.PI+45);};
+  this.angleInput.oninput=()=>{const studio=getStudio();if(!studio?.selected)return;const next=Number(this.angleInput.value);if(Number.isFinite(next))studio.rotate(next);};
   panel.querySelector('[data-plan-create]').onclick=()=>this.applyDimensions();
   panel.querySelectorAll('[data-plan-tool]').forEach(btn=>btn.onclick=()=>{
    this.tool=btn.dataset.planTool;this.selectedArch=null;this.updateTools();
