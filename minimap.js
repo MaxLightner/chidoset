@@ -201,7 +201,7 @@ export class LiveMiniMap{
   const arch=e.target.closest('[data-plan-el]');
   if(s.roomPlan){
    const el=(arch?s.roomPlan.elements.find(x=>x.id===arch.dataset.planEl):null)||this.roomElementAt(point,s.roomPlan);
-   if(el){s.select(null);this.selectedArch=el.id;this.selectedWall=null;this.gesture={type:'architecture',id:el.id};this.render();return;}
+   if(el){s.select(null);this.selectedArch=el.id;this.selectedWall=null;this.gesture={type:'architecture',id:el.id,startX:e.clientX,startY:e.clientY,moved:false};this.render();return;}
   }
   const furniture=e.target.closest('[data-object-id]');
   if(furniture){
@@ -272,6 +272,8 @@ export class LiveMiniMap{
    if(s.roomPlan)s.moveRoomFurniture(g.id,x,z);
    else s.moveObjectFromPlan(g.id,x,z);
   }else if(g.type==='architecture'&&s.roomPlan){
+   if(Math.hypot(e.clientX-g.startX,e.clientY-g.startY)>8)g.moved=true;
+   if(!g.moved)return;
    const el=s.roomPlan.elements.find(x=>x.id===g.id);
    if(!el)return;
    const snap=this.closestWall(p,s.roomPlan,el.type);if(!snap)return;
@@ -290,6 +292,10 @@ export class LiveMiniMap{
   if(!this.pointers.has(e.pointerId))return;
   this.pointers.delete(e.pointerId);
   try{this.svg.releasePointerCapture(e.pointerId);}catch{}
+  if(e.type==='pointerup'&&this.gesture?.type==='architecture'&&!this.gesture.moved){
+   const plan=this.getStudio()?.roomPlan,el=plan?.elements.find(x=>x.id===this.gesture.id);
+   if(el?.type==='tv')this.options.onTV?.();
+  }
   // Avoid stale one-finger drags after a two-finger twist/pinch.
   this.gesture=null;
  }
