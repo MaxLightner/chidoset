@@ -31,7 +31,7 @@ bindAROrientation($('#overlay'));
 let studio,Scene,palette,space='پذیرایی',layout='empty',supported=false,routeVersion=0,photoURLs=[],savedItems=[],arReport=null,sceneMemory=null,arStarting=false,lastXRErrorReport='',activeSavedLayoutId=null;
 const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio,{
  getProducts:()=>[...publishedCatalogIndexes()].filter(i=>i>=0).map(index=>({index,name:getCloudProduct(index)?.name||getCloudProductInfo(index)?.name||libraryModel(index)?.name||catalogImages[index]?.[0]||'مدل'})),
- onToast:toast,on3D:showDesignedRoom3D,onStartAR:startScanFromRoom,
+ onToast:toast,on3D:showDesignedRoom3D,onStartAR:startScanFromRoom,onTV:showRoomTVPicker,
  onClose:()=>{if(!studio?.session){$('#overlay').classList.remove('room-design-offline');$('#overlay').hidden=true;$('#arMiniMap').hidden=true;}},
  onFloor:()=>cycleRoomFinish('floor'),onWall:()=>cycleRoomFinish('wall')
 });
@@ -834,6 +834,29 @@ $('#placeDesignedRoom').onclick=()=>{
  }else toast('اتاق در AR قرار گرفت؛ پوشش تمام‌صفحه در این دستگاه در دسترس نیست: '+result.reason);
 };
 $('#editDesignedRoom').onclick=()=>openRoomPlanner();
+function showRoomTVPicker(){
+ if(!studio?.roomPlan||!minimap.expanded)return;
+ const host=$('#roomFinishPicker');if(!host)return;
+ const plan=studio.roomPlan;
+ host.hidden=false;host.dataset.kind='tv';
+ const channels=[['nature','طبیعت و دریاچه'],['fireplace','شومینه'],['abstract','هنر انتزاعی']];
+ const finishes=[['walnut','کنسول گردویی'],['nero','سنگ نرو'],['lacquer','لاک تیره']];
+ const buttons=(data,attr,current)=>data.map(([id,label])=>'<button type="button" '+attr+'="'+id+'" class="'+(current===id?'selected':'')+'">'+label+'</button>').join('');
+ host.innerHTML='<div class="picker-header"><strong>تنظیمات تلویزیون Gemini</strong><button type="button" data-close-finish>بستن ×</button></div>'+
+  '<div class="tv-settings"><div class="tv-group"><b>تصویر نمایشگر</b><div class="tv-options">'+buttons(channels,'data-tv-channel',plan.tvChannel||'nature')+'</div></div>'+
+  '<div class="tv-group"><b>جنس کنسول</b><div class="tv-options">'+buttons(finishes,'data-tv-console',plan.consoleFinish||'walnut')+'</div></div>'+
+  '<label class="tv-power"><input type="checkbox" data-tv-power '+(plan.tvOn!==false?'checked':'')+'> نمایشگر روشن باشد</label></div>';
+ host.querySelector('[data-close-finish]').onclick=closeRoomFinishPicker;
+ host.querySelectorAll('[data-tv-channel]').forEach(button=>button.onclick=()=>{
+  studio.setRoomPlan({...studio.roomPlan,tvChannel:button.dataset.tvChannel});showRoomTVPicker();
+ });
+ host.querySelectorAll('[data-tv-console]').forEach(button=>button.onclick=()=>{
+  studio.setRoomPlan({...studio.roomPlan,consoleFinish:button.dataset.tvConsole});showRoomTVPicker();
+ });
+ host.querySelector('[data-tv-power]').onchange=e=>{
+  studio.setRoomPlan({...studio.roomPlan,tvOn:e.target.checked});showRoomTVPicker();
+ };
+}
 function closeRoomFinishPicker(){
  const host=$('#roomFinishPicker');
  if(host){host.hidden=true;host.replaceChildren();host.dataset.kind='';}
