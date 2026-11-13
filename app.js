@@ -35,7 +35,7 @@ const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio,{
  onClose:()=>{if(!studio?.session){$('#overlay').classList.remove('room-design-offline');$('#overlay').hidden=true;$('#arMiniMap').hidden=true;}},
  onFloor:()=>cycleRoomFinish('floor'),onWall:()=>cycleRoomFinish('wall')
 });
-let roomDesignOnLaunch=false,roomWaitingForFloor=false;
+let roomDesignOnLaunch=false,roomWaitingForFloor=false,materialRailClosedKey='';
 let chidoMenuOpen=false;
 let pendingARSession=null,calibrationPrompted=false;
 let homeExitRequested=false,homeExitBusy=false,homeExitFallback=null;
@@ -295,8 +295,9 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
   studio.onEnd=()=>{
    try{
     if(activeLiveSession)void endLiveShare(true);
-    resetWideViewControls();closeChidoMenu();minimap.collapse();setPhotoMode(false);closeArSheet();
+    resetWideViewControls();closeChidoMenu();minimap.collapse();setPhotoMode(false);closeArSheet();closeRoomCenterMode();
     $('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=true;
+    $('#roomArControls').hidden=true;$('#arMaterialRail').hidden=true;
     $('#measureHint').hidden=true;$('#arMiniMap').hidden=true;$('#roomPlaceActions').hidden=true;$('#abInline').hidden=true;$('#arBottomActions').hidden=true;$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;$('#arSurfaceActions').hidden=true;
    }catch(error){recordRuntimeError('exit-ui-error',error);console.warn('AR controls cleanup',error);}
     $('#overlay').classList.remove('room-design-offline','floor-ready');$('#overlay').hidden=true;
@@ -319,11 +320,12 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
    if($('#wideViewMode')?.value!=='ar')showWideProjection(projection);
   };
    studio.architecture.onSelectionChange=updateArchitectureSelection;
-  studio.onLiveChange=reason=>{minimap.render();updateArchitectureSelection();if(reason==='drag')scheduleLiveScenePublish();};
+  studio.onLiveChange=reason=>{minimap.render();updateArchitectureSelection();updateSelectedMaterialRail();if(reason==='drag')scheduleLiveScenePublish();};
    studio.onABPosition=point=>{const el=$('#abInline');if(!point||!studio?.session||studio.photoMode){el.hidden=true;return;}el.hidden=false;el.style.left=Math.max(72,Math.min(innerWidth-72,point.x))+'px';el.style.top=Math.max(88,Math.min(innerHeight-125,point.y))+'px';$('#abLengthButton').textContent='A—B · '+Math.round(studio.measurement().correctedCm).toLocaleString('fa-IR')+' cm ✎';};
   studio.onSelectionScreen=()=>{
     const quick=$('#objectQuick'),selected=studio?.selected;
     if(!quick)return;
+    updateSelectedMaterialRail();
     const show=!!selected&&!!studio.session&&studio.placed&&!studio.photoMode&&!chidoMenuOpen&&!$('#chidoMenuHome').disabled&&$('#arToolSheet').hidden&&!studio.placementEnabled;
     quick.hidden=!show;
     if(!show)return;
@@ -684,14 +686,89 @@ function showArSheet(mode){
 $('#abLengthButton').onclick=()=>{$('#abCalibrationSheet').hidden=false;studio?.setRoomCalibrationGuides(true);$('#aractual').value=studio?.measurement().actualCm||Math.round(studio?.measurement().correctedCm||100);};
 $('#abCalibrationClose').onclick=()=>{$('#abCalibrationSheet').hidden=true;studio?.setRoomCalibrationGuides(false);};
 $('#arCalibrationTool').onclick=()=>{closeArSheet();$('#arArchitectureActions').hidden=true;$('#abCalibrationSheet').hidden=!$('#abCalibrationSheet').hidden;studio?.setRoomCalibrationGuides(!$('#abCalibrationSheet').hidden);};
+function updateSelectedMaterialRail(force=false){
+ const host=$('#arMaterialRail'),body=$('#arMaterialRailBody'),title=$('#arMaterialRailTitle');
+ if(!host||!body||!studio)return;
+ const surface=studio.architecture?.selectedSurface();
+ const mesh=surface?null:studio.selected;
+ const key=surface&&['floor','wall'].includes(surface.kind)?'surface:'+surface.kind+':'+surface.id:
+  mesh?'object:'+mesh.userData.id:null;
+ const canShow=!!key&&!!studio.session&&studio.placed&&!studio.photoMode&&!minimap.expanded;
+ if(!canShow||key===materialRailClosedKey){host.hidden=true;return;}
+ if(!force&&host.dataset.itemKey===key&&!host.hidden)return;
+ host.dataset.itemKey=key;host.hidden=false;body.replaceChildren();
+ if(surface){
+  const floor=surface.kind==='floor',options=floor?FLOOR_FINISHES:WALL_FINISHES;
+  const selectedId=floor?studio.architecture.data.floorMaterial:
+   studio.architecture.data.walls.find(w=>w.id===surface.id)?.material||studio.architecture.data.wallMaterial;
+  title.textContent=floor?'متریال کف':'متریال دیوار';
+  body.innerHTML='<div class="architecture-finish-grid">'+options.map(o=>
+   '<button type="button" data-rail-finish="'+o.id+'" class="'+(o.id===selectedId?'selected':'')+'">'+
+   '<img src="'+finishPreviewDataUrl(o.id)+'" alt=""><span>'+o.label+'</span></button>').join('')+'</div>';
+  body.querySelectorAll('[data-rail-finish]').forEach(btn=>btn.onclick=()=>{
+   if(studio.architecture.setSelectedFinish(btn.dataset.railFinish))updateSelectedMaterialRail(true);
+  });
+ }else if(mesh?.userData.imported){
+  title.textContent='تکسچر · '+mesh.userData.product.name;
+  mountMaterialPanel(body,studio,mesh,{notify:toast});
+ }else if(mesh){
+  title.textContent='رنگ · '+mesh.userData.product.name;
+  const colors=[...themes[themeIndex].colors,'#b6bca2','#70858b','#b79c85','#ae8574','#546356','#5f5753','#efe8df'];
+  body.innerHTML='<div class="ar-color-grid">'+colors.map(color=>
+   '<button type="button" data-rail-color="'+color+'" title="'+color+'" style="--swatch:'+color+'"><span></span></button>').join('')+'</div>';
+  body.querySelectorAll('[data-rail-color]').forEach(btn=>btn.onclick=()=>studio.color(btn.dataset.railColor));
+ }
+}
+$('#arMaterialRailClose').onclick=()=>{
+ materialRailClosedKey=$('#arMaterialRail').dataset.itemKey;
+ $('#arMaterialRail').hidden=true;
+};
+function closeRoomCenterMode(){
+ $('#roomCenterReticle').hidden=true;$('#roomCenterActions').hidden=true;
+ $('#arMoveCenterTool').setAttribute('aria-pressed','false');
+}
+function updateRoomArControls(){
+ const ready=!!studio?.session&&!!studio?.placed&&!!studio?.roomPlan&&!studio?.roomPendingPlacement&&!minimap.expanded&&!studio.photoMode;
+ $('#roomArControls').hidden=!ready;
+ if(!ready){closeRoomCenterMode();return;}
+ const shown=studio.roomVisible!==false;
+ $('#arRoomVisibility').textContent=shown?'◫ مخفی‌کردن اتاق':'▣ نمایش اتاق';
+ $('#arRoomVisibility').setAttribute('aria-pressed',String(!shown));
+}
+$('#arRoomVisibility').onclick=()=>{
+ if(!studio?.session||!studio.roomPlan)return;
+ const visible=studio.roomVisible===false;
+ if(!studio.setDesignedRoomVisible(visible))return;
+ if(!visible){studio.setWideView('ar');resetWideViewControls();}
+ else{
+  const result=studio.setWideView('normal',{natural:true});
+  if(result.ok){$('#wideViewMode').value='normal';showWideProjection({horizontal:result.hfov,requestedHorizontal:result.requestedHfov,limited:result.limited});}
+ }
+ updateRoomArControls();toast(visible?'اتاق نمایش داده شد.':'فقط اتاق مخفی شد؛ مبلمان در AR باقی می‌ماند.');
+};
+$('#arMoveCenterTool').onclick=()=>{
+ if(!studio?.session||!studio.roomPlan||!studio.placed)return;
+ const active=$('#roomCenterActions').hidden;
+ $('#roomCenterActions').hidden=!active;$('#roomCenterReticle').hidden=!active;
+ $('#arMoveCenterTool').setAttribute('aria-pressed',String(active));
+ if(active)toast('نشانه‌گر وسط صفحه را روی نقطه مطلوب کف بگیر؛ سپس انتقال مرکز را بزن.');
+};
+$('#roomCenterCancel').onclick=closeRoomCenterMode;
+$('#roomCenterConfirm').onclick=()=>{
+ if(!studio?.moveRoomCenterToCrosshair()){
+  toast('نشانه‌گر باید روی کف باشد؛ دوربین را کمی به سمت زمین بگیر.');return;
+ }
+ closeRoomCenterMode();toast('مرکز اتاق و تمام مبلمان به نقطه انتخاب‌شده منتقل شد؛ کالیبراسیون A/B حفظ شد.');
+};
 function updateArchitectureSelection(){
  const selected=studio?.architecture?.selectedSurface(),bar=$('#arSurfaceActions');if(!bar)return;
  bar.hidden=!selected||!studio?.session||!studio?.placed||studio.photoMode;
  if(!selected)return;
  $('#arSurfaceName').textContent=selected.kind==='floor'?'کف':selected.kind==='wall'?'دیوار':'پنجره';
  $('#arSurfaceMaterial').hidden=selected.kind==='window';
+ updateSelectedMaterialRail();
 }
-$('#arSurfaceMaterial').onclick=()=>showArSheet('colors');
+$('#arSurfaceMaterial').onclick=()=>{materialRailClosedKey='';updateSelectedMaterialRail(true);};
 $('#arSurfaceDelete').onclick=()=>{
  const s=studio?.architecture?.selectedSurface();if(!s)return;
  if(studio.architecture.deleteSelected()){closeArSheet();toast('سطح انتخاب‌شده حذف شد.');}
@@ -704,7 +781,6 @@ $('#arArchitectureFinish').onclick=()=>{if(!studio?.architecture.finish()){toast
 $('#arArchitectureUndo').onclick=()=>{if(!studio?.architecture.undo())toast('نقطه‌ای برای بازگشت نیست.');};
 $('#arSheetClose').onclick=closeArSheet;
 $('#arAddTool').onclick=()=>showArSheet('add');
-$('#arMaterialTool').onclick=()=>showArSheet('colors');
 $('#quickCopy').onclick=()=>{if(studio?.items.length>=24){toast('حد آبجکت‌ها ۲۴ است.');return;}const item=studio?.duplicateSelected();toast(item?'نسخه دوم کنار آبجکت قبلی ساخته شد.':'در اطراف آبجکت فضای کافی برای کپی وجود ندارد.');};
 $('#quickChange').onclick=()=>showArSheet('replace');
 $('#quickProps').onclick=()=>showArSheet('features');
@@ -774,6 +850,7 @@ function handleARReport(report){
  if(!report.placed)resetWideViewControls();
  if(report.placed&&roomWaitingForFloor){roomWaitingForFloor=false;toast('کف تثبیت شد. برای وارد کردن اتاق، دکمه «قرار دادن اتاق» را بزن.');}
  $('#roomPlaceActions').hidden=!report.placed||!studio?.roomPlan||!studio?.roomPendingPlacement||minimap.expanded;
+ updateRoomArControls();
  $('#overlay').classList.toggle('floor-ready',report.placed);
  if(!report.placed){closeArSheet();$('#measureHint').hidden=true;}
  updateMeasurements();
@@ -781,6 +858,7 @@ function handleARReport(report){
 async function startAR(basic=false,incomingSession=null){if(!studio||studio.session||arStarting)return;closeRoomPlanner();$('#overlay').classList.remove('room-design-offline','floor-ready');arStarting=true;liveSharingPaused=false;liveRetryAt=0;calibrationPrompted=false;const launchingStudio=studio;const button=$('#startAR');button.disabled=true;$('#arError').close();try{$('#overlay').hidden=false;$('#roomPlaceActions').hidden=true;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=false;$('#scanProgress').value=12;$('#scanStage').textContent='راه‌اندازی AR…';$('#scanPercent').textContent='۱۲٪';closeArSheet();$('#arSettings').hidden=true;$('#arStatus').textContent='در حال شناسایی کف…';resetWideViewControls();const result=await launchingStudio.startAR(message=>$('#arStatus').textContent=message,handleARReport,basic,{light:!basic&&$('#lightEnabled').checked,depth:!basic&&$('#depthEnabled').checked},incomingSession);if(studio!==launchingStudio||!launchingStudio.session)return;if(!result.hasOverlay){await endXRSession(launchingStudio.session);throw Object.assign(new Error('دستگاه DOM Overlay را فعال نکرده است؛ کنترل اسکن و تثبیت کف بدون آن قابل نمایش نیست.'),{name:'NotSupportedError',xrStage:'overlay'});}$('#overlay').hidden=false;$('#launchProgress').value=3;$('#launchStage').textContent='نشست AR آماده شد؛ کف را اسکن کن.';studio.setDebugVisible(debugEnabled);updateObjects();}catch(error){if(studio!==launchingStudio)return;$('#overlay').hidden=true;$('#arDock').hidden=true;button.hidden=false;$('#launchStage').textContent='ورود به AR ناموفق بود؛ جزئیات را بررسی کن.';const failure=explainXR(error);lastXRErrorReport=JSON.stringify({version:'0.4.1',mode:basic?'basic':'full',stage:failure.stage,name:failure.name,message:failure.detail,secureContext:isSecureContext,webXR:!!navigator.xr,supportCheck:supported,userAgent:navigator.userAgent},null,2);$('#arErrorMessage').textContent=failure.message;$('#arErrorDetails').textContent=lastXRErrorReport;$('#arError').showModal();console.error(error);}finally{arStarting=false;button.disabled=false;}}
 function openRoomPlanner(){
  if(!studio)return;
+ closeRoomCenterMode();$('#arMaterialRail').hidden=true;
  studio.setRoomCalibrationGuides(false);
  // Fetch Three.js postprocessing modules while the user is drawing, not after
  // they press the AR placement button. Geometry and textures are shared with Studio.
@@ -831,6 +909,7 @@ $('#placeDesignedRoom').onclick=()=>{
  if(result.ok){
   $('#wideViewMode').value='normal';
   showWideProjection({horizontal:result.hfov,requestedHorizontal:result.requestedHfov,limited:result.limited});
+  updateRoomArControls();
   toast('اتاق در AR قرار گرفت؛ ردیابی موقعیت و چرخش گوشی فعال است.');
  }else toast('اتاق در AR قرار گرفت؛ پوشش تمام‌صفحه در این دستگاه در دسترس نیست: '+result.reason);
 };
