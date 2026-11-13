@@ -1,0 +1,84 @@
+/* Chido room designer · single, full-screen plan workspace.
+   Loaded after style.css so the drawing surface owns almost the entire display. */
+#overlay .ar-minimap[hidden]{display:none!important}
+#overlay .ar-minimap .room-design-toolbar{display:none}
+#overlay .ar-minimap.expanded,
+#overlay[data-ui-orientation] .ar-minimap.expanded{
+ position:absolute!important;inset:0!important;left:0!important;right:0!important;
+ top:0!important;bottom:0!important;width:100vw!important;max-width:none!important;
+ height:100dvh!important;max-height:none!important;transform:none!important;
+ padding:calc(env(safe-area-inset-top,0px) + 6px) calc(env(safe-area-inset-right,0px) + 7px)
+ calc(env(safe-area-inset-bottom,0px) + 5px) calc(env(safe-area-inset-left,0px) + 7px)!important;
+ border:0!important;border-radius:0!important;margin:0!important;
+ display:flex!important;flex-direction:column!important;align-items:stretch!important;
+ gap:5px!important;z-index:60!important;pointer-events:auto!important;
+ background:#f5f0e8!important;box-sizing:border-box!important;color:#304b40;
+}
+#overlay .ar-minimap.expanded .map-title{
+ flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
+ padding:2px 8px!important;min-height:35px!important;max-height:40px;
+ background:#eee9df;border-radius:10px;font-size:13px;
+}
+#overlay .ar-minimap.expanded .map-title [data-map-expand]{
+ min-height:30px!important;height:30px!important;padding:3px 11px!important;
+ border-radius:9px!important;background:#e1e7d9;color:#284f41;font-size:12px!important
+}
+#overlay .ar-minimap.expanded .room-design-toolbar{
+ flex:0 0 auto;display:flex!important;gap:5px;align-items:center;justify-content:flex-start;
+ width:100%;height:48px;max-height:48px;overflow-x:auto;overflow-y:hidden;
+ padding:3px 5px;border-radius:11px;background:#e6e1d7;
+ scrollbar-width:thin;overscroll-behavior-x:contain;direction:rtl
+}
+#overlay .ar-minimap.expanded .room-design-toolbar>*{flex:0 0 auto;white-space:nowrap}
+#overlay .ar-minimap.expanded .room-design-toolbar button,
+#overlay .ar-minimap.expanded .room-design-toolbar select{
+ min-height:37px!important;height:37px!important;border:1px solid #c7cfc4;
+ padding:5px 8px!important;border-radius:8px!important;font-size:12px!important;
+ background:#fdfbf6!important;color:#294b3d!important;font-weight:650;
+ box-shadow:none!important;max-width:none;cursor:pointer
+}
+#overlay .ar-minimap.expanded .room-design-toolbar button.active{
+ background:#2d6654!important;color:#fff!important;border-color:#205944!important
+}
+#overlay .ar-minimap.expanded .room-design-toolbar button.plan-to-3d{
+ background:#e2b05a!important;color:#362912!important;border-color:#c5943c!important
+}
+#overlay .ar-minimap.expanded .room-design-toolbar label{
+ display:inline-flex;align-items:center;gap:4px;min-height:37px;padding:0 5px;
+ color:#3e544d;font-size:11px;font-weight:700
+}
+#overlay .ar-minimap.expanded .room-design-toolbar input{
+ width:53px;min-width:53px;height:32px!important;padding:2px 4px;border:1px solid #d0c8b9;
+ background:#fffaf0;color:#283c36;direction:ltr;text-align:center;font-size:13px!important;border-radius:7px
+}
+#overlay .ar-minimap.expanded .room-design-toolbar [data-plan-model]{
+ min-width:110px;max-width:170px;direction:rtl;font-size:11px!important
+}
+#overlay .ar-minimap.expanded .room-design-toolbar .plan-tool-sep{
+ width:1px;height:28px;background:#bbbcb5;margin:0 2px
+}
+#overlay .ar-minimap.expanded svg{
+ display:block!important;flex:1 1 0!important;width:100%!important;height:auto!important;
+ min-height:0!important;max-height:none!important;border:1px solid #dbd4c7;
+ border-radius:11px!important;background:#f4efe7;touch-action:none;user-select:none;
+ -webkit-user-select:none;cursor:grab
+}
+#overlay .ar-minimap.expanded .map-meta{
+ flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:8px;
+ min-height:29px!important;max-height:34px!important;overflow:hidden!important;
+ padding:3px 10px!important;background:transparent!important;border:0!important;
+ color:#5c6f64;font-size:11px!important
+}
+#overlay .ar-minimap.expanded .map-meta [data-map-measure]{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#overlay .ar-minimap.expanded .map-meta .map-edit{display:none!important}
+#overlay .ar-minimap.expanded .map-title strong{font-size:13px}
+#overlay.room-design-offline{background:#f5f0e8!important}
+#overlay.room-design-offline > :not(#arMiniMap){display:none!important}
+#overlay.room-design-offline .ar-minimap.expanded{display:flex!important}
+#overlay:not(.room-design-offline) .room-design-toolbar [data-plan-start-ar]{display:none!important}
+@media(max-width:650px){
+ #overlay .ar-minimap.expanded .room-design-toolbar{height:43px;max-height:43px;gap:4px}
+ #overlay .ar-minimap.expanded .room-design-toolbar button,#overlay .ar-minimap.expanded .room-design-toolbar select{min-height:34px!important;height:34px!important;font-size:11px!important;padding:3px 6px!important}
+ #overlay .ar-minimap.expanded .map-title{min-height:32px!important;max-height:34px}
+ #overlay .ar-minimap.expanded .map-meta{font-size:10px!important;min-height:24px!important;max-height:27px!important}
+}
