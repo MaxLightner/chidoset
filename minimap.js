@@ -10,7 +10,7 @@ export class LiveMiniMap{
  constructor(panel,getStudio,options={}){
   this.panel=panel;this.getStudio=getStudio;this.options=options;this.svg=panel.querySelector('svg');
   this.expanded=false;this.tool='select';this.selectedArch=null;this.selectedWall=null;
-  this.zoom=1;this.panX=0;this.panZ=0;this.viewport=null;
+  this.zoom=1;this.panX=0;this.panZ=0;this.viewport=null;this.viewportLock=null;
   this.pointers=new Map();this.gesture=null;
   this.angleInput=panel.querySelector('[data-map-angle]');
   panel.querySelector('[data-map-expand]').onclick=()=>this.setExpanded(!this.expanded);
@@ -77,8 +77,16 @@ export class LiveMiniMap{
   else{this.render();if(wasExpanded&&this.options.onClose)this.options.onClose();}
  }
  collapse(){this.setExpanded(false);}
- fit(){this.zoom=1;this.panX=0;this.panZ=0;this.render();}
- zoomBy(factor){this.zoom=clamp(this.zoom*factor,.55,7);this.render();}
+ fit(){this.zoom=1;this.panX=0;this.panZ=0;this.viewportLock=null;this.render();}
+ zoomBy(factor){
+  const before=this.zoom;this.zoom=clamp(this.zoom*factor,.55,7);
+  if(this.viewportLock){
+   const v=this.viewportLock,scale=this.zoom/Math.max(.001,before);
+   const width=v.width/scale,height=v.height/scale;
+   this.viewportLock={left:v.left+(v.width-width)/2,top:v.top+(v.height-height)/2,width,height};
+  }
+  this.render();
+ }
  applyDimensions(){
   const s=this.getStudio();if(!s)return;
   const w=Number(this.panel.querySelector('[data-room-width]').value);
@@ -182,7 +190,8 @@ export class LiveMiniMap{
    const s=this.getStudio();
    if(s?.selected&&this.gesture?.type==='furniture'){
     this.gesture={type:'twist',id:s.selected.userData.id,startAngle:angle,rotation:s.selected.rotation.y};
-   }else this.gesture={type:'pinch',distance,zoom:this.zoom,panX:this.panX,panZ:this.panZ,cx:(a.x+b.x)/2,cy:(a.y+b.y)/2};
+   }else this.gesture={type:'pinch',distance,zoom:this.zoom,panX:this.panX,panZ:this.panZ,
+    view:this.viewportLock?{...this.viewportLock}:null,cx:(a.x+b.x)/2,cy:(a.y+b.y)/2};
    return;
   }
   if(this.pointers.size>2)return;
@@ -217,6 +226,7 @@ export class LiveMiniMap{
   if(wall){
    s.select(null);this.selectedArch=null;this.selectedWall=wall;
    const matrix=this.svg.getScreenCTM(),scale=1/(Math.max(.001,Math.abs(matrix?.a||1))*100);
+   this.viewportLock=this.viewport?{...this.viewport}:this.viewportLock;
    this.gesture={type:'wall',wall,startX:e.clientX,startY:e.clientY,
     startW:s.roomPlan.w,startD:s.roomPlan.d,metersPerPixel:scale};
    this.render();return;
@@ -224,6 +234,7 @@ export class LiveMiniMap{
   s.select(null);this.selectedArch=null;this.selectedWall=null;
   if(this.nearRoomEdge(point,s.roomPlan)){this.gesture=null;this.render();return;}
   this.gesture={type:'pan',x:e.clientX,y:e.clientY,panX:this.panX,panZ:this.panZ,
+    view:this.viewportLock?{...this.viewportLock}:null,
     sx:this.viewport?.width||6,sz:this.viewport?.height||5,
     pixelWidth:Math.max(1,this.svg.clientWidth),pixelHeight:Math.max(1,this.svg.clientHeight)};
   this.render();
@@ -242,8 +253,18 @@ export class LiveMiniMap{
     s.select(mesh);s.rotate((g.rotation+delta)*180/Math.PI);
    }else if(g.type==='pinch'){
     this.zoom=clamp(g.zoom*len(a,b)/Math.max(20,g.distance),.55,7);
-    this.panX=g.panX-( ((a.x+b.x)/2-g.cx)/Math.max(1,this.svg.clientWidth))*(this.viewport?.width||6);
-    this.panZ=g.panZ-( ((a.y+b.y)/2-g.cy)/Math.max(1,this.svg.clientHeight))*(this.viewport?.height||5);
+    const cx=(a.x+b.x)/2,cy=(a.y+b.y)/2;
+    if(g.view){
+     const w=g.view.width*g.zoom/this.zoom,h=g.view.height*g.zoom/this.zoom;
+     const px=Math.max(1,this.svg.clientWidth),py=Math.max(1,this.svg.clientHeight);
+     this.viewportLock={
+      left:g.view.left+g.cx/px*g.view.width-cx/px*w,
+      top:g.view.top+g.cy/py*g.view.height-cy/py*h,width:w,height:h
+     };
+    }else{
+     this.panX=g.panX-(cx-g.cx)/Math.max(1,this.svg.clientWidth)*(this.viewport?.width||6);
+     this.panZ=g.panZ-(cy-g.cy)/Math.max(1,this.svg.clientHeight)*(this.viewport?.height||5);
+    }
     this.render();
    }
    return;
@@ -283,8 +304,14 @@ export class LiveMiniMap{
     this.render();
    }
   }else if(g.type==='pan'){
-   this.panX=g.panX-(e.clientX-g.x)/g.pixelWidth*g.sx;
-   this.panZ=g.panZ-(e.clientY-g.y)/g.pixelHeight*g.sz;
+   if(g.view){
+    this.viewportLock={...g.view,
+     left:g.view.left-(e.clientX-g.x)/g.pixelWidth*g.view.width,
+     top:g.view.top-(e.clientY-g.y)/g.pixelHeight*g.view.height};
+   }else{
+    this.panX=g.panX-(e.clientX-g.x)/g.pixelWidth*g.sx;
+    this.panZ=g.panZ-(e.clientY-g.y)/g.pixelHeight*g.sz;
+   }
    this.render();
   }
  }
@@ -315,8 +342,10 @@ export class LiveMiniMap{
   const maxZ=Math.max(...lim.map(v=>v.z+Math.max(v.w,v.d)*.7))+.75;
   const baseX=(minX+maxX)/2,baseZ=(minZ+maxZ)/2;
   const span=Math.max(4.5,maxX-minX,(maxZ-minZ)*320/250)/this.zoom;
-  const width=span,height=span*250/320;
-  const left=baseX+this.panX-width/2,top=baseZ+this.panZ-height/2;
+  const width=this.viewportLock?.width??span,height=this.viewportLock?.height??span*250/320;
+  // Resizing walls changes the room geometry, not the user camera/zoom.
+  const left=this.viewportLock?.left??baseX+this.panX-width/2;
+  const top=this.viewportLock?.top??baseZ+this.panZ-height/2;
   this.viewport={width,height,left,top};
   this.svg.setAttribute('viewBox',[num(left*100),num(top*100),num(width*100),num(height*100)].join(' '));
   let grid='';
