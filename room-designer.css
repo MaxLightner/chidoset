@@ -82,3 +82,31 @@
  #overlay .ar-minimap.expanded .map-title{min-height:32px!important;max-height:34px}
  #overlay .ar-minimap.expanded .map-meta{font-size:10px!important;min-height:24px!important;max-height:27px!important}
 }
+
+/* Override the legacy landscape/portrait orientation selectors even when floor-ready.
+   The full-screen CAD editor is the active workspace, not the old floating minimap. */
+#overlay.floor-ready .ar-minimap.expanded,
+#overlay[data-ui-orientation].floor-ready .ar-minimap.expanded{
+ position:absolute!important;inset:0!important;top:0!important;bottom:0!important;
+ left:0!important;right:0!important;width:100vw!important;max-width:none!important;
+ height:100dvh!important;max-height:none!important;transform:none!important;
+ display:flex!important;flex-direction:column!important;align-items:stretch!important;
+ margin:0!important;padding:calc(env(safe-area-inset-top,0px) + 6px) calc(env(safe-area-inset-right,0px) + 7px)
+ calc(env(safe-area-inset-bottom,0px) + 5px) calc(env(safe-area-inset-left,0px) + 7px)!important;
+ z-index:60!important;overflow:hidden!important;border:0!important;border-radius:0!important;
+}
+#overlay.floor-ready .ar-minimap.expanded .map-meta,
+#overlay[data-ui-orientation].floor-ready .ar-minimap.expanded .map-meta{
+ display:flex!important;min-height:29px!important;max-height:34px!important;
+ flex:0 0 auto!important;overflow:hidden!important;padding:3px 10px!important;
+}
+#overlay.floor-ready .ar-minimap.expanded .room-design-toolbar,
+#overlay[data-ui-orientation].floor-ready .ar-minimap.expanded .room-design-toolbar{
+ display:flex!important;min-height:43px!important;max-height:48px!important;
+ height:48px!important;flex:0 0 auto!important;
+}
+#overlay.floor-ready .ar-minimap.expanded svg,
+#overlay[data-ui-orientation].floor-ready .ar-minimap.expanded svg{
+ display:block!important;flex:1 1 0!important;min-height:0!important;
+ width:100%!important;height:auto!important;max-height:none!important;
+}
