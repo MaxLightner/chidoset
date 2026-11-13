@@ -709,6 +709,7 @@ function showArSheet(mode){
  }else if(mode==='settings'){
   title.textContent='تنظیمات نور و ردیابی AR';
   const details=$('#arSettings');details.hidden=false;details.open=true;body.append(details);
+  syncRoomLookControls();
   const status=document.createElement('p');status.className='xr-status';status.textContent='عمق: '+(arReport?.depth||'نامشخص')+' · نور: '+(arReport?.light||'نامشخص');body.append(status);
  }
  $('#arToolSheet').hidden=false;
@@ -1050,6 +1051,23 @@ function applyWideMode(){
 }
 $('#wideViewMode').onchange=applyWideMode;
 $('#wideNatural').onchange=()=>{if(studio?.session&&studio.wideMode!=='ar')applyWideMode();};
+function syncRoomLookControls(){
+ const area=$('#roomLookSettings'),look=studio?.roomPlan?.roomLook;
+ area.hidden=!look;
+ if(!look)return;
+ const values=[['roomDaylightIntensity','roomDaylightValue',look.daylight,'×'],
+  ['roomIblIntensity','roomIblValue',look.ibl,''],
+  ['roomPlasterDetail','roomPlasterValue',look.plasterDetail,'×']];
+ for(const [id,out,v,unit] of values){
+  $('#'+id).value=String(v);
+  $('#'+out).textContent=Number(v).toLocaleString('fa-IR',{minimumFractionDigits:2,maximumFractionDigits:2})+unit;
+ }
+}
+for(const [id,key] of [['roomDaylightIntensity','daylight'],['roomIblIntensity','ibl'],['roomPlasterDetail','plasterDetail']]){
+ $('#'+id).oninput=e=>{
+  if(studio?.setRoomLookSettings({[key]:Number(e.target.value)}))syncRoomLookControls();
+ };
+}
 $('#autoRenderQuality').onchange=()=>{
  studio?.wideView?.setAutoQuality($('#autoRenderQuality').checked);
 };
