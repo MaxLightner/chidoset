@@ -1317,3 +1317,89 @@ html:fullscreen{padding:0!important}html:fullscreen body{max-width:none;border-r
  #overlay .quick-material-popover .material-slot-thumbnails button{flex-basis:76px;min-width:76px;max-width:76px;width:76px}
  #overlay .quick-material-popover .material-slot-thumbnails img{width:68px;height:68px}
 }
+
+/* v0.18.7 — direct one-icon-per-material buttons ABOVE copy, no submenus. */
+#overlay .object-quick .quick-material-buttons{
+ display:flex;flex-direction:column;gap:3px;width:100%;align-items:stretch;
+ max-height:42svh;overflow-y:auto;scrollbar-width:none;
+}
+#overlay .object-quick .quick-material-buttons:empty{display:none}
+#overlay .object-quick .quick-material-buttons button{
+ flex:0 0 auto;width:100%;min-height:42px!important;padding:3px 1px!important;
+ display:flex;flex-direction:column;align-items:center;justify-content:center;
+ gap:1px;background:transparent;color:#38554a;border:0;border-radius:8px;
+}
+#overlay .object-quick .quick-material-buttons button[aria-pressed="true"]{
+ background:#bedcc3!important;color:#24513b;
+}
+#overlay .object-quick .quick-material-buttons button>span{font-size:22px;line-height:1!important}
+#overlay .object-quick .quick-material-buttons button>small{font-size:9px!important;line-height:1.15;white-space:nowrap}
+#overlay .quick-material-popover .material-slot-thumbnails{
+ display:flex!important;flex-flow:row nowrap!important;align-items:flex-start;
+ overflow-x:auto!important;scrollbar-width:thin;
+ width:max-content;max-width:calc(100vw - 170px);
+ gap:6px;direction:rtl;padding:2px 0 6px;
+}
+#overlay .quick-material-popover .material-slot-thumbnails>button{
+ flex:0 0 91px!important;min-width:91px!important;max-width:91px!important;
+ width:91px!important;height:auto!important;min-height:0!important;
+ display:flex;flex-direction:column;align-items:center;
+ gap:3px;padding:3px!important;border:1px solid #d3c9b8;border-radius:8px;
+ background:#fdfbf5;color:#415547;scroll-snap-align:start;
+}
+#overlay .quick-material-popover .material-slot-thumbnails>button.selected{
+ border:2px solid #39805f;background:#e6eee5;
+}
+#overlay .quick-material-popover .material-slot-thumbnails img{
+ width:83px!important;height:83px!important;aspect-ratio:1!important;object-fit:cover;
+ border-radius:5px;
+}
+#overlay .quick-material-popover .material-slot-thumbnails small{
+ font-size:10px!important;font-weight:400!important;line-height:1.2!important;
+ max-width:83px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#overlay .quick-material-popover .material-original-swatch{
+ height:83px;width:83px;display:grid;place-items:center;font-size:28px;
+ background:#efebe2;color:#405a47;border-radius:5px;
+}
+#overlay .quick-material-popover .material-slot-status{
+ display:block;font-size:10px;margin:0;color:#59725c;
+}
+#overlay .ar-photo-unavailable[hidden],#overlay .ar-tv-controls[hidden]{display:none!important}
+#overlay .ar-photo-unavailable{
+ position:fixed;z-index:1000;transform:translateX(-50%);
+ padding:5px 8px;border:1px solid #cdd5c8;border-radius:7px;
+ background:#fbfaf4f2;box-shadow:0 3px 8px #0003;
+ color:#355446;font-size:11px;white-space:nowrap;pointer-events:none;
+}
+#overlay .ar-tv-controls{
+ position:absolute;z-index:48;top:calc(env(safe-area-inset-top,0px) + 105px);
+ right:calc(env(safe-area-inset-right,0px) + 12px);
+ width:min(335px,calc(100vw - 115px));display:grid;gap:9px;
+ background:#f8f5edf5;border:1px solid #b5c5b7;
+ border-radius:12px;padding:11px;box-shadow:0 9px 22px #0004;
+ pointer-events:auto;color:#315747;direction:rtl;
+}
+#overlay .ar-tv-controls .tv-controls-head{display:flex;justify-content:space-between;align-items:center}
+#overlay .ar-tv-controls .tv-controls-head strong{font-size:15px}
+#overlay .ar-tv-controls button{border:1px solid #c4cabb;border-radius:7px;padding:6px;background:#fbf9f4;color:#315546}
+#overlay .ar-tv-controls .tv-controls-head button{min-width:30px;font-size:19px}
+#overlay .ar-tv-controls .tv-controls-group{display:grid;gap:5px}
+#overlay .ar-tv-controls .tv-controls-group small{font-size:12px}
+#overlay .ar-tv-controls .tv-options{display:flex;gap:5px}
+#overlay .ar-tv-controls .tv-options button{flex:1 1 0;font-size:11px;min-height:38px}
+#overlay .ar-tv-controls .tv-options button.selected{background:#cce4d4;border-color:#448467;font-weight:700}
+#overlay .ar-tv-controls .tv-power{display:flex;align-items:center;gap:7px;font-size:12px}
+#overlay .ar-tv-controls .tv-power input{accent-color:#397a5a}
+#overlay .room-look-settings{display:grid;gap:8px;padding:8px;margin-top:7px}
+#overlay .room-look-settings label{display:grid;gap:4px;font-size:12px;color:#305543}
+#overlay .room-look-settings input[type=range]{width:100%;accent-color:#458568}
+#overlay .room-look-settings output{font-variant-numeric:tabular-nums}
+@media(max-width:600px){
+ #overlay .quick-material-popover .material-slot-thumbnails>button{
+  flex-basis:77px!important;min-width:77px!important;max-width:77px!important;width:77px!important;
+ }
+ #overlay .quick-material-popover .material-slot-thumbnails img,
+ #overlay .quick-material-popover .material-original-swatch{width:69px!important;height:69px!important}
+ #overlay .ar-tv-controls{top:calc(env(safe-area-inset-top,0px) + 86px)}
+}
