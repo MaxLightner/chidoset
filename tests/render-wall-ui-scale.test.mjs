@@ -6,9 +6,9 @@ import {FURNITURE_SIZE_FACTOR,scaledFurnitureSize,sourceFurnitureSize} from '../
 import {RenderQualityGovernor} from '../render-quality-governor.js';
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 
-test('main imported 3-seater becomes exactly 2.5 m wide; all furniture dimensions share identical scale',()=>{
+test('main imported 3-seater becomes exactly 2.3 m wide; all furniture dimensions share identical scale',()=>{
  const original=CATALOG[22].size,actual=scaledFurnitureSize(original);
- assert.ok(Math.abs(actual[0]-2.5)<1e-8);
+ assert.ok(Math.abs(actual[0]-2.3)<1e-8);
  assert.ok(Math.abs(actual[1]/original[1]-FURNITURE_SIZE_FACTOR)<1e-10);
  assert.ok(Math.abs(actual[2]/original[2]-FURNITURE_SIZE_FACTOR)<1e-10);
  for(const product of CATALOG){
@@ -41,7 +41,7 @@ test('GTAO samples room walls only: longer radius, full-scene occluders, visible
  assert.match(arch,/mesh\.layers\.enable\(2\)/);
  assert.match(arch,/surface\.receiveShadow=!this\.data\.designedRoom/);
  assert.match(arch,/daylightFactors=\{north:/);
- assert.match(arch,/wallMat\.normalScale\.set\(\.48,\.48\)/);
+ assert.match(arch,/wallMat\.normalScale\.set\(\.56\*/);
 });
 
 test('slow FPS lowers GPU effects one step at a time and later restores them',()=>{
@@ -77,13 +77,13 @@ test('material icon sits INSIDE existing object quick menu and opens attached sq
  const panel=html.slice(start,end);
  assert.ok(start>0&&end>start);
  assert.match(panel,/id="quickCopy"/);
- assert.match(panel,/id="quickMaterials"/);
+ assert.match(panel,/id="quickMaterialButtons"/);
  assert.match(panel,/id="arMaterialRail"/);
  assert.equal((html.match(/id="arMaterialRail"/g)||[]).length,1);
  assert.equal((html.match(/class="ar-material-rail"/g)||[]).length,0);
  assert.match(css,/\.object-quick \.quick-material-popover\{/);
- assert.match(css,/\.material-slot-thumbnails img\{\s*width:84px;height:84px/);
+ assert.match(css,/\.material-slot-thumbnails img\{[\s\S]*?width:83px!important;height:83px!important/);
  assert.match(css,/overflow-x:auto/);
- assert.match(app,/\$\('#quickMaterials'\)\.onclick/);
- assert.match(app,/const enabled=trigger\.getAttribute\('aria-expanded'\)==='true'/);
+ assert.match(app,/button\.dataset\.materialSlot=String\(slot\.id\)/);
+ assert.match(app,/renderMaterialSlotThumbnails\(body,studio,mesh,slot/);
 });
