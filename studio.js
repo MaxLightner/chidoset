@@ -127,8 +127,10 @@ void main(){
     this.wideView=new WideViewRenderer(this.scene,document.querySelector('#overlay'));
     this.wideView.onFailure=reason=>{this.setWideView('ar');this.onWideViewError?.(reason);};
     this.wideView.onProjectionChange=projection=>this.onWideViewProjection?.(projection);
+    this.wideView.onQualityChange=state=>this.onRenderQualityChange?.(state);
    }
    this.wideView.setMode(mode,{natural});
+   this.wideView.setAutoQuality(document.querySelector('#autoRenderQuality')?.checked!==false);
    const xrCamera=this.renderer.xr.getCamera();
    const tracked=xrCamera.cameras?.[0]||xrCamera;
    tracked.updateWorldMatrix(true,false);
