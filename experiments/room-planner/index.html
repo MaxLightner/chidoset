@@ -1,0 +1,3808 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>آزمایشگاه طراحی پلان و رندر — چیدو</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Vazirmatn', sans-serif;
+            background-color: #0b0e14;
+            color: #f3f4f6;
+        }
+        input[type="number"] {
+            user-select: text;
+            -webkit-user-select: text;
+        }
+        .glass-panel {
+            background: rgba(15, 19, 27, 0.84);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5);
+        }
+        .glass-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.11);
+            transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+            cursor: pointer;
+        }
+        .glass-btn:hover {
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.28);
+        }
+        .glass-btn.active {
+            background: rgba(217, 119, 6, 0.34);
+            border-color: #f59e0b;
+            box-shadow: 0 0 16px rgba(245, 158, 11, 0.26);
+            color: #ffffff;
+        }
+        .tab-btn {
+            transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+            cursor: pointer;
+        }
+        .tab-btn.active {
+            background: linear-gradient(135deg, #d97706, #f59e0b);
+            color: #0b0e14;
+            font-weight: 700;
+            box-shadow: 0 4px 18px rgba(245, 158, 11, 0.38);
+        }
+        #settings-drawer {
+            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+        }
+        #settings-drawer.collapsed {
+            transform: translateX(calc(100% + 2.5rem));
+            opacity: 0;
+            pointer-events: none;
+        }
+        #plan-canvas { touch-action: none; }
+        #view-2d [id^="tool-btn-"] { cursor: grab; }
+        #view-2d [id^="tool-btn-"]:active { cursor: grabbing; }
+        #cad-undo:disabled, #cad-redo:disabled { opacity: .35; cursor: not-allowed; }
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.22);
+            border-radius: 999px;
+        }
+    </style>
+
+    <!-- Import Map for Three.js & Postprocessing -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+<body>
+
+    <!-- Loading Overlay -->
+    <div id="loader" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#0b0e14] transition-opacity duration-500">
+        <div class="w-12 h-12 border-4 border-amber-500/25 border-t-amber-500 rounded-full animate-spin mb-4"></div>
+        <p class="text-sm font-semibold text-gray-200 tracking-wide">در حال آماده‌سازی استودیو نقشه دوبعدی CAD و موتور رندر PBR...</p>
+        <p class="text-xs text-gray-400 mt-1.5">بافت‌های فیزیکی، سایه‌های نرم و امبینت اکلوژن (GTAO)</p>
+    </div>
+
+    <!-- Non-intrusive Status / Validation Toast -->
+    <div id="status-banner" class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-50 glass-panel px-4 py-2.5 rounded-xl text-xs font-medium text-amber-300 border border-amber-400/40 shadow-2xl"></div>
+
+    <!-- TOP NAVIGATION BAR WITH TWO MAIN TABS -->
+    <header class="fixed top-0 inset-x-0 z-40 p-3 md:px-6 md:py-3.5 pointer-events-none flex flex-wrap items-center justify-between gap-3">
+        <!-- Brand / Title -->
+        <div class="glass-panel px-4 py-2 rounded-2xl flex items-center gap-3 pointer-events-auto">
+            <div class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_10px_#fbbf24]"></div>
+            <div>
+                <h1 class="text-xs md:text-sm font-bold text-white leading-tight">طراحی پلان دوبعدی CAD و رندر سه‌بعدی</h1>
+                <p id="room-dim-badge" class="text-[11px] text-gray-400">ابعاد فعلی: ۶.۸۰ × ۵.۸۰ متر</p>
+            </div>
+        </div>
+
+        <!-- TWO MAIN TABS: 2D FLOOR PLAN & 3D RENDER -->
+        <nav class="glass-panel p-1.5 rounded-2xl flex items-center gap-1.5 pointer-events-auto shadow-2xl">
+            <button type="button" id="tab-btn-2d" onclick="switchMainTab('2d')"
+                class="tab-btn active px-4 md:px-5 py-2 rounded-xl text-xs md:text-sm flex items-center gap-2">
+                <span>📐</span>
+                <span>نقشه دوبعدی (پلان)</span>
+            </button>
+            <button type="button" id="tab-btn-3d" onclick="switchMainTab('3d')"
+                class="tab-btn px-4 md:px-5 py-2 rounded-xl text-xs md:text-sm text-gray-300 hover:text-white flex items-center gap-2">
+                <span>🏛️</span>
+                <span>محیط سه‌بعدی (رندر)</span>
+            </button>
+        </nav>
+
+        <!-- Live Render Metrics (Visible in 3D mode) -->
+        <div id="render-metrics-bar" class="hidden glass-panel px-4 py-2 rounded-2xl text-xs text-gray-300 md:flex items-center gap-3 pointer-events-auto">
+            <div>نرخ فریم: <span id="fps-counter" class="text-emerald-400 font-mono font-bold">60</span> FPS</div>
+            <div class="w-px h-4 bg-white/15"></div>
+            <div><span id="ao-badge" class="text-amber-400 font-bold">PBR + Reinhard + GTAO</span></div>
+        </div>
+    </header>
+
+    <!-- ========================================================= -->
+    <!-- VIEW 1: 2D ARCHITECTURAL CAD FLOOR PLAN EDITOR            -->
+    <!-- ========================================================= -->
+    <main id="view-2d" class="fixed inset-0 z-20 pt-20 pb-4 px-3 md:px-6 flex flex-col lg:flex-row gap-4 bg-[#0b0e14]">
+        
+        <!-- Right Sidebar: Dimensions & Architectural Elements Palette -->
+        <aside class="w-full lg:w-80 xl:w-96 flex-shrink-0 glass-panel rounded-3xl p-4 md:p-5 flex flex-col gap-4 overflow-y-auto">
+            
+            <!-- Step 1: Room Dimensions -->
+            <div class="pb-3.5 border-b border-white/10">
+                <div class="flex items-center justify-between mb-2.5">
+                    <span class="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                        <span>📏</span>
+                        <span>۱. رسم مستطیل پلان (متر)</span>
+                    </span>
+                    <span class="text-[11px] text-gray-400">ارتفاع سقف: ۳.۱۰m</span>
+                </div>
+                <div class="grid grid-cols-5 gap-2 items-end">
+                    <div class="col-span-2">
+                        <label class="block text-[11px] text-gray-300 mb-1">طول (X)</label>
+                        <input type="number" id="input-room-length" value="6.80" min="3.5" max="14" step="0.1"
+                            class="w-full bg-white/10 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-[11px] text-gray-300 mb-1">عرض (Z)</label>
+                        <input type="number" id="input-room-width" value="5.80" min="3.5" max="14" step="0.1"
+                            class="w-full bg-white/10 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400">
+                    </div>
+                    <button type="button" onclick="applyRoomDimensions(true)"
+                        class="col-span-1 bg-amber-500 hover:bg-amber-400 text-gray-950 font-bold py-2 px-2 rounded-xl text-xs transition shadow-lg">
+                        اکی
+                    </button>
+                </div>
+                <p class="text-[10px] text-gray-400 mt-1.5">همچنین می‌توانید هر کدام از ۴ دیوار یا گوشه‌های مستطیل را مستقیماً بکشید.</p>
+            </div>
+
+            <!-- Step 2: Interactive 2D CAD Placement Toolbar -->
+            <div class="pb-3.5 border-b border-white/10 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-amber-400">
+                        🛠️ ۲. نوار ابزار (انتخاب و کلیک روی نقشه)
+                    </span>
+                    <span class="text-[10px] text-gray-400">Esc: انتخاب</span>
+                </div>
+
+                <!-- Select / Move Tool -->
+                <button type="button" id="tool-btn-select" onclick="setActiveTool('select')"
+                    class="w-full glass-btn active px-3 py-2 rounded-xl text-right flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span>👆</span>
+                        <div>
+                            <div class="text-xs font-semibold text-white">ابزار انتخاب و جابه‌جایی</div>
+                            <div class="text-[10px] text-gray-400">کشیدن دیوارها یا آیتم‌های روی نقشه</div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] text-amber-300 font-semibold">انتخاب</span>
+                </button>
+
+                <!-- 3 Window Tools -->
+                <div class="pt-1">
+                    <div class="text-[11px] font-semibold text-sky-300 mb-1.5">🪟 پنجره‌ها (روی خطوط دیوار کلیک کنید):</div>
+                    <div class="grid grid-cols-1 gap-1.5">
+                        <button type="button" id="tool-btn-win_tall_1" onclick="setActiveTool('win_tall_1')"
+                            class="glass-btn px-3 py-2 rounded-xl text-right flex items-center justify-between">
+                            <div>
+                                <div class="text-xs font-semibold text-white">پنجره قدی (عرض ۱ متر)</div>
+                                <div class="text-[10px] text-gray-400">سقف تا کف • عرض 1.0m</div>
+                            </div>
+                            <span class="text-[10px] bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded-md border border-sky-400/30">انتخاب ابزار</span>
+                        </button>
+
+                        <button type="button" id="tool-btn-win_tall_25" onclick="setActiveTool('win_tall_25')"
+                            class="glass-btn px-3 py-2 rounded-xl text-right flex items-center justify-between">
+                            <div>
+                                <div class="text-xs font-semibold text-white">پنجره بزرگ قدی (عرض ۲.۵ متر)</div>
+                                <div class="text-[10px] text-gray-400">پانوراما سقف تا کف • عرض 2.5m</div>
+                            </div>
+                            <span class="text-[10px] bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded-md border border-sky-400/30">انتخاب ابزار</span>
+                        </button>
+
+                        <button type="button" id="tool-btn-win_std_2" onclick="setActiveTool('win_std_2')"
+                            class="glass-btn px-3 py-2 rounded-xl text-right flex items-center justify-between">
+                            <div>
+                                <div class="text-xs font-semibold text-white">پنجره معمولی (عرض ۲ متر)</div>
+                                <div class="text-[10px] text-gray-400">با اوکابه ۱.۱۰ متر از کف • عرض 2.0m</div>
+                            </div>
+                            <span class="text-[10px] bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded-md border border-sky-400/30">انتخاب ابزار</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Door, Kitchen Open & TV Tools -->
+                <div class="pt-1">
+                    <div class="text-[11px] font-semibold text-emerald-300 mb-1.5">🚪 در، اپن آشپزخانه و تلویزیون:</div>
+                    <div class="grid grid-cols-1 gap-1.5">
+                        <button type="button" id="tool-btn-door" onclick="setActiveTool('door')"
+                            class="glass-btn px-3 py-2 rounded-xl text-right flex items-center justify-between">
+                            <div>
+                                <div class="text-xs font-semibold text-white">درِ ورودی و راهرو</div>
+                                <div class="text-[10px] text-gray-400">عرض 1.0m + راهرو پشت در</div>
+                            </div>
+                            <span class="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-md border border-amber-400/30">انتخاب ابزار</span>
+                        </button>
+
+                        <button type="button" id="tool-btn-kitchen" onclick="setActiveTool('kitchen')"
+                            class="glass-btn px-3 py-2 rounded-xl text-right flex items-center justify-between">
+                            <div>
+                                <div class="text-xs font-semibold text-white">اپن آشپزخانه (عرض ۳ متر)</div>
+                                <div class="text-[10px] text-gray-400">کانتر ۳ متری + فضای آشپزخانه</div>
+                            </div>
+                            <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-md border border-emerald-400/30">انتخاب ابزار</span>
+                        </button>
+
+                        <button type="button" id="tool-btn-tv" onclick="setActiveTool('tv')"
+                            class="glass-btn px-3 py-2 rounded-xl text-right flex items-center justify-between">
+                            <div>
+                                <div class="text-xs font-semibold text-white">پنل تلویزیون (عرض ۲.۲ متر)</div>
+                                <div class="text-[10px] text-gray-400">دیوار ساده یا روبروی پنجره (نه جلو در/اپن)</div>
+                            </div>
+                            <span class="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-md border border-purple-400/30">انتخاب ابزار</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Selected Element Inspector -->
+            <div id="selected-item-box" class="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-gray-200" id="sel-item-title">راهنمای طراحی CAD</span>
+                    <button type="button" id="btn-delete-selected" onclick="deleteSelectedElement()"
+                        class="hidden bg-rose-500/20 hover:bg-rose-500/35 text-rose-300 border border-rose-500/40 px-2.5 py-1 rounded-lg text-[11px] font-semibold">
+                        🗑️ حذف
+                    </button>
+                </div>
+                <p id="sel-item-hint" class="text-[11px] text-gray-400 leading-relaxed">
+                    هر کدام از ۴ دیوار را برای تغییر دستی ابعاد بکشید، یا یک ابزار را انتخاب کرده و روی خطوط دیوار کلیک کنید.
+                </p>
+                <div id="sel-item-controls" class="hidden space-y-1.5 pt-1">
+                    <div class="flex items-center justify-between text-[11px] text-gray-300">
+                        <span>دیوار فعلی:</span>
+                        <span id="sel-item-wall" class="font-bold text-amber-400">-</span>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px] text-gray-300">
+                        <span>فاصله از ابتدای دیوار:</span>
+                        <span id="sel-item-offset" class="font-mono text-white">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Primary CTA to Build & View 3D -->
+            <button type="button" onclick="switchMainTab('3d')"
+                class="mt-auto w-full bg-gradient-to-l from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-gray-950 font-extrabold py-3.5 px-4 rounded-2xl text-xs md:text-sm shadow-xl flex items-center justify-center gap-2 transition">
+                <span>✨ ساخت و مشاهده رندر سه‌بعدی</span>
+                <span>←</span>
+            </button>
+        </aside>
+
+        <!-- Left / Center: Interactive 2D CAD Blueprint Canvas -->
+        <section class="flex-1 glass-panel rounded-3xl relative overflow-hidden flex flex-col">
+            <!-- Top Helper Strip inside 2D Canvas -->
+            <div class="px-4 py-2.5 border-b border-white/10 flex flex-wrap items-center justify-between gap-2 text-[11px] text-gray-300 bg-[#080c14]">
+                <div id="active-tool-banner" class="flex items-center gap-2 font-semibold text-amber-300">
+                    <span>📐 محیط CAD: دیوارها را برای تغییر ابعاد بکشید یا ابزار را انتخاب و روی خطوط دیوار کلیک کنید</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="cad-cursor-coords" class="hidden sm:inline-block font-mono text-[11px] text-cyan-300 bg-cyan-950/50 border border-cyan-500/30 px-2.5 py-1 rounded-lg">
+                        X: 0.00m | Y: 0.00m
+                    </span>
+                    <button type="button" id="btn-cad-snap" onclick="toggleCadSnap()" class="glass-btn active px-2.5 py-1 rounded-lg text-[11px] text-cyan-300 border-cyan-400/35">
+                        🧲 اسنپ CAD: فعال (0.1m)
+                    </button>
+                    <button type="button" onclick="clearAllPlanElements()" class="glass-btn px-2.5 py-1 rounded-lg text-[11px] text-rose-300 border-rose-400/25">
+                        پاک کردن آیتم‌ها
+                    </button>
+                    <button type="button" onclick="resetDefaultPlan()" class="glass-btn px-2.5 py-1 rounded-lg text-[11px] text-gray-300">
+                        چیدمان نمونه
+                    </button>
+                </div>
+            </div>
+
+            <div id="plan-canvas-wrapper" class="flex-1 relative w-full h-full">
+                <canvas id="plan-canvas" class="w-full h-full block cursor-crosshair"></canvas>
+            </div>
+        </section>
+    </main>
+
+    <!-- ========================================================= -->
+    <!-- VIEW 2: 3D PBR ARCHITECTURAL RENDERER                     -->
+    <!-- ========================================================= -->
+    <div id="view-3d" class="hidden fixed inset-0 z-10">
+        <!-- 3D Viewport -->
+        <div id="canvas-container" class="fixed inset-0 w-full h-full"></div>
+
+        <!-- 3D UI Overlay -->
+        <div class="fixed inset-0 z-20 pointer-events-none flex flex-col justify-between p-4 md:p-6 pt-20">
+            
+            <!-- Interactive Door / TV Hover Prompt -->
+            <div id="door-tooltip" class="self-center pointer-events-none opacity-0 transition-opacity duration-200 mt-2">
+                <div id="door-tooltip-text" class="glass-panel px-4 py-2 rounded-full text-xs font-medium text-amber-300 border border-amber-400/40 shadow-lg">
+                    🚪 کلیک کنید یا کلید F را بزنید تا در باز/بسته شود
+                </div>
+            </div>
+
+            <!-- Floating Edge Toggle Button for Settings Drawer -->
+            <button type="button" id="settings-open-btn" onclick="toggleSettingsDrawer(true)"
+                class="pointer-events-auto fixed right-4 top-1/2 -translate-y-1/2 z-30 glass-panel hover:bg-white/15 px-3.5 py-3 rounded-2xl flex items-center gap-2 text-xs font-semibold text-amber-400 border border-amber-400/35 shadow-xl transition-all duration-200">
+                <span>⚙️</span>
+                <span>تنظیمات رندر و رنگ</span>
+            </button>
+
+            <!-- Right Control Panel (Collapsible) -->
+            <aside id="settings-drawer" class="collapsed self-end my-auto pointer-events-auto max-w-xs md:max-w-sm w-full relative z-30">
+                <div class="glass-panel p-4 md:p-5 rounded-3xl space-y-4 max-h-[78vh] overflow-y-auto">
+                    
+                    <!-- Drawer Header -->
+                    <div class="flex items-center justify-between pb-2.5 border-b border-white/10">
+                        <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                            <span>⚙️</span>
+                            <span>تنظیمات رنگ، متریال و رندر</span>
+                        </span>
+                        <button type="button" onclick="toggleSettingsDrawer(false)"
+                            class="glass-btn px-2.5 py-1 rounded-lg text-[11px] text-gray-300 hover:text-white flex items-center gap-1">
+                            <span>مخفی کردن</span>
+                            <span>✕</span>
+                        </button>
+                    </div>
+
+                    <!-- 1. Camera Views -->
+                    <div>
+                        <label class="block text-xs font-semibold text-amber-400 mb-2">
+                            🎥 زاویه دوربین داخلی
+                        </label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button" class="glass-btn active py-2 px-3 rounded-xl text-xs font-medium" onclick="setCameraView('overview', this)">نمای کلی سالن</button>
+                            <button type="button" class="glass-btn py-2 px-3 rounded-xl text-xs font-medium" onclick="setCameraView('tv', this)">پنل تلویزیون</button>
+                            <button type="button" class="glass-btn py-2 px-3 rounded-xl text-xs font-medium" onclick="setCameraView('window', this)">نمای پنجره</button>
+                            <button type="button" class="glass-btn py-2 px-3 rounded-xl text-xs font-medium" onclick="setCameraView('door', this)">در و اپن آشپزخانه</button>
+                        </div>
+                    </div>
+
+                    <!-- 2. Wall Color Customization -->
+                    <div>
+                        <label class="block text-xs font-semibold text-amber-400 mb-2">
+                            🎨 رنگ دیوارهای سالن
+                        </label>
+                        <div class="grid grid-cols-5 gap-2">
+                            <button type="button" class="glass-btn active p-1.5 rounded-xl flex flex-col items-center gap-1" onclick="setWallColor('#f4efe6', this)" title="سفید گچی گرم">
+                                <span class="w-5 h-5 rounded-full border border-white/30" style="background:#f4efe6"></span>
+                                <span class="text-[10px]">گچی</span>
+                            </button>
+                            <button type="button" class="glass-btn p-1.5 rounded-xl flex flex-col items-center gap-1" onclick="setWallColor('#e8decb', this)" title="کرم استخوانی">
+                                <span class="w-5 h-5 rounded-full border border-white/30" style="background:#e8decb"></span>
+                                <span class="text-[10px]">کرم</span>
+                            </button>
+                            <button type="button" class="glass-btn p-1.5 rounded-xl flex flex-col items-center gap-1" onclick="setWallColor('#d8dadf', this)" title="طوسی روشن مدرن">
+                                <span class="w-5 h-5 rounded-full border border-white/30" style="background:#d8dadf"></span>
+                                <span class="text-[10px]">طوسی</span>
+                            </button>
+                            <button type="button" class="glass-btn p-1.5 rounded-xl flex flex-col items-center gap-1" onclick="setWallColor('#d5cfc2', this)" title="بژ سنگی">
+                                <span class="w-5 h-5 rounded-full border border-white/30" style="background:#d5cfc2"></span>
+                                <span class="text-[10px]">بژ</span>
+                            </button>
+                            <button type="button" class="glass-btn p-1.5 rounded-xl flex flex-col items-center gap-1" onclick="setWallColor('#cfd8cf', this)" title="سبز مریم‌گلی روشن">
+                                <span class="w-5 h-5 rounded-full border border-white/30" style="background:#cfd8cf"></span>
+                                <span class="text-[10px]">سبز</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 3. Flooring Material -->
+                    <div>
+                        <label class="block text-xs font-semibold text-amber-400 mb-2">
+                            🪵 کف‌پوش سالن
+                        </label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button" class="glass-btn active py-2 px-2.5 rounded-xl text-xs" onclick="setFloorMaterial('oak', this)">پارکت بلوط</button>
+                            <button type="button" class="glass-btn py-2 px-2.5 rounded-xl text-xs" onclick="setFloorMaterial('walnut', this)">پارکت گردو</button>
+                            <button type="button" class="glass-btn py-2 px-2.5 rounded-xl text-xs" onclick="setFloorMaterial('marble', this)">سنگ مرمر</button>
+                            <button type="button" class="glass-btn py-2 px-2.5 rounded-xl text-xs" onclick="setFloorMaterial('concrete', this)">بتن صیقلی</button>
+                        </div>
+                    </div>
+
+                    <!-- 4. TV Screen Visuals & Console -->
+                    <div>
+                        <label class="block text-xs font-semibold text-amber-400 mb-2">
+                            📺 تصویر نمایشگر و متریال کنسول
+                        </label>
+                        <div class="grid grid-cols-3 gap-2 mb-2">
+                            <button type="button" class="glass-btn active py-1.5 px-2 rounded-xl text-xs" onclick="setTVChannel('nature', this)">طبیعت 4K</button>
+                            <button type="button" class="glass-btn py-1.5 px-2 rounded-xl text-xs" onclick="setTVChannel('fireplace', this)">شومینه</button>
+                            <button type="button" class="glass-btn py-1.5 px-2 rounded-xl text-xs" onclick="setTVChannel('abstract', this)">هنر مدرن</button>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button" class="glass-btn active py-1.5 px-2 rounded-xl text-xs" onclick="setConsoleMaterial('walnut', this)">گردو پولیش</button>
+                            <button type="button" class="glass-btn py-1.5 px-2 rounded-xl text-xs" onclick="setConsoleMaterial('nero', this)">سنگ نرو</button>
+                            <button type="button" class="glass-btn py-1.5 px-2 rounded-xl text-xs" onclick="setConsoleMaterial('lacquer', this)">لاک ساتن</button>
+                        </div>
+                    </div>
+
+                    <!-- 5. Lighting & Atmosphere -->
+                    <div>
+                        <label class="block text-xs font-semibold text-amber-400 mb-2">
+                            ☀️ نورپردازی و زمان روز
+                        </label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button" class="glass-btn active py-2 px-2 rounded-xl text-xs" onclick="setLightingMood('day', this)">روز آفتابی</button>
+                            <button type="button" class="glass-btn py-2 px-2 rounded-xl text-xs" onclick="setLightingMood('sunset', this)">غروب</button>
+                            <button type="button" class="glass-btn py-2 px-2 rounded-xl text-xs" onclick="setLightingMood('night', this)">شب دنج</button>
+                        </div>
+                    </div>
+
+                    <!-- 6. Tone Mapping & Punch -->
+                    <div>
+                        <label class="block text-xs font-semibold text-amber-400 mb-2">
+                            🎞️ تون مپینگ و کنتراست (Punch)
+                        </label>
+                        <div class="grid grid-cols-3 gap-2 mb-2">
+                            <button type="button" class="glass-btn active py-1.5 px-2 rounded-xl text-xs" onclick="setToneMapping('reinhard', this)">Reinhard</button>
+                            <button type="button" class="glass-btn py-1.5 px-2 rounded-xl text-xs" onclick="setToneMapping('aces', this)">ACES</button>
+                            <button type="button" class="glass-btn py-1.5 px-2 rounded-xl text-xs" onclick="setToneMapping('agx', this)">AgX</button>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button" class="glass-btn py-1.5 px-2 rounded-xl text-xs" onclick="setPunchLevel('soft', this)">نرم</button>
+                            <button type="button" class="glass-btn active py-1.5 px-2 rounded-xl text-xs" onclick="setPunchLevel('punchy', this)">پانچی</button>
+                            <button type="button" class="glass-btn py-1.5 px-2 rounded-xl text-xs" onclick="setPunchLevel('bold', this)">پرکنتراست</button>
+                        </div>
+                    </div>
+
+                    <!-- 7. Interactive Toggles -->
+                    <div class="pt-2.5 border-t border-white/10 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-300">تلویزیون:</span>
+                            <button type="button" id="toggle-tv-btn" class="glass-btn active px-3 py-1 rounded-lg text-xs font-semibold" onclick="toggleTV()">روشن 📺</button>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-300">آباژور ایستاده:</span>
+                            <button type="button" id="toggle-lamp-btn" class="glass-btn active px-3 py-1 rounded-lg text-xs font-semibold" onclick="toggleLamp()">روشن 💡</button>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-300">درِ ورودی (کلید F):</span>
+                            <button type="button" id="toggle-door-btn" class="glass-btn px-3 py-1 rounded-lg text-xs font-semibold" onclick="toggleDoor()">باز کردن در 🚪</button>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-300">امبینت اکلوژن (GTAO):</span>
+                            <button type="button" id="toggle-ao-btn" class="glass-btn active px-3 py-1 rounded-lg text-xs font-semibold" onclick="toggleAO()">فعال ✨</button>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-300">گلو ظریف نوری:</span>
+                            <button type="button" id="toggle-bloom-btn" class="glass-btn active px-3 py-1 rounded-lg text-xs font-semibold" onclick="toggleBloom()">فعال 🌟</button>
+                        </div>
+                    </div>
+
+                </div>
+            </aside>
+
+            <!-- Bottom Footer -->
+            <footer class="flex justify-between items-end pointer-events-auto text-xs text-gray-400 gap-2">
+                <div class="glass-panel px-4 py-2 rounded-xl">
+                    🎮 <span class="hidden md:inline">حرکت: <b>WASD</b> | ارتفاع دوربین: <b>Q / E</b> | باز کردن در: <b>کلیک یا F</b></span>
+                    <span class="md:hidden">لمس برای چرخش و کلیک روی در برای باز کردن</span>
+                </div>
+                <button type="button" onclick="switchMainTab('2d')" class="glass-panel hover:bg-white/15 px-4 py-2 rounded-xl text-amber-400 font-semibold">
+                    📐 بازگشت به ویرایش نقشه دوبعدی
+                </button>
+            </footer>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+        import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+
+        // =========================================================================
+        // 1. ARCHITECTURAL PLAN DATA MODEL & VALIDATION ENGINE
+        // =========================================================================
+        const WALL_HEIGHT = 3.10;
+        const WALL_THICKNESS = 0.24;
+
+        const ELEMENT_SPECS = {
+            win_tall_1: {
+                kind: 'window',
+                label: 'پنجره قدی (۱m)',
+                width: 1.0,
+                sillHeight: 0.14,
+                height: 2.58,
+                color: '#38bdf8'
+            },
+            win_tall_25: {
+                kind: 'window',
+                label: 'پنجره بزرگ قدی (۲.۵m)',
+                width: 2.5,
+                sillHeight: 0.14,
+                height: 2.58,
+                color: '#0284c7'
+            },
+            win_std_2: {
+                kind: 'window',
+                label: 'پنجره معمولی (۲m - اوکابه ۱.۱)',
+                width: 2.0,
+                sillHeight: 1.10,
+                height: 1.62,
+                color: '#7dd3fc'
+            },
+            door: {
+                kind: 'door',
+                label: 'در و راهرو (۱m)',
+                width: 1.0,
+                sillHeight: 0.0,
+                height: 2.22,
+                color: '#fbbf24'
+            },
+            kitchen: {
+                kind: 'kitchen',
+                label: 'اپن آشپزخانه (۳m)',
+                width: 3.0,
+                sillHeight: 0.0,
+                height: 2.42,
+                color: '#34d399'
+            },
+            tv: {
+                kind: 'tv',
+                label: 'پنل تلویزیون (۲.۲m)',
+                width: 2.2,
+                sillHeight: 0.0,
+                height: 2.86,
+                color: '#c084fc'
+            }
+        };
+
+        const WALL_LABELS = {
+            north: 'دیوار بالا (شمالی)',
+            south: 'دیوار پایین (جنوبی)',
+            west: 'دیوار چپ (غربی)',
+            east: 'دیوار راست (شرقی)'
+        };
+
+        let planState = {
+            roomW: 6.8,
+            roomD: 5.8,
+            elements: []
+        };
+
+        let activeTool = 'select';
+        let hoverPreview = null;
+        let cadSnapEnabled = true;
+        let hoveredWallEdge = null;
+        let wallDragState = null;
+        let mouseCanvasPos = null;
+        let selectedElementId = null;
+        let draggingElementId = null;
+        let dragStartValidState = null;
+        let dragInvalidWarning = null;
+        let activeTab = '2d';
+        let isPlanDirtyFor3D = true;
+
+        const planCanvas = document.getElementById('plan-canvas');
+        const planCtx = planCanvas.getContext('2d');
+        let planViewport = { scale: 60, roomLeft: 100, roomTop: 100, roomPxW: 400, roomPxD: 350 };
+
+        function showStatusBanner(msg, duration = 2600) {
+            const banner = document.getElementById('status-banner');
+            if (!banner) return;
+            banner.textContent = msg;
+            banner.classList.remove('hidden');
+            clearTimeout(banner._timer);
+            banner._timer = setTimeout(() => {
+                banner.classList.add('hidden');
+            }, duration);
+        }
+
+        function getWallLength(wall) {
+            return (wall === 'north' || wall === 'south') ? planState.roomW : planState.roomD;
+        }
+
+        function updateRoomDimBadge() {
+            const badge = document.getElementById('room-dim-badge');
+            if (badge) {
+                badge.textContent = `ابعاد فعلی: ${planState.roomW.toFixed(2)} × ${planState.roomD.toFixed(2)} متر`;
+            }
+        }
+
+        window.applyRoomDimensions = function(showToast = false) {
+            const lenInput = document.getElementById('input-room-length');
+            const widInput = document.getElementById('input-room-width');
+            const newW = Math.min(14, Math.max(3.5, parseFloat(lenInput.value) || 6.8));
+            const newD = Math.min(14, Math.max(3.5, parseFloat(widInput.value) || 5.8));
+
+            planState.roomW = Math.round(newW * 100) / 100;
+            planState.roomD = Math.round(newD * 100) / 100;
+            lenInput.value = planState.roomW.toFixed(2);
+            widInput.value = planState.roomD.toFixed(2);
+
+            planState.elements.forEach(el => {
+                const spec = ELEMENT_SPECS[el.type];
+                const wallLen = getWallLength(el.wall);
+                const half = Math.min(spec.width, wallLen - 0.36) * 0.5;
+                el.u = Math.max(half + 0.2, Math.min(wallLen - half - 0.2, el.u));
+            });
+
+            isPlanDirtyFor3D = true;
+            updateRoomDimBadge();
+            updateSelectedInspector();
+            draw2DPlan();
+            if (showToast) {
+                showStatusBanner(`📐 ابعاد پلان به ${planState.roomW.toFixed(2)} × ${planState.roomD.toFixed(2)} متر تغییر یافت`);
+            }
+        };
+
+        function initCleanRectanglePlan() {
+            planState = {
+                roomW: 6.8,
+                roomD: 5.8,
+                elements: []
+            };
+            const lenInput = document.getElementById('input-room-length');
+            const widInput = document.getElementById('input-room-width');
+            if (lenInput) lenInput.value = '6.80';
+            if (widInput) widInput.value = '5.80';
+            updateRoomDimBadge();
+            updateSelectedInspector();
+        }
+
+        window.resetDefaultPlan = function() {
+            planState = {
+                roomW: 6.8,
+                roomD: 5.8,
+                elements: [
+                    { id: 'el_win_1', type: 'win_tall_25', wall: 'west', u: 2.9 },
+                    { id: 'el_tv_1', type: 'tv', wall: 'north', u: 3.4 },
+                    { id: 'el_door_1', type: 'door', wall: 'south', u: 1.4 },
+                    { id: 'el_kit_1', type: 'kitchen', wall: 'east', u: 2.9 }
+                ]
+            };
+            const lenInput = document.getElementById('input-room-length');
+            const widInput = document.getElementById('input-room-width');
+            if (lenInput) lenInput.value = '6.80';
+            if (widInput) widInput.value = '5.80';
+            selectedElementId = 'el_tv_1';
+            isPlanDirtyFor3D = true;
+            updateRoomDimBadge();
+            updateSelectedInspector();
+            draw2DPlan();
+            showStatusBanner('📐 چیدمان نمونه بارگذاری شد');
+        };
+
+        window.setActiveTool = function(tool) {
+            activeTool = tool;
+            hoverPreview = null;
+
+            document.querySelectorAll('[id^="tool-btn-"]').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            const activeBtn = document.getElementById(`tool-btn-${tool}`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            const banner = document.getElementById('active-tool-banner');
+            if (banner) {
+                if (tool === 'select') {
+                    banner.innerHTML = '<span>📐 محیط CAD: دیوارها را برای تغییر ابعاد بکشید یا آیتم‌ها را روی خطوط جابه‌جا کنید</span>';
+                } else {
+                    const spec = ELEMENT_SPECS[tool];
+                    banner.innerHTML = `<span>🧲 اسنپ روی خط دیوار: <b>${spec.label}</b> — روی خط دیوار دلخواه کلیک کنید</span>`;
+                }
+            }
+
+            planCanvas.style.cursor = tool === 'select' ? 'default' : 'crosshair';
+            draw2DPlan();
+        };
+
+        window.toggleCadSnap = function() {
+            cadSnapEnabled = !cadSnapEnabled;
+            const btn = document.getElementById('btn-cad-snap');
+            if (btn) {
+                btn.textContent = cadSnapEnabled ? '🧲 اسنپ CAD: فعال (0.1m)' : '🧲 اسنپ CAD: آزاد (0.01m)';
+                btn.classList.toggle('active', cadSnapEnabled);
+            }
+            draw2DPlan();
+        };
+
+        window.clearAllPlanElements = function() {
+            planState.elements = [];
+            selectedElementId = null;
+            isPlanDirtyFor3D = true;
+            updateSelectedInspector();
+            draw2DPlan();
+            showStatusBanner('🗑️ تمام آیتم‌های روی نقشه پاک شدند');
+        };
+
+        window.deleteSelectedElement = function() {
+            if (!selectedElementId) return;
+            planState.elements = planState.elements.filter(el => el.id !== selectedElementId);
+            selectedElementId = null;
+            isPlanDirtyFor3D = true;
+            updateSelectedInspector();
+            draw2DPlan();
+            showStatusBanner('🗑️ آیتم انتخاب‌شده حذف شد');
+        };
+
+        function updateSelectedInspector() {
+            const titleEl = document.getElementById('sel-item-title');
+            const hintEl = document.getElementById('sel-item-hint');
+            const delBtn = document.getElementById('btn-delete-selected');
+            const ctrlBox = document.getElementById('sel-item-controls');
+            const wallEl = document.getElementById('sel-item-wall');
+            const offsetEl = document.getElementById('sel-item-offset');
+            if (!titleEl) return;
+
+            const sel = planState.elements.find(el => el.id === selectedElementId);
+            if (!sel) {
+                titleEl.textContent = 'راهنمای طراحی CAD';
+                hintEl.classList.remove('hidden');
+                delBtn.classList.add('hidden');
+                ctrlBox.classList.add('hidden');
+                return;
+            }
+
+            const spec = ELEMENT_SPECS[sel.type];
+            const wallLen = getWallLength(sel.wall);
+            const effW = Math.min(spec.width, wallLen - 0.36);
+            const distFromStart = Math.max(0, sel.u - effW * 0.5);
+
+            titleEl.textContent = spec.label;
+            hintEl.classList.add('hidden');
+            delBtn.classList.remove('hidden');
+            ctrlBox.classList.remove('hidden');
+            wallEl.textContent = WALL_LABELS[sel.wall];
+            offsetEl.textContent = `${distFromStart.toFixed(2)} متر`;
+        }
+
+        function validateElementPlacement(candidate, allElements) {
+            const spec = ELEMENT_SPECS[candidate.type];
+            const wallLen = getWallLength(candidate.wall);
+            if (spec.width > wallLen - 0.36) {
+                return { valid: false, reason: `طول این دیوار (${wallLen.toFixed(1)}m) برای ${spec.label} کافی نیست` };
+            }
+
+            const halfA = spec.width * 0.5;
+            if (candidate.u - halfA < 0.18 || candidate.u + halfA > wallLen - 0.18) {
+                return { valid: false, reason: 'فاصله استاندارد از گوشه دیوار رعایت نشده است' };
+            }
+
+            for (const other of allElements) {
+                if (other.id === candidate.id) continue;
+                if (other.wall === candidate.wall) {
+                    const otherSpec = ELEMENT_SPECS[other.type];
+                    const halfB = Math.min(otherSpec.width, wallLen - 0.36) * 0.5;
+                    if (Math.abs(candidate.u - other.u) < halfA + halfB + 0.15) {
+                        return { valid: false, reason: `تداخل با ${otherSpec.label} روی همین دیوار` };
+                    }
+                }
+            }
+
+            const oppositeMap = { north: 'south', south: 'north', west: 'east', east: 'west' };
+            const oppWall = oppositeMap[candidate.wall];
+
+            if (candidate.type === 'tv') {
+                for (const other of allElements) {
+                    if (other.wall === oppWall && (other.type === 'door' || other.type === 'kitchen')) {
+                        const otherSpec = ELEMENT_SPECS[other.type];
+                        const halfB = otherSpec.width * 0.5;
+                        if (Math.abs(candidate.u - other.u) < halfA + halfB + 0.2) {
+                            return { valid: false, reason: 'تلویزیون نمی‌تواند روبه‌روی در، راهرو یا اپن آشپزخانه قرار بگیرد' };
+                        }
+                    }
+                }
+            } else if (candidate.type === 'door' || candidate.type === 'kitchen') {
+                for (const other of allElements) {
+                    if (other.wall === oppWall && other.type === 'tv') {
+                        const otherSpec = ELEMENT_SPECS[other.type];
+                        const halfB = otherSpec.width * 0.5;
+                        if (Math.abs(candidate.u - other.u) < halfA + halfB + 0.2) {
+                            return { valid: false, reason: 'این آیتم نمی‌تواند روبه‌روی پنل تلویزیون قرار بگیرد' };
+                        }
+                    }
+                }
+            }
+
+            return { valid: true, reason: '' };
+        }
+
+        function get2DWallAnchor(wall, u) {
+            const { scale, roomLeft, roomTop, roomPxW, roomPxD } = planViewport;
+            if (wall === 'north') return { x: roomLeft + u * scale, y: roomTop, angle: 0 };
+            if (wall === 'south') return { x: roomLeft + u * scale, y: roomTop + roomPxD, angle: Math.PI };
+            if (wall === 'east')  return { x: roomLeft + roomPxW, y: roomTop + u * scale, angle: Math.PI * 0.5 };
+            return { x: roomLeft, y: roomTop + u * scale, angle: -Math.PI * 0.5 };
+        }
+
+        function wallToWorldTransform(wallName, u) {
+            const halfW = planState.roomW * 0.5;
+            const halfD = planState.roomD * 0.5;
+            if (wallName === 'north') return { x: -halfW + u, z: -halfD, rotY: 0 };
+            if (wallName === 'south') return { x: -halfW + u, z:  halfD, rotY: Math.PI };
+            if (wallName === 'west')  return { x: -halfW, z: -halfD + u, rotY: Math.PI * 0.5 };
+            return { x: halfW, z: -halfD + u, rotY: -Math.PI * 0.5 };
+        }
+
+        function resize2DCanvas() {
+            const wrapper = document.getElementById('plan-canvas-wrapper');
+            if (!wrapper || !planCanvas) return;
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            const w = wrapper.clientWidth;
+            const h = wrapper.clientHeight;
+            if (w <= 0 || h <= 0) return;
+            planCanvas.width = Math.round(w * dpr);
+            planCanvas.height = Math.round(h * dpr);
+            planCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            draw2DPlan();
+        }
+
+        function drawDimensionLine(x1, y1, x2, y2, label, isVertical = false, isHighlighted = false) {
+            planCtx.save();
+            const color = isHighlighted ? '#fbbf24' : 'rgba(148, 163, 184, 0.72)';
+            planCtx.strokeStyle = color;
+            planCtx.lineWidth = isHighlighted ? 1.8 : 1.1;
+
+            planCtx.beginPath();
+            planCtx.moveTo(x1, y1);
+            planCtx.lineTo(x2, y2);
+            planCtx.stroke();
+
+            // End ticks
+            const tick = 5;
+            planCtx.beginPath();
+            if (!isVertical) {
+                planCtx.moveTo(x1, y1 - tick);
+                planCtx.lineTo(x1, y1 + tick);
+                planCtx.moveTo(x2, y2 - tick);
+                planCtx.lineTo(x2, y2 + tick);
+            } else {
+                planCtx.moveTo(x1 - tick, y1);
+                planCtx.lineTo(x1 + tick, y1);
+                planCtx.moveTo(x2 - tick, y2);
+                planCtx.lineTo(x2 + tick, y2);
+            }
+            planCtx.stroke();
+
+            const mx = (x1 + x2) * 0.5;
+            const my = (y1 + y2) * 0.5;
+            planCtx.translate(mx, my);
+            if (isVertical) planCtx.rotate(-Math.PI * 0.5);
+
+            planCtx.font = isHighlighted ? '700 11.5px Vazirmatn, sans-serif' : '600 10.5px Vazirmatn, sans-serif';
+            const tw = planCtx.measureText(label).width + 12;
+            planCtx.fillStyle = isHighlighted ? 'rgba(120, 53, 15, 0.96)' : 'rgba(11, 16, 26, 0.92)';
+            planCtx.beginPath();
+            planCtx.roundRect(-tw * 0.5, -10, tw, 20, 5);
+            planCtx.fill();
+
+            if (isHighlighted) {
+                planCtx.strokeStyle = '#fbbf24';
+                planCtx.lineWidth = 1;
+                planCtx.stroke();
+            }
+
+            planCtx.fillStyle = isHighlighted ? '#fef08a' : '#cbd5e1';
+            planCtx.textAlign = 'center';
+            planCtx.textBaseline = 'middle';
+            planCtx.fillText(label, 0, 0);
+            planCtx.restore();
+        }
+
+        function drawSinglePlanElement(el, isSelected, isGhost, isValid, reason) {
+            const spec = ELEMENT_SPECS[el.type];
+            const wallLen = getWallLength(el.wall);
+            const { scale } = planViewport;
+            const itemPxW = Math.min(spec.width, wallLen - 0.36) * scale;
+            const wallThickPx = Math.max(10, WALL_THICKNESS * scale);
+            const pos = get2DWallAnchor(el.wall, el.u);
+
+            planCtx.save();
+            planCtx.translate(pos.x, pos.y);
+            planCtx.rotate(pos.angle);
+
+            const color = !isValid ? '#ef4444' : spec.color;
+            planCtx.globalAlpha = isGhost ? 0.82 : 1.0;
+
+            if (spec.kind === 'window') {
+                planCtx.fillStyle = '#0f172a';
+                planCtx.fillRect(-itemPxW * 0.5, -wallThickPx * 0.5, itemPxW, wallThickPx);
+                planCtx.strokeStyle = color;
+                planCtx.lineWidth = isSelected ? 3 : 2;
+                planCtx.strokeRect(-itemPxW * 0.5, -wallThickPx * 0.5, itemPxW, wallThickPx);
+
+                planCtx.beginPath();
+                planCtx.moveTo(-itemPxW * 0.5, 0);
+                planCtx.lineTo(itemPxW * 0.5, 0);
+                planCtx.stroke();
+            } else if (spec.kind === 'door') {
+                planCtx.fillStyle = '#0b0e14';
+                planCtx.fillRect(-itemPxW * 0.5, -wallThickPx * 0.5 - 1, itemPxW, wallThickPx + 2);
+
+                planCtx.strokeStyle = color;
+                planCtx.lineWidth = 2.5;
+                planCtx.beginPath();
+                planCtx.moveTo(-itemPxW * 0.5, wallThickPx * 0.5);
+                planCtx.lineTo(-itemPxW * 0.5, wallThickPx * 0.5 + itemPxW * 0.85);
+                planCtx.stroke();
+
+                planCtx.setLineDash([4, 3]);
+                planCtx.beginPath();
+                planCtx.arc(-itemPxW * 0.5, wallThickPx * 0.5, itemPxW * 0.85, 0, Math.PI * 0.5);
+                planCtx.stroke();
+                planCtx.setLineDash([]);
+            } else if (spec.kind === 'kitchen') {
+                planCtx.fillStyle = 'rgba(52, 211, 153, 0.22)';
+                planCtx.strokeStyle = color;
+                planCtx.lineWidth = isSelected ? 3 : 2;
+                planCtx.fillRect(-itemPxW * 0.5, -wallThickPx * 0.65, itemPxW, wallThickPx * 1.3);
+                planCtx.strokeRect(-itemPxW * 0.5, -wallThickPx * 0.65, itemPxW, wallThickPx * 1.3);
+            } else if (spec.kind === 'tv') {
+                planCtx.fillStyle = color;
+                planCtx.fillRect(-itemPxW * 0.5, wallThickPx * 0.5 + 2, itemPxW, 8);
+                planCtx.fillStyle = 'rgba(192, 132, 252, 0.25)';
+                planCtx.fillRect(-itemPxW * 0.42, wallThickPx * 0.5 + 10, itemPxW * 0.84, 7);
+            }
+
+            if (isSelected) {
+                planCtx.strokeStyle = '#ffffff';
+                planCtx.lineWidth = 1.5;
+                planCtx.setLineDash([3, 3]);
+                planCtx.strokeRect(-itemPxW * 0.5 - 5, -wallThickPx * 0.5 - 5, itemPxW + 10, wallThickPx + 10);
+                planCtx.setLineDash([]);
+            }
+
+            planCtx.rotate(-pos.angle);
+            const labelText = !isValid && reason ? reason : spec.label;
+            planCtx.font = '600 10.5px Vazirmatn, sans-serif';
+            const tw = planCtx.measureText(labelText).width + 12;
+            planCtx.fillStyle = !isValid ? 'rgba(127, 29, 29, 0.94)' : 'rgba(11, 14, 20, 0.90)';
+            planCtx.beginPath();
+            planCtx.roundRect(-tw * 0.5, -24, tw, 18, 5);
+            planCtx.fill();
+
+            planCtx.fillStyle = !isValid ? '#fca5a5' : color;
+            planCtx.textAlign = 'center';
+            planCtx.textBaseline = 'middle';
+            planCtx.fillText(labelText, 0, -15);
+
+            planCtx.restore();
+        }
+
+        function hitTest2DElement(mx, my) {
+            const { scale } = planViewport;
+            for (let i = planState.elements.length - 1; i >= 0; i--) {
+                const el = planState.elements[i];
+                const spec = ELEMENT_SPECS[el.type];
+                const wallLen = getWallLength(el.wall);
+                const itemPxW = Math.min(spec.width, wallLen - 0.36) * scale;
+                const pos = get2DWallAnchor(el.wall, el.u);
+
+                const dx = mx - pos.x;
+                const dy = my - pos.y;                const cos = Math.cos(-pos.angle);
+                const sin = Math.sin(-pos.angle);
+                const lx = dx * cos - dy * sin;
+                const ly = dx * sin + dy * cos;
+
+                if (Math.abs(lx) <= itemPxW * 0.5 + 8 && Math.abs(ly) <= 22) {
+                    return el;
+                }
+            }
+            return null;
+        }
+
+        function hitTestWallEdge(mx, my) {
+            const { roomLeft, roomTop, roomPxW, roomPxD } = planViewport;
+            const right = roomLeft + roomPxW;
+            const bottom = roomTop + roomPxD;
+            const cTol = 14;
+            const eTol = 12;
+
+            if (Math.hypot(mx - roomLeft, my - roomTop) <= cTol) return 'corner-tl';
+            if (Math.hypot(mx - right, my - roomTop) <= cTol) return 'corner-tr';
+            if (Math.hypot(mx - roomLeft, my - bottom) <= cTol) return 'corner-bl';
+            if (Math.hypot(mx - right, my - bottom) <= cTol) return 'corner-br';
+
+            if (Math.abs(my - roomTop) <= eTol && mx >= roomLeft && mx <= right) return 'north';
+            if (Math.abs(my - bottom) <= eTol && mx >= roomLeft && mx <= right) return 'south';
+            if (Math.abs(mx - roomLeft) <= eTol && my >= roomTop && my <= bottom) return 'west';
+            if (Math.abs(mx - right) <= eTol && my >= roomTop && my <= bottom) return 'east';
+
+            return null;
+        }
+
+        function snapCursorToWall(mx, my, elementType) {
+            const { scale, roomLeft, roomTop, roomPxW, roomPxD } = planViewport;
+            const right = roomLeft + roomPxW;
+            const bottom = roomTop + roomPxD;
+
+            const dists = [
+                { wall: 'north', d: Math.abs(my - roomTop), uRaw: (mx - roomLeft) / scale },
+                { wall: 'south', d: Math.abs(my - bottom), uRaw: (mx - roomLeft) / scale },
+                { wall: 'west',  d: Math.abs(mx - roomLeft), uRaw: (my - roomTop) / scale },
+                { wall: 'east',  d: Math.abs(mx - right), uRaw: (my - roomTop) / scale }
+            ];
+            dists.sort((a, b) => a.d - b.d);
+            const nearest = dists[0];
+            if (nearest.d > 75) return null;
+
+            const spec = ELEMENT_SPECS[elementType];
+            const wallLen = getWallLength(nearest.wall);
+            const halfW = Math.min(spec.width, wallLen - 0.36) * 0.5;
+            const step = cadSnapEnabled ? 0.1 : 0.01;
+            let snappedU = Math.round(nearest.uRaw / step) * step;
+            snappedU = Math.max(halfW + 0.18, Math.min(wallLen - halfW - 0.18, snappedU));
+
+            return { wall: nearest.wall, u: snappedU };
+        }
+
+        function draw2DPlan() {
+            const wrapper = document.getElementById('plan-canvas-wrapper');
+            if (!wrapper || !planCtx) return;
+            const w = wrapper.clientWidth;
+            const h = wrapper.clientHeight;
+            if (w <= 0 || h <= 0) return;
+
+            planCtx.clearRect(0, 0, w, h);
+
+            // 1. CAD Blueprint Dark Background
+            planCtx.fillStyle = '#070b12';
+            planCtx.fillRect(0, 0, w, h);
+
+            const margin = 125;
+            const availW = Math.max(180, w - margin * 2);
+            const availH = Math.max(180, h - margin * 2);
+            const scale = Math.min(availW / Math.max(planState.roomW, 5), availH / Math.max(planState.roomD, 5), 76);
+
+            const roomPxW = planState.roomW * scale;
+            const roomPxD = planState.roomD * scale;
+            const roomLeft = Math.round((w - roomPxW) * 0.5);
+            const roomTop = Math.round((h - roomPxD) * 0.5);
+            planViewport = { scale, roomLeft, roomTop, roomPxW, roomPxD };
+
+            // 2. Metric CAD Grid (Minor 0.2m & Major 1.0m aligned to room origin)
+            const minorStep = scale * 0.2;
+            const majorStep = scale * 1.0;
+
+            if (minorStep >= 6) {
+                planCtx.strokeStyle = 'rgba(56, 189, 248, 0.055)';
+                planCtx.lineWidth = 1;
+                planCtx.beginPath();
+                for (let x = roomLeft % minorStep; x < w; x += minorStep) {
+                    planCtx.moveTo(x, 0);
+                    planCtx.lineTo(x, h);
+                }
+                for (let y = roomTop % minorStep; y < h; y += minorStep) {
+                    planCtx.moveTo(0, y);
+                    planCtx.lineTo(w, y);
+                }
+                planCtx.stroke();
+            }
+
+            planCtx.strokeStyle = 'rgba(56, 189, 248, 0.14)';
+            planCtx.lineWidth = 1;
+            planCtx.beginPath();
+            for (let x = roomLeft % majorStep; x < w; x += majorStep) {
+                planCtx.moveTo(x, 0);
+                planCtx.lineTo(x, h);
+            }
+            for (let y = roomTop % majorStep; y < h; y += majorStep) {
+                planCtx.moveTo(0, y);
+                planCtx.lineTo(w, y);
+            }
+            planCtx.stroke();
+
+            // Top & Left CAD Ruler Ticks
+            planCtx.fillStyle = 'rgba(148, 163, 184, 0.55)';
+            planCtx.font = '500 9.5px monospace';
+            planCtx.textAlign = 'center';
+            for (let m = 0; m <= Math.ceil(planState.roomW); m++) {
+                const rx = roomLeft + m * majorStep;
+                if (rx <= roomLeft + roomPxW + 2) {
+                    planCtx.fillText(`${m}m`, rx, roomTop - 62);
+                }
+            }
+            planCtx.textAlign = 'right';
+            for (let m = 0; m <= Math.ceil(planState.roomD); m++) {
+                const ry = roomTop + m * majorStep;
+                if (ry <= roomTop + roomPxD + 2) {
+                    planCtx.fillText(`${m}m`, roomLeft - 62, ry + 3);
+                }
+            }
+
+            // 3. Exterior Context Zones (Hallway & Kitchen Spaces)
+            planState.elements.forEach(el => {
+                const pos = get2DWallAnchor(el.wall, el.u);
+                const spec = ELEMENT_SPECS[el.type];
+                const itemPxW = Math.min(spec.width, getWallLength(el.wall) - 0.36) * scale;
+
+                planCtx.save();
+                planCtx.translate(pos.x, pos.y);
+                planCtx.rotate(pos.angle);
+
+                if (el.type === 'door') {
+                    const hallW = Math.max(itemPxW + 28, 1.5 * scale);
+                    const hallD = 1.35 * scale;
+                    planCtx.fillStyle = 'rgba(251, 191, 36, 0.08)';
+                    planCtx.strokeStyle = 'rgba(251, 191, 36, 0.35)';
+                    planCtx.setLineDash([4, 4]);
+                    planCtx.fillRect(-hallW * 0.5, -hallD, hallW, hallD);
+                    planCtx.strokeRect(-hallW * 0.5, -hallD, hallW, hallD);
+                    planCtx.setLineDash([]);
+
+                    planCtx.rotate(-pos.angle);
+                    planCtx.fillStyle = 'rgba(251, 191, 36, 0.78)';
+                    planCtx.font = '500 10px Vazirmatn, sans-serif';
+                    planCtx.textAlign = 'center';
+                    planCtx.fillText('راهرو ورودی', 0, -hallD * 0.45);
+                } else if (el.type === 'kitchen') {
+                    const kitW = itemPxW + 20;
+                    const kitD = 1.65 * scale;
+                    planCtx.fillStyle = 'rgba(52, 211, 153, 0.08)';
+                    planCtx.strokeStyle = 'rgba(52, 211, 153, 0.35)';
+                    planCtx.setLineDash([4, 4]);
+                    planCtx.fillRect(-kitW * 0.5, -kitD, kitW, kitD);
+                    planCtx.strokeRect(-kitW * 0.5, -kitD, kitW, kitD);
+                    planCtx.setLineDash([]);
+
+                    planCtx.rotate(-pos.angle);
+                    planCtx.fillStyle = 'rgba(52, 211, 153, 0.85)';
+                    planCtx.font = '500 10px Vazirmatn, sans-serif';
+                    planCtx.textAlign = 'center';
+                    planCtx.fillText('فضای آشپزخانه', 0, -kitD * 0.45);
+                }
+                planCtx.restore();
+            });
+
+            // 4. Room Interior Floor Slab
+            planCtx.fillStyle = '#111826';
+            planCtx.fillRect(roomLeft, roomTop, roomPxW, roomPxD);
+
+            // Subtle floor plank lines
+            planCtx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            planCtx.lineWidth = 1;
+            const plankStep = Math.max(12, scale * 0.35);
+            for (let y = roomTop + plankStep; y < roomTop + roomPxD; y += plankStep) {
+                planCtx.beginPath();
+                planCtx.moveTo(roomLeft, y);
+                planCtx.lineTo(roomLeft + roomPxW, y);
+                planCtx.stroke();
+            }
+
+            // Room Area Watermark in Center
+            const area = (planState.roomW * planState.roomD).toFixed(1);
+            planCtx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+            planCtx.font = '700 14px Vazirmatn, sans-serif';
+            planCtx.textAlign = 'center';
+            planCtx.textBaseline = 'middle';
+            planCtx.fillText(`مساحت پلان: ${area} متر مربع`, roomLeft + roomPxW * 0.5, roomTop + roomPxD * 0.5);
+
+            // 5. Architectural Walls & Interactive CAD Edge Highlight
+            const wallThickPx = Math.max(10, WALL_THICKNESS * scale);
+            planCtx.strokeStyle = '#64748b';
+            planCtx.lineWidth = wallThickPx;
+            planCtx.strokeRect(roomLeft, roomTop, roomPxW, roomPxD);
+
+            planCtx.strokeStyle = '#cbd5e1';
+            planCtx.lineWidth = 1.5;
+            planCtx.strokeRect(roomLeft - wallThickPx * 0.5, roomTop - wallThickPx * 0.5, roomPxW + wallThickPx, roomPxD + wallThickPx);
+            planCtx.strokeRect(roomLeft + wallThickPx * 0.5, roomTop + wallThickPx * 0.5, roomPxW - wallThickPx, roomPxD - wallThickPx);
+
+            // Highlight active/hovered wall edge
+            const activeEdge = wallDragState ? wallDragState.edge : hoveredWallEdge;
+            if (activeEdge) {
+                planCtx.save();
+                planCtx.strokeStyle = '#fbbf24';
+                planCtx.lineWidth = wallThickPx + 4;
+                planCtx.beginPath();
+                if (activeEdge === 'north' || activeEdge === 'corner-tl' || activeEdge === 'corner-tr') {
+                    planCtx.moveTo(roomLeft, roomTop);
+                    planCtx.lineTo(roomLeft + roomPxW, roomTop);
+                }
+                if (activeEdge === 'south' || activeEdge === 'corner-bl' || activeEdge === 'corner-br') {
+                    planCtx.moveTo(roomLeft, roomTop + roomPxD);
+                    planCtx.lineTo(roomLeft + roomPxW, roomTop + roomPxD);
+                }
+                if (activeEdge === 'west' || activeEdge === 'corner-tl' || activeEdge === 'corner-bl') {
+                    planCtx.moveTo(roomLeft, roomTop);
+                    planCtx.lineTo(roomLeft, roomTop + roomPxD);
+                }
+                if (activeEdge === 'east' || activeEdge === 'corner-tr' || activeEdge === 'corner-br') {
+                    planCtx.moveTo(roomLeft + roomPxW, roomTop);
+                    planCtx.lineTo(roomLeft + roomPxW, roomTop + roomPxD);
+                }
+                planCtx.stroke();
+                planCtx.restore();
+            }
+
+            // 6. Dimension Lines & Active Length Callouts
+            const dimOffset = 36;
+            const isDraggingW = wallDragState && ['west', 'east', 'corner-tl', 'corner-tr', 'corner-bl', 'corner-br'].includes(wallDragState.edge);
+            const isDraggingD = wallDragState && ['north', 'south', 'corner-tl', 'corner-tr', 'corner-bl', 'corner-br'].includes(wallDragState.edge);
+
+            drawDimensionLine(
+                roomLeft, roomTop - dimOffset,
+                roomLeft + roomPxW, roomTop - dimOffset,
+                isDraggingW ? `طول فعال: ${planState.roomW.toFixed(2)} متر` : `طول: ${planState.roomW.toFixed(2)} متر`,
+                false,
+                isDraggingW || hoveredWallEdge === 'west' || hoveredWallEdge === 'east'
+            );
+            drawDimensionLine(
+                roomLeft - dimOffset, roomTop,
+                roomLeft - dimOffset, roomTop + roomPxD,
+                isDraggingD ? `طول فعال: ${planState.roomD.toFixed(2)} متر` : `عرض: ${planState.roomD.toFixed(2)} متر`,
+                true,
+                isDraggingD || hoveredWallEdge === 'north' || hoveredWallEdge === 'south'
+            );
+
+            // 7. Placed Elements
+            planState.elements.forEach(el => {
+                const isSel = el.id === selectedElementId;
+                drawSinglePlanElement(el, isSel, false, true, '');
+            });
+
+            // 8. Live Placement Ghost Preview & End-Offset Dimensions
+            if (activeTool !== 'select' && hoverPreview) {
+                const ghostEl = { id: 'ghost', type: activeTool, wall: hoverPreview.wall, u: hoverPreview.u };
+                drawSinglePlanElement(ghostEl, false, true, hoverPreview.valid, hoverPreview.reason);
+
+                const spec = ELEMENT_SPECS[activeTool];
+                const wallLen = getWallLength(hoverPreview.wall);
+                const effW = Math.min(spec.width, wallLen - 0.36);
+                const dStart = Math.max(0, hoverPreview.u - effW * 0.5);
+                const dEnd = Math.max(0, wallLen - (hoverPreview.u + effW * 0.5));
+                const pStart = get2DWallAnchor(hoverPreview.wall, 0);
+                const pItemA = get2DWallAnchor(hoverPreview.wall, hoverPreview.u - effW * 0.5);
+                const pItemB = get2DWallAnchor(hoverPreview.wall, hoverPreview.u + effW * 0.5);
+                const pEnd = get2DWallAnchor(hoverPreview.wall, wallLen);
+
+                const isVert = hoverPreview.wall === 'west' || hoverPreview.wall === 'east';
+                const offSign = (hoverPreview.wall === 'north' || hoverPreview.wall === 'west') ? 22 : -22;
+                if (!isVert) {
+                    drawDimensionLine(pStart.x, pStart.y + offSign, pItemA.x, pItemA.y + offSign, `${dStart.toFixed(2)}m`, false, true);
+                    drawDimensionLine(pItemB.x, pItemB.y + offSign, pEnd.x, pEnd.y + offSign, `${dEnd.toFixed(2)}m`, false, true);
+                } else {
+                    drawDimensionLine(pStart.x + offSign, pStart.y, pItemA.x + offSign, pItemA.y, `${dStart.toFixed(2)}m`, true, true);
+                    drawDimensionLine(pItemB.x + offSign, pItemB.y, pEnd.x + offSign, pEnd.y, `${dEnd.toFixed(2)}m`, true, true);
+                }
+            }
+
+            // 9. CAD Crosshair Cursor
+            if (mouseCanvasPos) {
+                planCtx.save();
+                planCtx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+                planCtx.lineWidth = 1;
+                planCtx.setLineDash([4, 4]);
+                planCtx.beginPath();
+                planCtx.moveTo(mouseCanvasPos.mx, 0);
+                planCtx.lineTo(mouseCanvasPos.mx, h);
+                planCtx.moveTo(0, mouseCanvasPos.my);
+                planCtx.lineTo(w, mouseCanvasPos.my);
+                planCtx.stroke();
+                planCtx.restore();
+            }
+
+            // 10. 4 Corner Resize Handles
+            const corners = [
+                { id: 'corner-tl', x: roomLeft, y: roomTop },
+                { id: 'corner-tr', x: roomLeft + roomPxW, y: roomTop },
+                { id: 'corner-bl', x: roomLeft, y: roomTop + roomPxD },
+                { id: 'corner-br', x: roomLeft + roomPxW, y: roomTop + roomPxD }
+            ];
+            corners.forEach(c => {
+                const isActive = activeEdge === c.id;
+                planCtx.fillStyle = isActive ? '#fbbf24' : '#ffffff';
+                planCtx.strokeStyle = '#0f172a';
+                planCtx.lineWidth = 2;
+                planCtx.beginPath();
+                planCtx.rect(c.x - 5, c.y - 5, 10, 10);
+                planCtx.fill();
+                planCtx.stroke();
+            });
+
+            // 11. Active Drag Validation Warning Banner
+            if (dragInvalidWarning) {
+                planCtx.save();
+                planCtx.font = '700 12px Vazirmatn, sans-serif';
+                const warnW = planCtx.measureText(dragInvalidWarning).width + 26;
+                planCtx.fillStyle = 'rgba(153, 27, 27, 0.95)';
+                planCtx.beginPath();
+                planCtx.roundRect(w * 0.5 - warnW * 0.5, h - 46, warnW, 30, 8);
+                planCtx.fill();
+                planCtx.fillStyle = '#fecaca';
+                planCtx.textAlign = 'center';
+                planCtx.textBaseline = 'middle';
+                planCtx.fillText(`⛔ ${dragInvalidWarning}`, w * 0.5, h - 31);
+                planCtx.restore();
+            }
+        }
+
+        // 2D CAD Pointer & Keyboard Interactions
+        planCanvas.addEventListener('pointerdown', (e) => {
+            const rect = planCanvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+
+            // Placement Mode
+            if (activeTool !== 'select') {
+                const snap = snapCursorToWall(mx, my, activeTool);
+                if (!snap) {
+                    showStatusBanner('⚠️ نشانگر ماوس را نزدیک یکی از ۴ دیوار ببرید و کلیک کنید');
+                    return;
+                }
+                const candidate = {
+                    id: 'el_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+                    type: activeTool,
+                    wall: snap.wall,
+                    u: snap.u
+                };
+                const res = validateElementPlacement(candidate, planState.elements);
+                if (!res.valid) {
+                    showStatusBanner(`⛔ ${res.reason}`);
+                    return;
+                }
+                planState.elements.push(candidate);
+                selectedElementId = candidate.id;
+                isPlanDirtyFor3D = true;
+                updateSelectedInspector();
+                draw2DPlan();
+                showStatusBanner(`✅ ${ELEMENT_SPECS[activeTool].label} روی ${WALL_LABELS[snap.wall]} قرار گرفت`);
+                return;
+            }
+
+            // Select / Drag Placed Element
+            const hitEl = hitTest2DElement(mx, my);
+            if (hitEl) {
+                selectedElementId = hitEl.id;
+                draggingElementId = hitEl.id;
+                dragStartValidState = { wall: hitEl.wall, u: hitEl.u };
+                dragInvalidWarning = null;
+                updateSelectedInspector();
+                draw2DPlan();
+                planCanvas.setPointerCapture(e.pointerId);
+                return;
+            }
+
+            // Select / Drag Wall Edge or Corner
+            const hitEdge = hitTestWallEdge(mx, my);
+            if (hitEdge) {
+                wallDragState = {
+                    edge: hitEdge,
+                    startMx: mx,
+                    startMy: my,
+                    startW: planState.roomW,
+                    startD: planState.roomD,
+                    startScale: planViewport.scale
+                };
+                planCanvas.setPointerCapture(e.pointerId);
+                draw2DPlan();
+                return;
+            }
+
+            selectedElementId = null;
+            updateSelectedInspector();
+            draw2DPlan();
+        });
+
+        planCanvas.addEventListener('pointermove', (e) => {
+            const rect = planCanvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+
+            const cadX = ((mx - planViewport.roomLeft) / planViewport.scale).toFixed(2);
+            const cadY = ((my - planViewport.roomTop) / planViewport.scale).toFixed(2);
+            mouseCanvasPos = { mx, my, cadX, cadY };
+            const coordEl = document.getElementById('cad-cursor-coords');
+            if (coordEl) coordEl.textContent = `X: ${cadX}m | Y: ${cadY}m`;
+
+            // Wall or Corner Dragging
+            if (wallDragState) {
+                const dxMeters = (mx - wallDragState.startMx) / (wallDragState.startScale || planViewport.scale);
+                const dyMeters = (my - wallDragState.startMy) / (wallDragState.startScale || planViewport.scale);
+                const step = cadSnapEnabled ? 0.1 : 0.05;
+
+                let nextW = wallDragState.startW;
+                let nextD = wallDragState.startD;
+                const edge = wallDragState.edge;
+
+                if (edge === 'east' || edge === 'corner-tr' || edge === 'corner-br') {
+                    nextW = wallDragState.startW + dxMeters;
+                } else if (edge === 'west' || edge === 'corner-tl' || edge === 'corner-bl') {
+                    nextW = wallDragState.startW - dxMeters;
+                }
+
+                if (edge === 'south' || edge === 'corner-bl' || edge === 'corner-br') {
+                    nextD = wallDragState.startD + dyMeters;
+                } else if (edge === 'north' || edge === 'corner-tl' || edge === 'corner-tr') {
+                    nextD = wallDragState.startD - dyMeters;
+                }
+
+                nextW = Math.min(14, Math.max(3.5, Math.round(nextW / step) * step));
+                nextD = Math.min(14, Math.max(3.5, Math.round(nextD / step) * step));
+
+                document.getElementById('input-room-length').value = nextW.toFixed(2);
+                document.getElementById('input-room-width').value = nextD.toFixed(2);
+                applyRoomDimensions(false);
+                return;
+            }
+
+            // Element Dragging along walls
+            if (draggingElementId) {
+                const el = planState.elements.find(item => item.id === draggingElementId);
+                if (!el) return;
+                const snap = snapCursorToWall(mx, my, el.type);
+                if (snap) {
+                    el.wall = snap.wall;
+                    el.u = snap.u;
+                    const res = validateElementPlacement(el, planState.elements);
+                    if (res.valid) {
+                        dragStartValidState = { wall: el.wall, u: el.u };
+                        dragInvalidWarning = null;
+                        isPlanDirtyFor3D = true;
+                    } else {
+                        dragInvalidWarning = res.reason;
+                    }
+                    updateSelectedInspector();
+                    draw2DPlan();
+                }
+                return;
+            }
+
+            // Placement Preview Mode
+            if (activeTool !== 'select') {
+                const snap = snapCursorToWall(mx, my, activeTool);
+                if (snap) {
+                    const candidate = { id: 'preview', type: activeTool, wall: snap.wall, u: snap.u };
+                    const res = validateElementPlacement(candidate, planState.elements);
+                    hoverPreview = { wall: snap.wall, u: snap.u, valid: res.valid, reason: res.reason };
+                } else {
+                    hoverPreview = null;
+                }
+                draw2DPlan();
+                return;
+            }
+
+            // Hover Detection for Elements & Walls
+            const hitEl = hitTest2DElement(mx, my);
+            if (hitEl) {
+                hoveredWallEdge = null;
+                planCanvas.style.cursor = 'grab';
+            } else {
+                const hitEdge = hitTestWallEdge(mx, my);
+                hoveredWallEdge = hitEdge;
+                if (hitEdge === 'north' || hitEdge === 'south') planCanvas.style.cursor = 'ns-resize';
+                else if (hitEdge === 'west' || hitEdge === 'east') planCanvas.style.cursor = 'ew-resize';
+                else if (hitEdge === 'corner-tl' || hitEdge === 'corner-br') planCanvas.style.cursor = 'nwse-resize';
+                else if (hitEdge === 'corner-tr' || hitEdge === 'corner-bl') planCanvas.style.cursor = 'nesw-resize';
+                else planCanvas.style.cursor = 'default';
+            }
+            draw2DPlan();
+        });
+
+        planCanvas.addEventListener('pointerup', (e) => {
+            if (wallDragState) {
+                wallDragState = null;
+                try { planCanvas.releasePointerCapture(e.pointerId); } catch (_) {}
+                draw2DPlan();
+                return;
+            }
+            if (draggingElementId) {
+                const el = planState.elements.find(item => item.id === draggingElementId);
+                if (el && dragInvalidWarning && dragStartValidState) {
+                    el.wall = dragStartValidState.wall;
+                    el.u = dragStartValidState.u;
+                    showStatusBanner(`⛔ ${dragInvalidWarning}`);
+                }
+                draggingElementId = null;
+                dragInvalidWarning = null;
+                try { planCanvas.releasePointerCapture(e.pointerId); } catch (_) {}
+                updateSelectedInspector();
+                draw2DPlan();
+            }
+        });
+
+        planCanvas.addEventListener('pointerleave', () => {
+            mouseCanvasPos = null;
+            hoveredWallEdge = null;
+            if (hoverPreview) hoverPreview = null;
+            draw2DPlan();
+        });
+
+        // =========================================================================
+        // 2. THREE.JS 3D PBR RENDERER, TEXTURES & DYNAMIC ARCHITECTURE BUILDER
+        // =========================================================================
+        const container = document.getElementById('canvas-container');
+        let scene, camera, renderer, composer, controls;
+        let gtaoPass, bloomPass, punchPass;
+        let pmremGenerator;
+
+        let architectureGroup = null;
+        let sunLight, windowPortalLight, interiorFillLight, hemiLight, ceilingFillLight;
+        let lampPointLight, lampBulbMat, lampShadeMat;
+        let skyUniforms, exteriorPanoramaMat;
+        let floorMesh, floorMaterials = {};
+        let wallPlasterMat, ceilingCoveMat;
+        let consoleBodyMat, consoleMaterials = {};
+        let tvScreenMesh, tvScreenCanvas, tvScreenCtx, tvScreenTexture, tvScreenMat, tvBacklightMat;
+
+        let doorPivot = null;
+        let doorInteractiveMeshes = [];
+        let isDoorOpen = false;
+        let currentDoorAngle = 0;
+
+        let isLampOn = true;
+        let isTVOn = true;
+        let currentTVChannel = 'nature';
+        let isAOEnabled = true;
+        let isBloomEnabled = true;
+        let currentMood = 'day';
+        let currentToneMappingName = 'reinhard';
+        let currentPunchLevel = 'punchy';
+        let currentFloorKey = 'oak';
+        let currentConsoleKey = 'walnut';
+        let tvAnimFrame = 0;
+
+        const CAMERA_VIEWS = {
+            overview: { pos: new THREE.Vector3(2.3, 1.85, 2.3), target: new THREE.Vector3(-0.6, 1.25, -0.6) },
+            tv:       { pos: new THREE.Vector3(0.0, 1.45, 2.2), target: new THREE.Vector3(0.0, 1.35, -2.5) },
+            window:   { pos: new THREE.Vector3(1.8, 1.55, 0.2), target: new THREE.Vector3(-3.0, 1.4, 0.0) },
+            door:     { pos: new THREE.Vector3(-1.4, 1.65, -1.2), target: new THREE.Vector3(1.5, 1.25, 2.2) }
+        };
+        let isCameraTransitioning = false;
+        let targetCamPos = new THREE.Vector3();
+        let targetLookAt = new THREE.Vector3();
+
+        const keyState = { KeyW: false, KeyA: false, KeyS: false, KeyD: false, KeyQ: false, KeyE: false };
+        const moveVelocity = new THREE.Vector3();
+        let verticalVelocity = 0;
+
+        const raycaster = new THREE.Raycaster();
+        const pointerNdc = new THREE.Vector2();
+
+        const PunchShader = {
+            uniforms: {
+                tDiffuse: { value: null },
+                uContrast: { value: 1.12 },
+                uVibrance: { value: 0.16 },
+                uShadowToe: { value: 0.015 }
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                uniform float uContrast;
+                uniform float uVibrance;
+                uniform float uShadowToe;
+                varying vec2 vUv;
+
+                void main() {
+                    vec4 texel = texture2D(tDiffuse, vUv);
+                    vec3 col = max(vec3(0.0), texel.rgb - vec3(uShadowToe));
+                    col = (col - 0.5) * uContrast + 0.5;
+                    float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
+                    float maxC = max(col.r, max(col.g, col.b));
+                    float minC = min(col.r, min(col.g, col.b));
+                    float sat = maxC - minC;
+                    float vibFactor = uVibrance * (1.0 - sat);
+                    col = mix(vec3(luma), col, 1.0 + vibFactor);
+                    gl_FragColor = vec4(clamp(col, 0.0, 1.0), texel.a);
+                }
+            `
+        };
+
+        function generateNormalFromHeight(heightCanvas, strength = 2.2) {
+            const w = heightCanvas.width;
+            const h = heightCanvas.height;
+            const ctx = heightCanvas.getContext('2d');
+            const src = ctx.getImageData(0, 0, w, h).data;
+
+            const outCanvas = document.createElement('canvas');
+            outCanvas.width = w;
+            outCanvas.height = h;
+            const outCtx = outCanvas.getContext('2d');
+            const dst = outCtx.createImageData(w, h);
+
+            const sample = (x, y) => {
+                const wx = (x + w) % w;
+                const wy = (y + h) % h;
+                return src[(wy * w + wx) * 4] / 255.0;
+            };
+
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    const tl = sample(x - 1, y - 1);
+                    const t  = sample(x,     y - 1);
+                    const tr = sample(x + 1, y - 1);
+                    const l  = sample(x - 1, y);
+                    const r  = sample(x + 1, y);
+                    const bl = sample(x - 1, y + 1);
+                    const b  = sample(x,     y + 1);
+                    const br = sample(x + 1, y + 1);
+
+                    const dX = (tr + 2.0 * r + br) - (tl + 2.0 * l + bl);
+                    const dY = (bl + 2.0 * b + br) - (tl + 2.0 * t + tr);
+
+                    let nx = -dX * strength;
+                    let ny = -dY * strength;
+                    let nz = 1.0;
+                    const invLen = 1.0 / Math.sqrt(nx * nx + ny * ny + nz * nz);
+                    nx *= invLen; ny *= invLen; nz *= invLen;
+
+                    const idx = (y * w + x) * 4;
+                    dst.data[idx]     = Math.round((nx * 0.5 + 0.5) * 255);
+                    dst.data[idx + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+                    dst.data[idx + 2] = Math.round((nz * 0.5 + 0.5) * 255);
+                    dst.data[idx + 3] = 255;
+                }
+            }
+            outCtx.putImageData(dst, 0, 0);
+            const tex = new THREE.CanvasTexture(outCanvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            return tex;
+        }
+
+        function createWoodTextures(baseHex, grainHex, roughMin, roughMax, repeatX = 4, repeatY = 4) {
+            const size = 512;
+            const diffCanvas = document.createElement('canvas');
+            const roughCanvas = document.createElement('canvas');
+            diffCanvas.width = roughCanvas.width = size;
+            diffCanvas.height = roughCanvas.height = size;
+
+            const dCtx = diffCanvas.getContext('2d');
+            const rCtx = roughCanvas.getContext('2d');
+
+            const planks = 6;
+            const plankH = size / planks;
+
+            for (let p = 0; p < planks; p++) {
+                const y0 = p * plankH;
+                dCtx.fillStyle = baseHex;
+                dCtx.fillRect(0, y0, size, plankH);
+
+                const plankRough = roughMin + ((p * 37) % 10) * 0.015;
+                const rVal = Math.round(Math.min(255, Math.max(0, plankRough * 255)));
+                rCtx.fillStyle = `rgb(${rVal},${rVal},${rVal})`;
+                rCtx.fillRect(0, y0, size, plankH);
+
+                dCtx.strokeStyle = grainHex;
+                dCtx.globalAlpha = 0.22;
+                for (let g = 0; g < 26; g++) {
+                    const gy = y0 + (g / 26) * plankH;
+                    dCtx.lineWidth = 0.8 + (g % 3) * 0.5;
+                    dCtx.beginPath();
+                    dCtx.moveTo(0, gy);
+                    dCtx.bezierCurveTo(size * 0.33, gy + Math.sin(p + g) * 2.2, size * 0.66, gy - Math.cos(p + g) * 2.2, size, gy);
+                    dCtx.stroke();
+                }
+                dCtx.globalAlpha = 1.0;
+
+                // Plank seam
+                dCtx.fillStyle = 'rgba(20, 14, 10, 0.45)';
+                dCtx.fillRect(0, y0, size, 2);
+                const jointX = ((p * 173 + 90) % size);
+                dCtx.fillRect(jointX, y0, 2, plankH);
+
+                const seamRough = Math.round(roughMax * 255);
+                rCtx.fillStyle = `rgb(${seamRough},${seamRough},${seamRough})`;
+                rCtx.fillRect(0, y0, size, 2);
+                rCtx.fillRect(jointX, y0, 2, plankH);
+            }
+
+            const map = new THREE.CanvasTexture(diffCanvas);
+            map.colorSpace = THREE.SRGBColorSpace;
+            map.wrapS = map.wrapT = THREE.RepeatWrapping;
+            map.repeat.set(repeatX, repeatY);
+
+            const roughnessMap = new THREE.CanvasTexture(roughCanvas);
+            roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
+            roughnessMap.repeat.set(repeatX, repeatY);
+
+            const normalMap = generateNormalFromHeight(roughCanvas, 1.5);
+            normalMap.repeat.set(repeatX, repeatY);
+
+            return { map, roughnessMap, normalMap };
+        }
+
+        function createStoneTextures(baseHex, veinHex, repeat = 3) {
+            const size = 512;
+            const diffCanvas = document.createElement('canvas');
+            const roughCanvas = document.createElement('canvas');
+            diffCanvas.width = roughCanvas.width = size;
+            diffCanvas.height = roughCanvas.height = size;
+
+            const dCtx = diffCanvas.getContext('2d');
+            const rCtx = roughCanvas.getContext('2d');
+
+            dCtx.fillStyle = baseHex;
+            dCtx.fillRect(0, 0, size, size);
+            rCtx.fillStyle = 'rgb(72, 72, 72)';
+            rCtx.fillRect(0, 0, size, size);
+
+            dCtx.strokeStyle = veinHex;
+            for (let v = 0; v < 18; v++) {
+                dCtx.globalAlpha = 0.08 + (v % 4) * 0.04;
+                dCtx.lineWidth = 0.8 + (v % 3) * 0.9;
+                dCtx.beginPath();
+                let x = (v * 79) % size;
+                let y = 0;
+                dCtx.moveTo(x, y);
+                while (y < size) {
+                    y += 32;
+                    x += Math.sin(y * 0.02 + v) * 24;
+                    dCtx.lineTo(x, y);
+                }
+                dCtx.stroke();
+            }
+            dCtx.globalAlpha = 1.0;
+
+            const map = new THREE.CanvasTexture(diffCanvas);
+            map.colorSpace = THREE.SRGBColorSpace;
+            map.wrapS = map.wrapT = THREE.RepeatWrapping;
+            map.repeat.set(repeat, repeat);
+
+            const roughnessMap = new THREE.CanvasTexture(roughCanvas);
+            roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
+            roughnessMap.repeat.set(repeat, repeat);
+
+            const normalMap = generateNormalFromHeight(roughCanvas, 1.1);
+            normalMap.repeat.set(repeat, repeat);
+
+            return { map, roughnessMap, normalMap };
+        }
+
+        function createPlasterTextures() {
+            const size = 512;
+            const diffCanvas = document.createElement('canvas');
+            const roughCanvas = document.createElement('canvas');
+            diffCanvas.width = roughCanvas.width = size;
+            diffCanvas.height = roughCanvas.height = size;
+
+            const dCtx = diffCanvas.getContext('2d');
+            const rCtx = roughCanvas.getContext('2d');
+
+            dCtx.fillStyle = '#ffffff';
+            dCtx.fillRect(0, 0, size, size);
+            rCtx.fillStyle = 'rgb(205, 205, 205)';
+            rCtx.fillRect(0, 0, size, size);
+
+            for (let i = 0; i < 650; i++) {
+                const x = (i * 97) % size;
+                const y = (i * 53 + Math.floor(i / 11) * 19) % size;
+                const rad = 10 + (i % 24);
+                const tone = 246 + (i % 10);
+                dCtx.fillStyle = `rgba(${tone},${tone},${tone},0.16)`;
+                dCtx.beginPath();
+                dCtx.arc(x, y, rad, 0, Math.PI * 2);
+                dCtx.fill();
+
+                const rTone = 185 + (i % 45);
+                rCtx.fillStyle = `rgba(${rTone},${rTone},${rTone},0.18)`;
+                rCtx.beginPath();
+                rCtx.arc(x, y, rad, 0, Math.PI * 2);
+                rCtx.fill();
+            }
+
+            const map = new THREE.CanvasTexture(diffCanvas);
+            map.colorSpace = THREE.SRGBColorSpace;
+            map.wrapS = map.wrapT = THREE.RepeatWrapping;
+            map.repeat.set(3, 2);
+
+            const roughnessMap = new THREE.CanvasTexture(roughCanvas);
+            roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
+            roughnessMap.repeat.set(3, 2);
+
+            const normalMap = generateNormalFromHeight(roughCanvas, 0.9);
+            normalMap.repeat.set(3, 2);
+
+            return { map, roughnessMap, normalMap };
+        }
+
+        function createExteriorPanoramaTexture() {
+            const w = 2048;
+            const h = 1024;
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+
+            // Sky gradient
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.65);
+            skyGrad.addColorStop(0.0, '#6ba6e3');
+            skyGrad.addColorStop(0.55, '#b6d8f7');
+            skyGrad.addColorStop(1.0, '#eef5fc');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            // Soft sunlit clouds
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+            for (let c = 0; c < 18; c++) {
+                const cx = (c * 137) % w;
+                const cy = 90 + (c % 5) * 45;
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, 130 + (c % 4) * 35, 24 + (c % 3) * 8, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Distant hills
+            ctx.fillStyle = '#7e9bb0';
+            ctx.beginPath();
+            ctx.moveTo(0, h * 0.62);
+            for (let x = 0; x <= w; x += 64) {
+                const hy = h * 0.56 - Math.sin(x * 0.004) * 35 - Math.cos(x * 0.011) * 18;
+                ctx.lineTo(x, hy);
+            }
+            ctx.lineTo(w, h);
+            ctx.lineTo(0, h);
+            ctx.closePath();
+            ctx.fill();
+
+            // Lush sunlit garden foliage silhouettes
+            for (let t = 0; t < 42; t++) {
+                const tx = (t * 53) % w;
+                const ty = h * 0.64 + (t % 3) * 28;
+                const rad = 55 + (t % 5) * 22;
+                const g = ctx.createRadialGradient(tx - rad * 0.25, ty - rad * 0.25, 8, tx, ty, rad);
+                g.addColorStop(0, '#6b9445');
+                g.addColorStop(0.65, '#3e5e28');
+                g.addColorStop(1, '#263b18');
+                ctx.fillStyle = g;
+                ctx.beginPath();
+                ctx.arc(tx, ty, rad, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Garden lawn ground
+            const groundGrad = ctx.createLinearGradient(0, h * 0.68, 0, h);
+            groundGrad.addColorStop(0, '#4f7332');
+            groundGrad.addColorStop(1, '#2b421a');
+            ctx.fillStyle = groundGrad;
+            ctx.fillRect(0, h * 0.72, w, h * 0.28);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.ClampToEdgeWrapping;
+            return tex;
+        }
+
+        function createLeafTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            const grad = ctx.createLinearGradient(0, 0, 256, 512);
+            grad.addColorStop(0, '#2c5e2e');
+            grad.addColorStop(0.5, '#1e4620');
+            grad.addColorStop(1, '#143216');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 256, 512);
+
+            // Central rib & side veins
+            ctx.strokeStyle = 'rgba(130, 185, 110, 0.45)';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(128, 12);
+            ctx.lineTo(128, 500);
+            ctx.stroke();
+
+            ctx.lineWidth = 1.8;
+            for (let y = 40; y < 470; y += 26) {
+                ctx.beginPath();
+                ctx.moveTo(128, y);
+                ctx.quadraticCurveTo(65, y - 14, 16, y - 34);
+                ctx.moveTo(128, y);
+                ctx.quadraticCurveTo(191, y - 14, 240, y - 34);
+                ctx.stroke();
+            }
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.colorSpace = THREE.SRGBColorSpace;
+            return tex;
+        }
+
+        function drawTVFrame(channel, time) {
+            if (!tvScreenCtx || !tvScreenCanvas) return;
+            const w = tvScreenCanvas.width;
+            const h = tvScreenCanvas.height;
+            const ctx = tvScreenCtx;
+
+            if (!isTVOn) {
+                ctx.fillStyle = '#06080c';
+                ctx.fillRect(0, 0, w, h);
+                if (tvScreenTexture) tvScreenTexture.needsUpdate = true;
+                return;
+            }
+
+            if (channel === 'nature') {
+                const g = ctx.createLinearGradient(0, 0, 0, h);
+                g.addColorStop(0, '#0f2942');
+                g.addColorStop(0.52, '#2d6a8e');
+                g.addColorStop(0.53, '#183a4a');
+                g.addColorStop(1, '#091922');
+                ctx.fillStyle = g;
+                ctx.fillRect(0, 0, w, h);
+
+                // Sun glow
+                const sunX = w * 0.68 + Math.sin(time * 0.25) * 14;
+                const sunY = h * 0.34;
+                const rg = ctx.createRadialGradient(sunX, sunY, 6, sunX, sunY, 150);
+                rg.addColorStop(0, 'rgba(255, 244, 210, 0.95)');
+                rg.addColorStop(0.35, 'rgba(251, 191, 36, 0.45)');
+                rg.addColorStop(1, 'rgba(251, 191, 36, 0)');
+                ctx.fillStyle = rg;
+                ctx.fillRect(0, 0, w, h);
+
+                // Mountain ridge
+                ctx.fillStyle = '#0c1f2e';
+                ctx.beginPath();
+                ctx.moveTo(0, h * 0.53);
+                ctx.lineTo(w * 0.22, h * 0.36);
+                ctx.lineTo(w * 0.45, h * 0.48);
+                ctx.lineTo(w * 0.72, h * 0.32);
+                ctx.lineTo(w, h * 0.49);
+                ctx.lineTo(w, h * 0.53);
+                ctx.closePath();
+                ctx.fill();
+
+                // Lake water shimmer
+                ctx.strokeStyle = 'rgba(253, 224, 71, 0.38)';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 16; i++) {
+                    const wy = h * 0.56 + i * 13;
+                    const wave = Math.sin(time * 2.2 + i) * 18;
+                    ctx.beginPath();
+                    ctx.moveTo(sunX - 55 + wave, wy);
+                    ctx.lineTo(sunX + 55 - wave, wy);
+                    ctx.stroke();
+                }
+            } else if (channel === 'fireplace') {
+                ctx.fillStyle = '#0c0807';
+                ctx.fillRect(0, 0, w, h);
+
+                const glow = ctx.createRadialGradient(w * 0.5, h * 0.72, 20, w * 0.5, h * 0.65, 280);
+                glow.addColorStop(0, 'rgba(255, 140, 30, 0.75)');
+                glow.addColorStop(0.55, 'rgba(190, 45, 10, 0.35)');
+                glow.addColorStop(1, 'rgba(12, 8, 7, 0)');
+                ctx.fillStyle = glow;
+                ctx.fillRect(0, 0, w, h);
+
+                for (let f = 0; f < 14; f++) {
+                    const fx = w * 0.25 + f * (w * 0.5 / 13);
+                    const flicker = Math.sin(time * 7.5 + f * 1.7) * 26;
+                    const fh = 120 + (f % 4) * 25 + flicker;
+                    const fg = ctx.createLinearGradient(fx, h * 0.85, fx, h * 0.85 - fh);
+                    fg.addColorStop(0, '#fff7ed');                    fg.addColorStop(0.35, '#f59e0b');
+                    fg.addColorStop(0.8, '#dc2626');
+                    fg.addColorStop(1, 'rgba(220, 38, 38, 0)');
+                    ctx.fillStyle = fg;
+                    ctx.beginPath();
+                    ctx.ellipse(fx, h * 0.85 - fh * 0.45, 22, fh * 0.55, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else {
+                const ag = ctx.createLinearGradient(0, 0, w, h);
+                ag.addColorStop(0, '#1e1b4b');
+                ag.addColorStop(0.5, '#312e81');
+                ag.addColorStop(1, '#78350f');
+                ctx.fillStyle = ag;
+                ctx.fillRect(0, 0, w, h);
+
+                for (let c = 0; c < 5; c++) {
+                    const cx = w * (0.2 + c * 0.15) + Math.sin(time * 0.8 + c) * 25;
+                    const cy = h * 0.5 + Math.cos(time * 0.6 + c) * 35;
+                    ctx.strokeStyle = c % 2 === 0 ? 'rgba(251, 191, 36, 0.7)' : 'rgba(56, 189, 248, 0.65)';
+                    ctx.lineWidth = 6;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 65 + c * 18, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+
+            if (tvScreenTexture) tvScreenTexture.needsUpdate = true;
+        }
+
+        function initMaterials() {
+            const oakTex = createWoodTextures('#c9a276', '#8d643b', 0.26, 0.55, 4, 4);
+            const walnutTex = createWoodTextures('#6d4730', '#3a2214', 0.24, 0.52, 4, 4);
+            const marbleTex = createStoneTextures('#eceae4', '#a8a29e', 3);
+            const concreteTex = createStoneTextures('#9ca3af', '#6b7280', 3);
+
+            floorMaterials = {
+                oak: new THREE.MeshStandardMaterial({
+                    map: oakTex.map,
+                    roughnessMap: oakTex.roughnessMap,
+                    normalMap: oakTex.normalMap,
+                    normalScale: new THREE.Vector2(0.5, 0.5),
+                    roughness: 0.44,
+                    metalness: 0.02
+                }),
+                walnut: new THREE.MeshStandardMaterial({
+                    map: walnutTex.map,
+                    roughnessMap: walnutTex.roughnessMap,
+                    normalMap: walnutTex.normalMap,
+                    normalScale: new THREE.Vector2(0.5, 0.5),
+                    roughness: 0.42,
+                    metalness: 0.02
+                }),
+                marble: new THREE.MeshStandardMaterial({
+                    map: marbleTex.map,
+                    roughnessMap: marbleTex.roughnessMap,
+                    normalMap: marbleTex.normalMap,
+                    normalScale: new THREE.Vector2(0.3, 0.3),
+                    roughness: 0.22,
+                    metalness: 0.04
+                }),
+                concrete: new THREE.MeshStandardMaterial({
+                    map: concreteTex.map,
+                    roughnessMap: concreteTex.roughnessMap,
+                    normalMap: concreteTex.normalMap,
+                    normalScale: new THREE.Vector2(0.45, 0.45),
+                    roughness: 0.55,
+                    metalness: 0.03
+                })
+            };
+
+            const plasterTex = createPlasterTextures();
+            wallPlasterMat = new THREE.MeshStandardMaterial({
+                color: new THREE.Color('#f4efe6'),
+                map: plasterTex.map,
+                roughnessMap: plasterTex.roughnessMap,
+                normalMap: plasterTex.normalMap,
+                normalScale: new THREE.Vector2(0.35, 0.35),
+                roughness: 0.86,
+                metalness: 0.0
+            });
+
+            ceilingCoveMat = new THREE.MeshStandardMaterial({
+                color: 0xfff3db,
+                emissive: 0xffd28a,
+                emissiveIntensity: 1.35,
+                roughness: 0.4
+            });
+
+            const consoleWalnut = createWoodTextures('#573724', '#2e1b10', 0.16, 0.32, 2, 1);
+            const consoleNero = createStoneTextures('#1f2124', '#d4af37', 2);
+
+            consoleMaterials = {
+                walnut: new THREE.MeshPhysicalMaterial({
+                    map: consoleWalnut.map,
+                    roughnessMap: consoleWalnut.roughnessMap,
+                    normalMap: consoleWalnut.normalMap,
+                    roughness: 0.28,
+                    metalness: 0.02,
+                    clearcoat: 0.55,
+                    clearcoatRoughness: 0.18,
+                    envMapIntensity: 0.45
+                }),
+                nero: new THREE.MeshPhysicalMaterial({
+                    map: consoleNero.map,
+                    roughnessMap: consoleNero.roughnessMap,
+                    normalMap: consoleNero.normalMap,
+                    roughness: 0.18,
+                    metalness: 0.05,
+                    clearcoat: 0.75,
+                    clearcoatRoughness: 0.12,
+                    envMapIntensity: 0.5
+                }),
+                lacquer: new THREE.MeshPhysicalMaterial({
+                    color: 0x3b3734,
+                    roughness: 0.24,
+                    metalness: 0.04,
+                    clearcoat: 0.65,
+                    clearcoatRoughness: 0.15,
+                    envMapIntensity: 0.45
+                })
+            };
+            consoleBodyMat = consoleMaterials.walnut;
+
+            tvScreenCanvas = document.createElement('canvas');
+            tvScreenCanvas.width = 1024;
+            tvScreenCanvas.height = 576;
+            tvScreenCtx = tvScreenCanvas.getContext('2d');
+            tvScreenTexture = new THREE.CanvasTexture(tvScreenCanvas);
+            tvScreenTexture.colorSpace = THREE.SRGBColorSpace;
+            drawTVFrame('nature', 0);
+
+            tvScreenMat = new THREE.MeshStandardMaterial({
+                map: tvScreenTexture,
+                emissiveMap: tvScreenTexture,
+                emissive: new THREE.Color(0xffffff),
+                emissiveIntensity: 1.15,
+                roughness: 0.14,
+                metalness: 0.08
+            });
+
+            tvBacklightMat = new THREE.MeshStandardMaterial({
+                color: 0xffdfb0,
+                emissive: 0xffc670,
+                emissiveIntensity: 1.5,
+                roughness: 0.5
+            });
+        }
+
+        function initSkyAndLighting() {
+            const skyGeo = new THREE.SphereGeometry(65, 32, 20);
+            skyUniforms = {
+                topColor: { value: new THREE.Color(0x5b9bd5) },
+                bottomColor: { value: new THREE.Color(0xdceaf7) },
+                sunColor: { value: new THREE.Color(0xfff3d6) },
+                sunDir: { value: new THREE.Vector3(-0.7, 0.48, 0.25).normalize() }
+            };
+            const skyMat = new THREE.ShaderMaterial({
+                uniforms: skyUniforms,
+                side: THREE.BackSide,
+                depthWrite: false,
+                vertexShader: `
+                    varying vec3 vWorldPosition;
+                    void main() {
+                        vec4 wp = modelMatrix * vec4(position, 1.0);
+                        vWorldPosition = wp.xyz;
+                        gl_Position = projectionMatrix * viewMatrix * wp;
+                    }
+                `,
+                fragmentShader: `
+                    uniform vec3 topColor;
+                    uniform vec3 bottomColor;
+                    uniform vec3 sunColor;
+                    uniform vec3 sunDir;
+                    varying vec3 vWorldPosition;
+                    void main() {
+                        vec3 dir = normalize(vWorldPosition);
+                        float h = clamp(dir.y * 0.85 + 0.15, 0.0, 1.0);
+                        vec3 col = mix(bottomColor, topColor, pow(h, 0.7));
+                        float sunAmt = max(dot(dir, sunDir), 0.0);
+                        col += sunColor * pow(sunAmt, 24.0) * 0.45;
+                        gl_FragColor = vec4(col, 1.0);
+                    }
+                `
+            });
+            scene.add(new THREE.Mesh(skyGeo, skyMat));
+
+            // Directional Sunlight casting soft architectural shadows through windows
+            sunLight = new THREE.DirectionalLight(0xfff4df, 6.2);
+            sunLight.position.set(-12, 8.5, 4.2);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.set(2048, 2048);
+            sunLight.shadow.camera.near = 1;
+            sunLight.shadow.camera.far = 36;
+            const d = 9.5;
+            sunLight.shadow.camera.left = -d;
+            sunLight.shadow.camera.right = d;
+            sunLight.shadow.camera.top = d;
+            sunLight.shadow.camera.bottom = -d;
+            sunLight.shadow.bias = -0.00045;
+            sunLight.shadow.normalBias = 0.025;
+            scene.add(sunLight);
+            scene.add(sunLight.target);
+
+            // Window Sky Portal Light (broad sky light entering from window side)
+            windowPortalLight = new THREE.SpotLight(0xdceeff, 18.0, 22, Math.PI * 0.44, 0.75, 1.2);
+            windowPortalLight.position.set(-4.2, 2.0, 0.0);
+            windowPortalLight.target.position.set(1.5, 1.1, 0.0);
+            scene.add(windowPortalLight);
+            scene.add(windowPortalLight.target);
+
+            // Soft window bounce fill inside room
+            interiorFillLight = new THREE.PointLight(0xeef6ff, 5.2, 16, 1.35);
+            interiorFillLight.position.set(-1.8, 2.1, 0.0);
+            scene.add(interiorFillLight);
+
+            // Subtle hemisphere gradient (kept low so walls keep natural light falloff)
+            hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x8b6f52, 0.62);
+            scene.add(hemiLight);
+
+            // Gentle ceiling fill
+            ceilingFillLight = new THREE.PointLight(0xfff5e4, 2.2, 14, 1.5);
+            ceilingFillLight.position.set(0.4, 2.55, 0.2);
+            scene.add(ceilingFillLight);
+
+            // Floor lamp light (suppressed during bright daylight, active in sunset/night)
+            lampPointLight = new THREE.PointLight(0xffb454, 0.15, 7.5, 1.6);
+            scene.add(lampPointLight);
+        }
+
+        function buildSculpturalPlanter(parent) {
+            const planterGroup = new THREE.Group();
+
+            // Fluted ceramic pot
+            const potMat = new THREE.MeshStandardMaterial({ color: 0xebe5da, roughness: 0.42, metalness: 0.04 });
+            const potBody = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.21, 0.42, 32), potMat);
+            potBody.position.y = 0.34;
+            potBody.castShadow = true;
+            potBody.receiveShadow = true;
+            planterGroup.add(potBody);
+
+            // Vertical flutes around pot
+            for (let i = 0; i < 20; i++) {
+                const ang = (i / 20) * Math.PI * 2;
+                const rib = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.41, 8), potMat);
+                rib.position.set(Math.cos(ang) * 0.23, 0.34, Math.sin(ang) * 0.23);
+                rib.castShadow = true;
+                planterGroup.add(rib);
+            }
+
+            // Brass stand ring & 4 legs
+            const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.26, metalness: 0.85 });
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.245, 0.012, 10, 32), brassMat);
+            ring.rotation.x = Math.PI * 0.5;
+            ring.position.y = 0.26;
+            planterGroup.add(ring);
+
+            for (let l = 0; l < 4; l++) {
+                const ang = (l / 4) * Math.PI * 2 + Math.PI * 0.25;
+                const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.44, 8), brassMat);
+                leg.position.set(Math.cos(ang) * 0.245, 0.22, Math.sin(ang) * 0.245);
+                leg.castShadow = true;
+                planterGroup.add(leg);
+            }
+
+            // Soil
+            const soil = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.21, 0.21, 0.04, 24),
+                new THREE.MeshStandardMaterial({ color: 0x261d17, roughness: 0.95 })
+            );
+            soil.position.y = 0.53;
+            planterGroup.add(soil);
+
+            // Curved stems & veined glossy leaves
+            const leafTex = createLeafTexture();
+            const leafMat = new THREE.MeshPhysicalMaterial({
+                map: leafTex,
+                roughness: 0.32,
+                metalness: 0.0,
+                clearcoat: 0.35,
+                clearcoatRoughness: 0.25,
+                side: THREE.DoubleSide
+            });
+            const stemMat = new THREE.MeshStandardMaterial({ color: 0x264d24, roughness: 0.55 });
+
+            const stemConfigs = [
+                { topX: 0.02, topY: 1.52, topZ: 0.02, bendX: 0.05, bendZ: 0.04, leafScale: 1.05, rotY: 0.2, tilt: 0.42 },
+                { topX: -0.24, topY: 1.36, topZ: 0.16, bendX: -0.14, bendZ: 0.10, leafScale: 0.95, rotY: 2.3, tilt: 0.58 },
+                { topX: 0.25, topY: 1.30, topZ: -0.14, bendX: 0.15, bendZ: -0.09, leafScale: 0.92, rotY: -0.7, tilt: 0.62 },
+                { topX: -0.16, topY: 1.15, topZ: -0.22, bendX: -0.10, bendZ: -0.14, leafScale: 0.85, rotY: 3.8, tilt: 0.72 },
+                { topX: 0.18, topY: 1.08, topZ: 0.22, bendX: 0.12, bendZ: 0.15, leafScale: 0.82, rotY: 0.9, tilt: 0.76 },
+                { topX: -0.04, topY: 1.24, topZ: 0.28, bendX: -0.02, bendZ: 0.18, leafScale: 0.88, rotY: 1.6, tilt: 0.65 }
+            ];
+
+            // Build curved botanical blade geometry
+            const leafGeo = new THREE.PlaneGeometry(0.24, 0.52, 6, 12);
+            const posAttr = leafGeo.attributes.position;
+            for (let i = 0; i < posAttr.count; i++) {
+                const vx = posAttr.getX(i);
+                const vy = posAttr.getY(i) + 0.26; // 0 to 0.52
+                const t = vy / 0.52;
+                const widthProfile = Math.sin(Math.pow(t, 0.72) * Math.PI);
+                posAttr.setX(i, vx * widthProfile);
+                posAttr.setY(i, vy);
+                posAttr.setZ(i, -Math.pow(t, 1.8) * 0.11 + Math.abs(vx) * 0.08);
+            }
+            leafGeo.computeVertexNormals();
+
+            stemConfigs.forEach(cfg => {
+                const curve = new THREE.CatmullRomCurve3([
+                    new THREE.Vector3(0, 0.52, 0),
+                    new THREE.Vector3(cfg.bendX, 0.52 + (cfg.topY - 0.52) * 0.55, cfg.bendZ),
+                    new THREE.Vector3(cfg.topX, cfg.topY, cfg.topZ)
+                ]);
+                const stemMesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 12, 0.012, 8, false), stemMat);
+                stemMesh.castShadow = true;
+                planterGroup.add(stemMesh);
+
+                const leafMesh = new THREE.Mesh(leafGeo, leafMat);
+                leafMesh.position.set(cfg.topX, cfg.topY - 0.03, cfg.topZ);
+                leafMesh.rotation.y = cfg.rotY;
+                leafMesh.rotation.x = cfg.tilt;
+                leafMesh.scale.setScalar(cfg.leafScale);
+                leafMesh.castShadow = true;
+                leafMesh.receiveShadow = true;
+                planterGroup.add(leafMesh);
+            });
+
+            parent.add(planterGroup);
+            return planterGroup;
+        }
+
+        function buildFloorLamp(parent) {
+            const lampGroup = new THREE.Group();
+            const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.25, metalness: 0.85 });
+
+            const base = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.20, 0.03, 28), brassMat);
+            base.position.y = 0.015;
+            base.castShadow = true;
+            base.receiveShadow = true;
+            lampGroup.add(base);
+
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.016, 1.48, 16), brassMat);
+            pole.position.y = 0.75;
+            pole.castShadow = true;
+            lampGroup.add(pole);
+
+            lampShadeMat = new THREE.MeshStandardMaterial({
+                color: 0xf7efe2,
+                emissive: 0xffb85c,
+                emissiveIntensity: 0.45,
+                roughness: 0.75,
+                side: THREE.DoubleSide
+            });
+            const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.23, 0.34, 32, 1, true), lampShadeMat);
+            shade.position.y = 1.54;
+            shade.castShadow = true;
+            lampGroup.add(shade);
+
+            lampBulbMat = new THREE.MeshStandardMaterial({
+                color: 0xfff5e0,
+                emissive: 0xffb84d,
+                emissiveIntensity: 1.4,
+                roughness: 0.2
+            });
+            const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.045, 16, 16), lampBulbMat);
+            bulb.position.y = 1.50;
+            lampGroup.add(bulb);
+
+            parent.add(lampGroup);
+            return lampGroup;
+        }
+
+        function buildWallSegmentWithOpenings(parent, wallName, wallLen) {
+            const wallEls = planState.elements
+                .filter(el => el.wall === wallName)
+                .map(el => {
+                    const spec = ELEMENT_SPECS[el.type];
+                    const effW = Math.min(spec.width, wallLen - 0.36);
+                    return {
+                        ...el,
+                        spec,
+                        effW,
+                        uStart: el.u - effW * 0.5,
+                        uEnd: el.u + effW * 0.5
+                    };
+                })
+                .sort((a, b) => a.uStart - b.uStart);
+
+            const placeWallBox = (uFrom, uTo, yFrom, yTo) => {
+                const segW = uTo - uFrom;
+                const segH = yTo - yFrom;
+                if (segW <= 0.005 || segH <= 0.005) return;
+                const uCenter = (uFrom + uTo) * 0.5;
+                const yCenter = (yFrom + yTo) * 0.5;
+                const tr = wallToWorldTransform(wallName, uCenter);
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(segW, segH, WALL_THICKNESS), wallPlasterMat);
+                mesh.position.set(tr.x, yCenter, tr.z);
+                mesh.rotation.y = tr.rotY;
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                parent.add(mesh);
+            };
+
+            let cursorU = 0;
+            wallEls.forEach(item => {
+                // Solid wall segment before this opening
+                placeWallBox(cursorU, item.uStart, 0, WALL_HEIGHT);
+
+                if (item.spec.kind === 'window') {
+                    // Sill wall below window (e.g. 1.10m for standard window, 0.14m for tall windows)
+                    placeWallBox(item.uStart, item.uEnd, 0, item.spec.sillHeight);
+                    // Header wall above window
+                    const topY = item.spec.sillHeight + item.spec.height;
+                    placeWallBox(item.uStart, item.uEnd, topY, WALL_HEIGHT);
+                    build3DWindowAssembly(parent, wallName, item.u, item.effW, item.spec.sillHeight, item.spec.height);
+                } else if (item.spec.kind === 'door') {
+                    placeWallBox(item.uStart, item.uEnd, item.spec.height, WALL_HEIGHT);
+                    build3DDoorAndHallway(parent, wallName, item.u, item.effW, item.spec.height);
+                } else if (item.spec.kind === 'kitchen') {
+                    placeWallBox(item.uStart, item.uEnd, item.spec.height, WALL_HEIGHT);
+                    build3DKitchenOpen(parent, wallName, item.u, item.effW, item.spec.height);
+                } else if (item.spec.kind === 'tv') {
+                    // Full solid wall behind TV + TV Feature Wall Assembly
+                    placeWallBox(item.uStart, item.uEnd, 0, WALL_HEIGHT);
+                    build3DTVFeatureWall(parent, wallName, item.u, item.effW);
+                }
+
+                cursorU = item.uEnd;
+            });
+
+            // Remaining solid wall after last item
+            placeWallBox(cursorU, wallLen, 0, WALL_HEIGHT);
+        }
+
+        function build3DWindowAssembly(parent, wallName, u, winW, sillH, winH) {
+            const tr = wallToWorldTransform(wallName, u);
+            const winGroup = new THREE.Group();
+            winGroup.position.set(tr.x, 0, tr.z);
+            winGroup.rotation.y = tr.rotY;
+
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x1b1e23, roughness: 0.35, metalness: 0.78 });
+            const fThick = 0.055;
+            const fDepth = WALL_THICKNESS + 0.02;
+
+            // Outer frame bars
+            const topBar = new THREE.Mesh(new THREE.BoxGeometry(winW, fThick, fDepth), frameMat);
+            topBar.position.y = sillH + winH - fThick * 0.5;
+            topBar.castShadow = true;
+            winGroup.add(topBar);
+
+            const botBar = new THREE.Mesh(new THREE.BoxGeometry(winW, fThick, fDepth), frameMat);
+            botBar.position.y = sillH + fThick * 0.5;
+            botBar.castShadow = true;
+            winGroup.add(botBar);
+
+            const leftBar = new THREE.Mesh(new THREE.BoxGeometry(fThick, winH, fDepth), frameMat);
+            leftBar.position.set(-winW * 0.5 + fThick * 0.5, sillH + winH * 0.5, 0);
+            leftBar.castShadow = true;
+            winGroup.add(leftBar);
+
+            const rightBar = new THREE.Mesh(new THREE.BoxGeometry(fThick, winH, fDepth), frameMat);
+            rightBar.position.set(winW * 0.5 - fThick * 0.5, sillH + winH * 0.5, 0);
+            rightBar.castShadow = true;
+            winGroup.add(rightBar);
+
+            // Mullions (vertical dividers)
+            const divisions = winW >= 2.2 ? 3 : 2;
+            for (let m = 1; m < divisions; m++) {
+                const mx = -winW * 0.5 + (winW / divisions) * m;
+                const mullion = new THREE.Mesh(new THREE.BoxGeometry(0.038, winH, fDepth * 0.8), frameMat);
+                mullion.position.set(mx, sillH + winH * 0.5, 0);
+                mullion.castShadow = true;
+                winGroup.add(mullion);
+            }
+
+            // Architectural Glass Pane
+            const glassMat = new THREE.MeshPhysicalMaterial({
+                color: 0xeaf6ff,
+                transparent: true,
+                opacity: 0.16,
+                roughness: 0.05,
+                metalness: 0.05,
+                reflectivity: 0.9,
+                depthWrite: false
+            });
+            const glassPane = new THREE.Mesh(new THREE.PlaneGeometry(winW - fThick * 2, winH - fThick * 2), glassMat);
+            glassPane.position.set(0, sillH + winH * 0.5, 0);
+            winGroup.add(glassPane);
+
+            // Soft sheer curtain on the side
+            const curtainMat = new THREE.MeshStandardMaterial({
+                color: 0xf7f3eb,
+                roughness: 0.92,
+                transparent: true,
+                opacity: 0.84,
+                side: THREE.DoubleSide
+            });
+            const curtainW = Math.min(0.42, winW * 0.25);
+            const curtainH = WALL_HEIGHT - 0.18;
+            const curtainGeo = new THREE.PlaneGeometry(curtainW, curtainH, 10, 4);
+            const cPos = curtainGeo.attributes.position;
+            for (let i = 0; i < cPos.count; i++) {
+                const cx = cPos.getX(i);
+                cPos.setZ(i, Math.sin(cx * 36) * 0.025);
+            }
+            curtainGeo.computeVertexNormals();
+
+            const leftCurtain = new THREE.Mesh(curtainGeo, curtainMat);
+            leftCurtain.position.set(-winW * 0.5 + curtainW * 0.4, curtainH * 0.5 + 0.05, WALL_THICKNESS * 0.5 + 0.08);
+            leftCurtain.castShadow = true;
+            winGroup.add(leftCurtain);
+
+            parent.add(winGroup);
+        }
+
+        function build3DDoorAndHallway(parent, wallName, u, doorW, doorH) {
+            const tr = wallToWorldTransform(wallName, u);
+            const doorGroup = new THREE.Group();
+            doorGroup.position.set(tr.x, 0, tr.z);
+            doorGroup.rotation.y = tr.rotY;
+
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x3b271a, roughness: 0.42 });
+            const jambThick = 0.06;
+
+            // Door jambs
+            const leftJamb = new THREE.Mesh(new THREE.BoxGeometry(jambThick, doorH, WALL_THICKNESS + 0.03), frameMat);
+            leftJamb.position.set(-doorW * 0.5 + jambThick * 0.5, doorH * 0.5, 0);
+            leftJamb.castShadow = true;
+            doorGroup.add(leftJamb);
+
+            const rightJamb = new THREE.Mesh(new THREE.BoxGeometry(jambThick, doorH, WALL_THICKNESS + 0.03), frameMat);
+            rightJamb.position.set(doorW * 0.5 - jambThick * 0.5, doorH * 0.5, 0);
+            rightJamb.castShadow = true;
+            doorGroup.add(rightJamb);
+
+            const topJamb = new THREE.Mesh(new THREE.BoxGeometry(doorW, jambThick, WALL_THICKNESS + 0.03), frameMat);
+            topJamb.position.set(0, doorH - jambThick * 0.5, 0);
+            topJamb.castShadow = true;
+            doorGroup.add(topJamb);
+
+            // Hinged Door Leaf Pivot
+            const leafW = doorW - jambThick * 2 - 0.01;
+            const leafH = doorH - jambThick - 0.015;
+            doorPivot = new THREE.Group();
+            doorPivot.position.set(-doorW * 0.5 + jambThick + 0.005, 0, WALL_THICKNESS * 0.35);
+
+            const leafMat = new THREE.MeshStandardMaterial({ color: 0x5c3c26, roughness: 0.38, metalness: 0.04 });
+            const leafMesh = new THREE.Mesh(new THREE.BoxGeometry(leafW, leafH, 0.048), leafMat);
+            leafMesh.position.set(leafW * 0.5, leafH * 0.5 + 0.01, 0);
+            leafMesh.castShadow = true;
+            leafMesh.receiveShadow = true;
+            doorPivot.add(leafMesh);
+            doorInteractiveMeshes.push(leafMesh);
+
+            // Brass Handle
+            const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.25, metalness: 0.88 });
+            const handle = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.022, 0.09), brassMat);
+            handle.position.set(leafW - 0.11, 1.02, 0);
+            doorPivot.add(handle);
+            doorInteractiveMeshes.push(handle);
+
+            doorGroup.add(doorPivot);
+
+            // Exterior Entry Hallway behind door (-Z in local wall space)
+            const hallW = doorW + 1.1;
+            const hallD = 1.65;
+            const hallFloor = new THREE.Mesh(new THREE.BoxGeometry(hallW, 0.1, hallD), floorMaterials.marble);
+            hallFloor.position.set(0, -0.05, -hallD * 0.5 - WALL_THICKNESS * 0.5);
+            hallFloor.receiveShadow = true;
+            doorGroup.add(hallFloor);
+
+            const hallCeiling = new THREE.Mesh(new THREE.BoxGeometry(hallW, 0.12, hallD), wallPlasterMat);
+            hallCeiling.position.set(0, WALL_HEIGHT + 0.06, -hallD * 0.5 - WALL_THICKNESS * 0.5);
+            doorGroup.add(hallCeiling);
+
+            const hallBackWall = new THREE.Mesh(new THREE.BoxGeometry(hallW, WALL_HEIGHT, 0.15), wallPlasterMat);
+            hallBackWall.position.set(0, WALL_HEIGHT * 0.5, -hallD - WALL_THICKNESS * 0.5);
+            hallBackWall.receiveShadow = true;
+            doorGroup.add(hallBackWall);
+
+            const hallLeftWall = new THREE.Mesh(new THREE.BoxGeometry(0.15, WALL_HEIGHT, hallD), wallPlasterMat);
+            hallLeftWall.position.set(-hallW * 0.5, WALL_HEIGHT * 0.5, -hallD * 0.5 - WALL_THICKNESS * 0.5);
+            doorGroup.add(hallLeftWall);
+
+            const hallRightWall = new THREE.Mesh(new THREE.BoxGeometry(0.15, WALL_HEIGHT, hallD), wallPlasterMat);
+            hallRightWall.position.set(hallW * 0.5, WALL_HEIGHT * 0.5, -hallD * 0.5 - WALL_THICKNESS * 0.5);
+            doorGroup.add(hallRightWall);
+
+            const hallLight = new THREE.PointLight(0xffe4b5, 2.8, 5.0);
+            hallLight.position.set(0, 2.6, -hallD * 0.5 - 0.2);
+            doorGroup.add(hallLight);
+
+            parent.add(doorGroup);
+        }
+
+        function build3DKitchenOpen(parent, wallName, u, openW, openH) {
+            const tr = wallToWorldTransform(wallName, u);
+            const kitGroup = new THREE.Group();
+            kitGroup.position.set(tr.x, 0, tr.z);
+            kitGroup.rotation.y = tr.rotY;
+
+            // Waterfall Counter Island (3m wide)
+            const counterW = openW - 0.06;
+            const counterH = 0.92;
+            const counterD = 0.68;
+
+            const baseMat = new THREE.MeshStandardMaterial({ color: 0x3b281c, roughness: 0.45 });
+            const baseMesh = new THREE.Mesh(new THREE.BoxGeometry(counterW - 0.1, counterH - 0.05, counterD - 0.06), baseMat);
+            baseMesh.position.set(0, (counterH - 0.05) * 0.5, 0.08);
+            baseMesh.castShadow = true;
+            baseMesh.receiveShadow = true;
+            kitGroup.add(baseMesh);
+
+            const topMat = new THREE.MeshPhysicalMaterial({
+                color: 0xf4f1ea,
+                roughness: 0.18,
+                metalness: 0.03,
+                clearcoat: 0.6,
+                clearcoatRoughness: 0.15
+            });
+            const topSlab = new THREE.Mesh(new THREE.BoxGeometry(counterW, 0.055, counterD), topMat);
+            topSlab.position.set(0, counterH - 0.025, 0.08);
+            topSlab.castShadow = true;
+            topSlab.receiveShadow = true;
+            kitGroup.add(topSlab);
+
+            // Waterfall side panels
+            [-counterW * 0.5 + 0.028, counterW * 0.5 - 0.028].forEach(sx => {
+                const sideSlab = new THREE.Mesh(new THREE.BoxGeometry(0.055, counterH, counterD), topMat);
+                sideSlab.position.set(sx, counterH * 0.5, 0.08);
+                sideSlab.castShadow = true;
+                kitGroup.add(sideSlab);
+            });
+
+            // 3 Modern Bar Stools in front of counter (+Z in local wall space)
+            const stoolSeatMat = new THREE.MeshStandardMaterial({ color: 0xc89d6c, roughness: 0.65 });
+            const legMat = new THREE.MeshStandardMaterial({ color: 0x1e2024, roughness: 0.35, metalness: 0.8 });
+            [-0.85, 0, 0.85].forEach(bx => {
+                const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.16, 0.06, 20), stoolSeatMat);
+                seat.position.set(bx, 0.66, 0.54);
+                seat.castShadow = true;
+                kitGroup.add(seat);
+
+                const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.64, 12), legMat);
+                stem.position.set(bx, 0.32, 0.54);
+                kitGroup.add(stem);
+
+                const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.15, 0.02, 16), legMat);
+                foot.position.set(bx, 0.01, 0.54);
+                kitGroup.add(foot);
+            });
+
+            // 3 Warm Pendant Lights hanging from open header
+            const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.25, metalness: 0.85 });
+            [-0.85, 0, 0.85].forEach(px => {
+                const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.58, 8), legMat);
+                cord.position.set(px, openH - 0.29, 0.08);
+                kitGroup.add(cord);
+
+                const shade = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.14, 20), brassMat);
+                shade.position.set(px, openH - 0.60, 0.08);
+                kitGroup.add(shade);
+            });
+
+            // Back Kitchen Room (-Z in local wall space)
+            const kitBackD = 2.1;
+            const kitFloor = new THREE.Mesh(new THREE.BoxGeometry(openW + 0.6, 0.1, kitBackD), floorMaterials.marble);
+            kitFloor.position.set(0, -0.05, -kitBackD * 0.5 - WALL_THICKNESS * 0.5);
+            kitFloor.receiveShadow = true;
+            kitGroup.add(kitFloor);
+
+            const kitCeiling = new THREE.Mesh(new THREE.BoxGeometry(openW + 0.6, 0.12, kitBackD), wallPlasterMat);
+            kitCeiling.position.set(0, WALL_HEIGHT + 0.06, -kitBackD * 0.5 - WALL_THICKNESS * 0.5);
+            kitGroup.add(kitCeiling);
+
+            const kitBackWall = new THREE.Mesh(new THREE.BoxGeometry(openW + 0.6, WALL_HEIGHT, 0.15), wallPlasterMat);
+            kitBackWall.position.set(0, WALL_HEIGHT * 0.5, -kitBackD - WALL_THICKNESS * 0.5);
+            kitBackWall.receiveShadow = true;
+            kitGroup.add(kitBackWall);
+
+            // Cabinetry on back kitchen wall
+            const cabMat = new THREE.MeshStandardMaterial({ color: 0xe6dfd3, roughness: 0.35 });
+            const lowerCab = new THREE.Mesh(new THREE.BoxGeometry(openW, 0.88, 0.58), cabMat);
+            lowerCab.position.set(0, 0.44, -kitBackD + 0.22);
+            lowerCab.receiveShadow = true;
+            kitGroup.add(lowerCab);
+
+            const upperCab = new THREE.Mesh(new THREE.BoxGeometry(openW, 0.72, 0.36), baseMat);
+            upperCab.position.set(0, 2.12, -kitBackD + 0.12);
+            kitGroup.add(upperCab);
+
+            const kitLight = new THREE.PointLight(0xfff0d4, 4.5, 7.0);
+            kitLight.position.set(0, 2.65, -1.0);
+            kitGroup.add(kitLight);
+
+            parent.add(kitGroup);
+        }
+
+        function build3DTVFeatureWall(parent, wallName, u, panelW) {
+            const tr = wallToWorldTransform(wallName, u);
+            const tvGroup = new THREE.Group();
+            tvGroup.position.set(tr.x, 0, tr.z);
+            tvGroup.rotation.y = tr.rotY;
+
+            const zOff = WALL_THICKNESS * 0.5;
+
+            // Vertical Walnut Slat Backing
+            const slatMat = new THREE.MeshStandardMaterial({ color: 0x4b2f1d, roughness: 0.48 });
+            const slatCount = Math.floor(panelW / 0.065);
+            for (let s = 0; s < slatCount; s++) {
+                const sx = -panelW * 0.5 + 0.032 + s * (panelW / slatCount);
+                const slat = new THREE.Mesh(new THREE.BoxGeometry(0.036, WALL_HEIGHT - 0.18, 0.03), slatMat);
+                slat.position.set(sx, (WALL_HEIGHT - 0.18) * 0.5 + 0.08, zOff + 0.015);
+                slat.castShadow = true;
+                slat.receiveShadow = true;
+                tvGroup.add(slat);
+            }
+
+            // Dark Stone Backing Slab + Warm Perimeter Halo LED
+            const slabW = panelW * 0.78;
+            const slabH = 1.65;
+            const slabY = 1.48;
+            const haloMesh = new THREE.Mesh(new THREE.BoxGeometry(slabW + 0.04, slabH + 0.04, 0.018), tvBacklightMat);
+            haloMesh.position.set(0, slabY, zOff + 0.032);
+            tvGroup.add(haloMesh);
+
+            const slabMat = new THREE.MeshStandardMaterial({ color: 0x1d2025, roughness: 0.32, metalness: 0.1 });
+            const slabMesh = new THREE.Mesh(new THREE.BoxGeometry(slabW, slabH, 0.032), slabMat);
+            slabMesh.position.set(0, slabY, zOff + 0.048);
+            slabMesh.castShadow = true;
+            slabMesh.receiveShadow = true;
+            tvGroup.add(slabMesh);
+
+            // 85" Flat TV Bezel & Illuminated Screen
+            const tvW = Math.min(1.88, panelW * 0.85);
+            const tvH = tvW * (9 / 16);
+            const bezelMat = new THREE.MeshStandardMaterial({ color: 0x0e1014, roughness: 0.25, metalness: 0.7 });
+            const bezel = new THREE.Mesh(new THREE.BoxGeometry(tvW + 0.03, tvH + 0.03, 0.035), bezelMat);
+            bezel.position.set(0, slabY + 0.03, zOff + 0.075);
+            bezel.castShadow = true;
+            tvGroup.add(bezel);
+
+            tvScreenMesh = new THREE.Mesh(new THREE.PlaneGeometry(tvW, tvH), tvScreenMat);
+            tvScreenMesh.position.set(0, slabY + 0.03, zOff + 0.094);
+            tvGroup.add(tvScreenMesh);
+
+            // Floating Media Console
+            const conW = panelW * 0.92;
+            const conH = 0.34;
+            const conD = 0.42;
+            const consoleMesh = new THREE.Mesh(new THREE.BoxGeometry(conW, conH, conD), consoleBodyMat);
+            consoleMesh.position.set(0, 0.34, zOff + conD * 0.5 + 0.02);
+            consoleMesh.castShadow = true;
+            consoleMesh.receiveShadow = true;
+            tvGroup.add(consoleMesh);
+
+            // Brass trim strip on console front
+            const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.24, metalness: 0.88 });
+            const brassTrim = new THREE.Mesh(new THREE.BoxGeometry(conW - 0.04, 0.016, 0.012), brassMat);
+            brassTrim.position.set(0, 0.34, zOff + conD + 0.024);
+            tvGroup.add(brassTrim);
+
+            // Soundbar + Decorative Brass Sphere on Console
+            const sbMat = new THREE.MeshStandardMaterial({ color: 0x181a1f, roughness: 0.4, metalness: 0.4 });
+            const soundbar = new THREE.Mesh(new THREE.BoxGeometry(conW * 0.52, 0.065, 0.09), sbMat);
+            soundbar.position.set(-0.12, 0.54, zOff + conD * 0.55);
+            soundbar.castShadow = true;
+            tvGroup.add(soundbar);
+
+            const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.11, 28, 28), brassMat);
+            sphere.position.set(conW * 0.32, 0.62, zOff + conD * 0.52);
+            sphere.castShadow = true;
+            tvGroup.add(sphere);
+
+            parent.add(tvGroup);
+        }
+
+        function rebuild3DFromPlan() {
+            if (architectureGroup) {
+                scene.remove(architectureGroup);
+            }
+            architectureGroup = new THREE.Group();
+            doorPivot = null;
+            doorInteractiveMeshes = [];
+            tvScreenMesh = null;
+
+            const W = planState.roomW;
+            const D = planState.roomD;
+
+            // 1. Floor Slab
+            floorMesh = new THREE.Mesh(new THREE.BoxGeometry(W + 0.4, 0.14, D + 0.4), floorMaterials[currentFloorKey]);
+            floorMesh.position.set(0, -0.07, 0);
+            floorMesh.receiveShadow = true;
+            architectureGroup.add(floorMesh);
+
+            // 2. Thick Concrete Roof Slab + Coffered Ceiling (کناف) + Warm Cove LED
+            const roofSlab = new THREE.Mesh(new THREE.BoxGeometry(W + 0.6, 0.22, D + 0.6), wallPlasterMat);
+            roofSlab.position.set(0, WALL_HEIGHT + 0.11, 0);
+            roofSlab.castShadow = true;
+            roofSlab.receiveShadow = true;
+            architectureGroup.add(roofSlab);
+
+            const soffitW = 0.52;
+            const soffitH = 0.16;
+            const soffitMat = wallPlasterMat;
+
+            // 4 Perimeter Coffered Ceiling Bulkheads
+            const northSoffit = new THREE.Mesh(new THREE.BoxGeometry(W, soffitH, soffitW), soffitMat);
+            northSoffit.position.set(0, WALL_HEIGHT - soffitH * 0.5, -D * 0.5 + soffitW * 0.5);
+            northSoffit.castShadow = true;
+            northSoffit.receiveShadow = true;
+            architectureGroup.add(northSoffit);
+
+            const southSoffit = new THREE.Mesh(new THREE.BoxGeometry(W, soffitH, soffitW), soffitMat);
+            southSoffit.position.set(0, WALL_HEIGHT - soffitH * 0.5, D * 0.5 - soffitW * 0.5);
+            southSoffit.castShadow = true;
+            southSoffit.receiveShadow = true;
+            architectureGroup.add(southSoffit);
+
+            const westSoffit = new THREE.Mesh(new THREE.BoxGeometry(soffitW, soffitH, D - soffitW * 2), soffitMat);
+            westSoffit.position.set(-W * 0.5 + soffitW * 0.5, WALL_HEIGHT - soffitH * 0.5, 0);
+            westSoffit.castShadow = true;
+            westSoffit.receiveShadow = true;
+            architectureGroup.add(westSoffit);
+
+            const eastSoffit = new THREE.Mesh(new THREE.BoxGeometry(soffitW, soffitH, D - soffitW * 2), soffitMat);
+            eastSoffit.position.set(W * 0.5 - soffitW * 0.5, WALL_HEIGHT - soffitH * 0.5, 0);
+            eastSoffit.castShadow = true;
+            eastSoffit.receiveShadow = true;
+            architectureGroup.add(eastSoffit);
+
+            // Warm LED Cove Strips along inner coffer edge
+            const innerW = W - soffitW * 2;
+            const innerD = D - soffitW * 2;
+            const coveY = WALL_HEIGHT - soffitH + 0.03;
+            const coveN = new THREE.Mesh(new THREE.BoxGeometry(innerW, 0.025, 0.03), ceilingCoveMat);
+            coveN.position.set(0, coveY, -innerD * 0.5);
+            architectureGroup.add(coveN);
+
+            const coveS = new THREE.Mesh(new THREE.BoxGeometry(innerW, 0.025, 0.03), ceilingCoveMat);
+            coveS.position.set(0, coveY, innerD * 0.5);
+            architectureGroup.add(coveS);
+
+            const coveW = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.025, innerD), ceilingCoveMat);
+            coveW.position.set(-innerW * 0.5, coveY, 0);
+            architectureGroup.add(coveW);
+
+            const coveE = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.025, innerD), ceilingCoveMat);
+            coveE.position.set(innerW * 0.5, coveY, 0);
+            architectureGroup.add(coveE);
+
+            // Modern Linear Ceiling Chandelier
+            const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.25, metalness: 0.85 });
+            const chBar = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, Math.min(1.8, W * 0.32), 16), brassMat);
+            chBar.rotation.z = Math.PI * 0.5;
+            chBar.position.set(0, WALL_HEIGHT - 0.36, 0);
+            architectureGroup.add(chBar);
+
+            [-0.45, 0.45].forEach(rx => {
+                const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.36, 8), brassMat);
+                rod.position.set(rx, WALL_HEIGHT - 0.18, 0);
+                architectureGroup.add(rod);
+            });
+
+            // 3. Build All 4 Perimeter Walls with Openings & Features
+            buildWallSegmentWithOpenings(architectureGroup, 'north', W);
+            buildWallSegmentWithOpenings(architectureGroup, 'south', W);
+            buildWallSegmentWithOpenings(architectureGroup, 'west', D);
+            buildWallSegmentWithOpenings(architectureGroup, 'east', D);
+
+            // 4. Exterior Terrace & Illuminated Panorama Backdrop (no low-poly 3D trees!)
+            const panoTex = createExteriorPanoramaTexture();
+            exteriorPanoramaMat = new THREE.MeshStandardMaterial({
+                map: panoTex,
+                emissiveMap: panoTex,
+                emissive: new THREE.Color(0xffffff),
+                emissiveIntensity: 0.92,
+                roughness: 1.0,
+                side: THREE.BackSide
+            });
+            const panoCyl = new THREE.Mesh(
+                new THREE.CylinderGeometry(20, 20, 14, 48, 1, true),
+                exteriorPanoramaMat
+            );
+            panoCyl.position.set(0, 3.2, 0);
+            architectureGroup.add(panoCyl);
+
+            // Exterior Terrace Deck outside window walls
+            const windows = planState.elements.filter(el => ELEMENT_SPECS[el.type].kind === 'window');
+            const primaryWinWall = windows.length > 0 ? windows[0].wall : 'west';
+
+            const terraceMat = new THREE.MeshStandardMaterial({ color: 0x8f8a82, roughness: 0.72 });
+            const railGlassMat = new THREE.MeshPhysicalMaterial({
+                color: 0xdbeafe,
+                transparent: true,
+                opacity: 0.25,
+                roughness: 0.08
+            });
+
+            if (primaryWinWall === 'west' || primaryWinWall === 'east') {
+                const dirX = primaryWinWall === 'west' ? -1 : 1;
+                const tDeck = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.12, D + 1.4), terraceMat);
+                tDeck.position.set(dirX * (W * 0.5 + 0.95), -0.08, 0);
+                tDeck.receiveShadow = true;
+                architectureGroup.add(tDeck);
+
+                const tRail = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.02, D + 1.4), railGlassMat);
+                tRail.position.set(dirX * (W * 0.5 + 1.78), 0.48, 0);
+                architectureGroup.add(tRail);
+            } else {
+                const dirZ = primaryWinWall === 'north' ? -1 : 1;
+                const tDeck = new THREE.Mesh(new THREE.BoxGeometry(W + 1.4, 0.12, 1.8), terraceMat);
+                tDeck.position.set(0, -0.08, dirZ * (D * 0.5 + 0.95));
+                tDeck.receiveShadow = true;
+                architectureGroup.add(tDeck);
+
+                const tRail = new THREE.Mesh(new THREE.BoxGeometry(W + 1.4, 1.02, 0.04), railGlassMat);
+                tRail.position.set(0, 0.48, dirZ * (D * 0.5 + 1.78));
+                architectureGroup.add(tRail);
+            }
+
+            // 5. Place Sculptural Planter & Floor Lamp in Smart Non-Blocking Interior Corners
+            const corners = [
+                { x: -W * 0.5 + 0.48, z: -D * 0.5 + 0.48 },
+                { x:  W * 0.5 - 0.48, z: -D * 0.5 + 0.48 },
+                { x: -W * 0.5 + 0.48, z:  D * 0.5 - 0.48 },
+                { x:  W * 0.5 - 0.48, z:  D * 0.5 - 0.48 }
+            ];
+
+            const isCornerClear = (cx, cz) => {
+                for (const el of planState.elements) {
+                    const tr = wallToWorldTransform(el.wall, el.u);
+                    const spec = ELEMENT_SPECS[el.type];
+                    if (Math.hypot(cx - tr.x, cz - tr.z) < spec.width * 0.5 + 0.65) {
+                        return false;
+                    }
+                }
+                return true;
+            };
+
+            const freeCorners = corners.filter(c => isCornerClear(c.x, c.z));
+            const planterPos = freeCorners[0] || { x: -W * 0.5 + 0.48, z: -D * 0.5 + 0.48 };
+            const lampPos = freeCorners[1] || { x: W * 0.5 - 0.48, z: D * 0.5 - 0.48 };
+
+            const planter = buildSculpturalPlanter(architectureGroup);
+            planter.position.set(planterPos.x, 0, planterPos.z);
+
+            const lamp = buildFloorLamp(architectureGroup);
+            lamp.position.set(lampPos.x, 0, lampPos.z);
+            if (lampPointLight) {
+                lampPointLight.position.set(lampPos.x, 1.52, lampPos.z);
+            }
+
+            // 6. Align Sunlight & Window Sky Portal to Primary Window Wall
+            const winDir = primaryWinWall === 'west' ? new THREE.Vector3(-1, 0, 0)
+                         : primaryWinWall === 'east' ? new THREE.Vector3(1, 0, 0)
+                         : primaryWinWall === 'north' ? new THREE.Vector3(0, 0, -1)
+                         : new THREE.Vector3(0, 0, 1);
+
+            if (sunLight) {
+                sunLight.position.set(winDir.x * 12, 8.5, winDir.z * 12 + (winDir.x !== 0 ? 3.5 : 0));
+                sunLight.target.position.set(-winDir.x * 1.2, 0.8, -winDir.z * 1.2);
+                sunLight.target.updateMatrixWorld();
+            }
+            if (windowPortalLight) {
+                windowPortalLight.position.set(winDir.x * (W * 0.5 + 0.8), 2.0, winDir.z * (D * 0.5 + 0.8));
+                windowPortalLight.target.position.set(-winDir.x * 1.8, 1.1, -winDir.z * 1.8);
+                windowPortalLight.target.updateMatrixWorld();
+            }
+            if (interiorFillLight) {
+                interiorFillLight.position.set(winDir.x * (W * 0.3), 2.1, winDir.z * (D * 0.3));
+            }
+
+            // Update Camera Presets dynamically for current room dimensions
+            CAMERA_VIEWS.overview.pos.set(W * 0.34, 1.82, D * 0.36);
+            CAMERA_VIEWS.overview.target.set(-W * 0.1, 1.25, -D * 0.1);
+
+            const tvEl = planState.elements.find(el => el.type === 'tv');
+            if (tvEl) {
+                const tvTr = wallToWorldTransform(tvEl.wall, tvEl.u);
+                const nrm = tvEl.wall === 'north' ? new THREE.Vector3(0, 0, 1)
+                          : tvEl.wall === 'south' ? new THREE.Vector3(0, 0, -1)
+                          : tvEl.wall === 'west'  ? new THREE.Vector3(1, 0, 0)
+                          : new THREE.Vector3(-1, 0, 0);
+                CAMERA_VIEWS.tv.pos.set(tvTr.x + nrm.x * 2.5, 1.48, tvTr.z + nrm.z * 2.5);
+                CAMERA_VIEWS.tv.target.set(tvTr.x, 1.42, tvTr.z);
+            }
+
+            CAMERA_VIEWS.window.pos.set(-winDir.x * (W * 0.26), 1.55, -winDir.z * (D * 0.26));
+            CAMERA_VIEWS.window.target.set(winDir.x * (W * 0.5), 1.42, winDir.z * (D * 0.5));
+
+            const doorEl = planState.elements.find(el => el.type === 'door');
+            if (doorEl) {
+                const dTr = wallToWorldTransform(doorEl.wall, doorEl.u);
+                const nrm = doorEl.wall === 'north' ? new THREE.Vector3(0, 0, 1)
+                          : doorEl.wall === 'south' ? new THREE.Vector3(0, 0, -1)
+                          : doorEl.wall === 'west'  ? new THREE.Vector3(1, 0, 0)
+                          : new THREE.Vector3(-1, 0, 0);
+                CAMERA_VIEWS.door.pos.set(dTr.x + nrm.x * 2.4, 1.62, dTr.z + nrm.z * 2.4);                CAMERA_VIEWS.door.target.set(dTr.x, 1.25, dTr.z);
+            }
+
+            scene.add(architectureGroup);
+            isPlanDirtyFor3D = false;
+            setLightingMood(currentMood);
+        }
+
+        function init3DScene() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0b0e14);
+
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            camera = new THREE.PerspectiveCamera(48, w / h, 0.1, 120);
+            camera.position.copy(CAMERA_VIEWS.overview.pos);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+            renderer.setSize(w, h);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ReinhardToneMapping;
+            renderer.toneMappingExposure = 1.45;
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            container.appendChild(renderer.domElement);
+
+            // PMREM Environment Probe for clean specular reflections
+            pmremGenerator = new THREE.PMREMGenerator(renderer);
+            const envScene = new THREE.Scene();
+            envScene.background = new THREE.Color(0xdce6f2);
+            const envBox = new THREE.Mesh(
+                new THREE.BoxGeometry(10, 6, 10),
+                new THREE.MeshBasicMaterial({ color: 0xe6dfd3, side: THREE.BackSide })
+            );
+            envScene.add(envBox);
+            const envWin = new THREE.Mesh(
+                new THREE.PlaneGeometry(4, 3),
+                new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+            );
+            envWin.position.set(-4.9, 1.5, 0);
+            envWin.rotation.y = Math.PI * 0.5;
+            envScene.add(envWin);
+            const envRT = pmremGenerator.fromScene(envScene, 0.04);
+            scene.environment = envRT.texture;
+            scene.environmentIntensity = 0.35;
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.target.copy(CAMERA_VIEWS.overview.target);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.065;
+            controls.maxDistance = 12;
+            controls.minDistance = 0.45;
+            controls.maxPolarAngle = Math.PI * 0.92;
+            controls.addEventListener('start', () => {
+                isCameraTransitioning = false;
+            });
+
+            initMaterials();
+            initSkyAndLighting();
+            rebuild3DFromPlan();
+
+            // Post-Processing Pipeline: Render -> GTAO -> Micro-Bloom -> Punch -> Output
+            composer = new EffectComposer(renderer);
+            const renderPass = new RenderPass(scene, camera);
+            composer.addPass(renderPass);
+
+            try {
+                gtaoPass = new GTAOPass(scene, camera, w, h);
+                gtaoPass.output = GTAOPass.OUTPUT.Default;
+                gtaoPass.blendIntensity = 0.95;
+                gtaoPass.updateGtaoMaterial({
+                    radius: 0.36,
+                    distanceExponent: 1.2,
+                    thickness: 0.8,
+                    scale: 0.9,
+                    samples: 24
+                });
+                composer.addPass(gtaoPass);
+            } catch (err) {
+                gtaoPass = null;
+            }
+
+            bloomPass = new UnrealBloomPass(new THREE.Vector2(w, h), 0.15, 0.45, 1.05);
+            composer.addPass(bloomPass);
+
+            punchPass = new ShaderPass(PunchShader);
+            composer.addPass(punchPass);
+
+            const outputPass = new OutputPass();
+            composer.addPass(outputPass);
+        }
+
+        // =========================================================================
+        // 3. UI ACTIONS, TAB SWITCHING & RENDER CUSTOMIZATION
+        // =========================================================================
+        function highlightButtonInGroup(btn) {
+            if (!btn || !btn.parentElement) return;
+            btn.parentElement.querySelectorAll('.glass-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        window.switchMainTab = function(tab) {
+            activeTab = tab;
+            const view2d = document.getElementById('view-2d');
+            const view3d = document.getElementById('view-3d');
+            const btn2d = document.getElementById('tab-btn-2d');
+            const btn3d = document.getElementById('tab-btn-3d');
+            const metricsBar = document.getElementById('render-metrics-bar');
+
+            if (tab === '2d') {
+                view2d.classList.remove('hidden');
+                view3d.classList.add('hidden');
+                btn2d.classList.add('active');
+                btn2d.classList.remove('text-gray-300');
+                btn3d.classList.remove('active');
+                btn3d.classList.add('text-gray-300');
+                if (metricsBar) metricsBar.classList.add('hidden');
+                resize2DCanvas();
+            } else {
+                view2d.classList.add('hidden');
+                view3d.classList.remove('hidden');
+                btn3d.classList.add('active');
+                btn3d.classList.remove('text-gray-300');
+                btn2d.classList.remove('active');
+                btn2d.classList.add('text-gray-300');
+                if (metricsBar) metricsBar.classList.remove('hidden');
+
+                if (isPlanDirtyFor3D) {
+                    rebuild3DFromPlan();
+                    camera.position.copy(CAMERA_VIEWS.overview.pos);
+                    controls.target.copy(CAMERA_VIEWS.overview.target);
+                    controls.update();
+                }
+                onWindowResize();
+            }
+        };
+
+        window.toggleSettingsDrawer = function(open) {
+            const drawer = document.getElementById('settings-drawer');
+            const openBtn = document.getElementById('settings-open-btn');
+            if (!drawer || !openBtn) return;
+            if (open) {
+                drawer.classList.remove('collapsed');
+                openBtn.classList.add('hidden');
+            } else {
+                drawer.classList.add('collapsed');
+                openBtn.classList.remove('hidden');
+            }
+        };
+
+        window.setCameraView = function(viewKey, btn) {
+            const preset = CAMERA_VIEWS[viewKey];
+            if (!preset) return;
+            highlightButtonInGroup(btn);
+            targetCamPos.copy(preset.pos);
+            targetLookAt.copy(preset.target);
+            isCameraTransitioning = true;
+        };
+
+        window.setWallColor = function(hex, btn) {
+            highlightButtonInGroup(btn);
+            if (wallPlasterMat) {
+                wallPlasterMat.color.set(hex);
+            }
+        };
+
+        window.setFloorMaterial = function(key, btn) {
+            highlightButtonInGroup(btn);
+            currentFloorKey = key;
+            if (floorMesh && floorMaterials[key]) {
+                floorMesh.material = floorMaterials[key];
+            }
+        };
+
+        window.setTVChannel = function(channel, btn) {
+            highlightButtonInGroup(btn);
+            currentTVChannel = channel;
+            if (!isTVOn) {
+                isTVOn = true;
+                const tvBtn = document.getElementById('toggle-tv-btn');
+                if (tvBtn) {
+                    tvBtn.textContent = 'روشن 📺';
+                    tvBtn.classList.add('active');
+                }
+            }
+            drawTVFrame(currentTVChannel, 0);
+        };
+
+        window.setConsoleMaterial = function(key, btn) {
+            highlightButtonInGroup(btn);
+            currentConsoleKey = key;
+            if (consoleMaterials[key]) {
+                consoleBodyMat = consoleMaterials[key];
+                rebuild3DFromPlan();
+            }
+        };
+
+        window.setLightingMood = function(mood, btn) {
+            if (btn) highlightButtonInGroup(btn);
+            currentMood = mood;
+
+            if (mood === 'day') {
+                skyUniforms.topColor.value.setHex(0x5b9bd5);
+                skyUniforms.bottomColor.value.setHex(0xdceaf7);
+                skyUniforms.sunColor.value.setHex(0xfff3d6);
+                sunLight.color.setHex(0xfff4df);
+                sunLight.intensity = 6.2;
+                windowPortalLight.color.setHex(0xdceeff);
+                windowPortalLight.intensity = 18.0;
+                interiorFillLight.intensity = 5.2;
+                hemiLight.intensity = 0.62;
+                ceilingFillLight.intensity = 2.2;
+                if (exteriorPanoramaMat) exteriorPanoramaMat.emissiveIntensity = 0.92;
+                // Floor lamp stays subtly self-lit in bright daylight without washing walls
+                if (lampPointLight) lampPointLight.intensity = isLampOn ? 0.18 : 0.0;
+                if (lampShadeMat) lampShadeMat.emissiveIntensity = isLampOn ? 0.42 : 0.0;
+                if (lampBulbMat) lampBulbMat.emissiveIntensity = isLampOn ? 1.4 : 0.0;
+            } else if (mood === 'sunset') {
+                skyUniforms.topColor.value.setHex(0x3a2d5c);
+                skyUniforms.bottomColor.value.setHex(0xf59e0b);
+                skyUniforms.sunColor.value.setHex(0xff7b29);
+                sunLight.color.setHex(0xff9b42);
+                sunLight.intensity = 4.6;
+                windowPortalLight.color.setHex(0xffc98b);
+                windowPortalLight.intensity = 10.5;
+                interiorFillLight.intensity = 3.0;
+                hemiLight.intensity = 0.45;
+                ceilingFillLight.intensity = 1.8;
+                if (exteriorPanoramaMat) exteriorPanoramaMat.emissiveIntensity = 0.62;
+                if (lampPointLight) lampPointLight.intensity = isLampOn ? 3.8 : 0.0;
+                if (lampShadeMat) lampShadeMat.emissiveIntensity = isLampOn ? 0.85 : 0.0;
+                if (lampBulbMat) lampBulbMat.emissiveIntensity = isLampOn ? 2.0 : 0.0;
+            } else {
+                skyUniforms.topColor.value.setHex(0x060913);
+                skyUniforms.bottomColor.value.setHex(0x132038);
+                skyUniforms.sunColor.value.setHex(0x60a5fa);
+                sunLight.color.setHex(0x7aa6e8);
+                sunLight.intensity = 0.9;
+                windowPortalLight.color.setHex(0x5b82c4);
+                windowPortalLight.intensity = 3.2;
+                interiorFillLight.intensity = 1.1;
+                hemiLight.intensity = 0.28;
+                ceilingFillLight.intensity = 2.6;
+                if (exteriorPanoramaMat) exteriorPanoramaMat.emissiveIntensity = 0.24;
+                if (lampPointLight) lampPointLight.intensity = isLampOn ? 6.5 : 0.0;
+                if (lampShadeMat) lampShadeMat.emissiveIntensity = isLampOn ? 1.15 : 0.0;
+                if (lampBulbMat) lampBulbMat.emissiveIntensity = isLampOn ? 2.4 : 0.0;
+            }
+        };
+
+        window.setToneMapping = function(mode, btn) {
+            highlightButtonInGroup(btn);
+            currentToneMappingName = mode;
+            if (mode === 'reinhard') {
+                renderer.toneMapping = THREE.ReinhardToneMapping;
+                renderer.toneMappingExposure = 1.45;
+            } else if (mode === 'aces') {
+                renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                renderer.toneMappingExposure = 1.05;
+            } else {
+                renderer.toneMapping = THREE.AgXToneMapping;
+                renderer.toneMappingExposure = 1.08;
+            }
+        };
+
+        window.setPunchLevel = function(level, btn) {
+            highlightButtonInGroup(btn);
+            currentPunchLevel = level;
+            if (!punchPass) return;
+            if (level === 'soft') {
+                punchPass.uniforms.uContrast.value = 1.02;
+                punchPass.uniforms.uVibrance.value = 0.04;
+                punchPass.uniforms.uShadowToe.value = 0.0;
+            } else if (level === 'punchy') {
+                punchPass.uniforms.uContrast.value = 1.12;
+                punchPass.uniforms.uVibrance.value = 0.16;
+                punchPass.uniforms.uShadowToe.value = 0.015;
+            } else {
+                punchPass.uniforms.uContrast.value = 1.22;
+                punchPass.uniforms.uVibrance.value = 0.24;
+                punchPass.uniforms.uShadowToe.value = 0.025;
+            }
+        };
+
+        window.toggleTV = function() {
+            isTVOn = !isTVOn;
+            const btn = document.getElementById('toggle-tv-btn');
+            if (btn) {
+                btn.textContent = isTVOn ? 'روشن 📺' : 'خاموش 📺';
+                btn.classList.toggle('active', isTVOn);
+            }
+            if (tvScreenMat) tvScreenMat.emissiveIntensity = isTVOn ? 1.15 : 0.0;
+            if (tvBacklightMat) tvBacklightMat.emissiveIntensity = isTVOn ? 1.5 : 0.2;
+            drawTVFrame(currentTVChannel, 0);
+        };
+
+        window.toggleLamp = function() {
+            isLampOn = !isLampOn;
+            const btn = document.getElementById('toggle-lamp-btn');
+            if (btn) {
+                btn.textContent = isLampOn ? 'روشن 💡' : 'خاموش 💡';
+                btn.classList.toggle('active', isLampOn);
+            }
+            setLightingMood(currentMood);
+        };
+
+        window.toggleDoor = function() {
+            if (!doorPivot) {
+                showStatusBanner('⚠️ درِ ورودی در پلان فعلی قرار داده نشده است');
+                return;
+            }
+            isDoorOpen = !isDoorOpen;
+            const btn = document.getElementById('toggle-door-btn');
+            if (btn) {
+                btn.textContent = isDoorOpen ? 'بستن در 🚪' : 'باز کردن در 🚪';
+                btn.classList.toggle('active', isDoorOpen);
+            }
+        };
+
+        window.toggleAO = function() {
+            isAOEnabled = !isAOEnabled;
+            const btn = document.getElementById('toggle-ao-btn');
+            if (btn) {
+                btn.textContent = isAOEnabled ? 'فعال ✨' : 'غیرفعال';
+                btn.classList.toggle('active', isAOEnabled);
+            }
+            if (gtaoPass) gtaoPass.enabled = isAOEnabled;
+        };
+
+        window.toggleBloom = function() {
+            isBloomEnabled = !isBloomEnabled;
+            const btn = document.getElementById('toggle-bloom-btn');
+            if (btn) {
+                btn.textContent = isBloomEnabled ? 'فعال 🌟' : 'غیرفعال';
+                btn.classList.toggle('active', isBloomEnabled);
+            }
+            if (bloomPass) bloomPass.enabled = isBloomEnabled;
+        };
+
+        // =========================================================================
+        // 4. KEYBOARD, POINTER RAYCAST & SMOOTH COLLISION-CLAMPED MOVEMENT
+        // =========================================================================
+        window.addEventListener('keydown', (e) => {
+            if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+
+            if (activeTab === '2d') {
+                if (e.code === 'Escape') {
+                    setActiveTool('select');
+                } else if ((e.code === 'Delete' || e.code === 'Backspace') && selectedElementId) {
+                    deleteSelectedElement();
+                }
+                return;
+            }
+
+            if (e.code in keyState) {
+                keyState[e.code] = true;
+                isCameraTransitioning = false;
+            } else if (e.code === 'KeyF') {
+                toggleDoor();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code in keyState) {
+                keyState[e.code] = false;
+            }
+        });
+
+        container.addEventListener('pointermove', (e) => {
+            if (activeTab !== '3d' || doorInteractiveMeshes.length === 0) return;
+            pointerNdc.x = (e.clientX / window.innerWidth) * 2 - 1;
+            pointerNdc.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(pointerNdc, camera);
+            const hits = raycaster.intersectObjects(doorInteractiveMeshes, false);
+            const tip = document.getElementById('door-tooltip');
+            if (hits.length > 0) {
+                container.style.cursor = 'pointer';
+                if (tip) tip.style.opacity = '1';
+            } else {
+                container.style.cursor = 'grab';
+                if (tip) tip.style.opacity = '0';
+            }
+        });
+
+        let pointerDownPos = { x: 0, y: 0 };
+        container.addEventListener('pointerdown', (e) => {
+            pointerDownPos = { x: e.clientX, y: e.clientY };
+        });
+
+        container.addEventListener('pointerup', (e) => {
+            if (activeTab !== '3d') return;
+            if (Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y) > 6) return;
+
+            pointerNdc.x = (e.clientX / window.innerWidth) * 2 - 1;
+            pointerNdc.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(pointerNdc, camera);
+
+            if (doorInteractiveMeshes.length > 0 && raycaster.intersectObjects(doorInteractiveMeshes, false).length > 0) {
+                toggleDoor();
+                return;
+            }
+            if (tvScreenMesh && raycaster.intersectObject(tvScreenMesh, false).length > 0) {
+                const order = ['nature', 'fireplace', 'abstract'];
+                const next = order[(order.indexOf(currentTVChannel) + 1) % order.length];
+                setTVChannel(next, null);
+                showStatusBanner('📺 کانال نمایشگر تغییر کرد');
+            }
+        });
+
+        function clampCameraInsideRoom() {
+            const margin = 0.38;
+            const maxX = planState.roomW * 0.5 - margin;
+            const maxZ = planState.roomD * 0.5 - margin;
+            const minY = 0.35;
+            const maxY = WALL_HEIGHT - 0.32;
+
+            let dx = 0, dy = 0, dz = 0;
+            if (camera.position.x < -maxX) dx = -maxX - camera.position.x;
+            else if (camera.position.x > maxX) dx = maxX - camera.position.x;
+
+            if (camera.position.z < -maxZ) dz = -maxZ - camera.position.z;
+            else if (camera.position.z > maxZ) dz = maxZ - camera.position.z;
+
+            if (camera.position.y < minY) dy = minY - camera.position.y;
+            else if (camera.position.y > maxY) dy = maxY - camera.position.y;
+
+            if (dx !== 0 || dy !== 0 || dz !== 0) {
+                camera.position.x += dx;
+                camera.position.y += dy;
+                camera.position.z += dz;
+                controls.target.x += dx;
+                controls.target.y += dy;
+                controls.target.z += dz;
+            }
+        }
+
+        function updateCameraMovement(dt) {
+            if (isCameraTransitioning) {
+                const alpha = 1 - Math.exp(-5.0 * dt);
+                camera.position.lerp(targetCamPos, alpha);
+                controls.target.lerp(targetLookAt, alpha);
+                if (camera.position.distanceTo(targetCamPos) < 0.02) {
+                    isCameraTransitioning = false;
+                }
+                return;
+            }
+
+            const forward = new THREE.Vector3();
+            camera.getWorldDirection(forward);
+            forward.y = 0;
+            if (forward.lengthSq() > 0.0001) forward.normalize();
+            const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
+
+            const accel = new THREE.Vector3();
+            if (keyState.KeyW) accel.add(forward);
+            if (keyState.KeyS) accel.sub(forward);
+            if (keyState.KeyD) accel.add(right);
+            if (keyState.KeyA) accel.sub(right);
+            if (accel.lengthSq() > 0) accel.normalize().multiplyScalar(16.0);
+
+            moveVelocity.addScaledVector(accel, dt);
+            moveVelocity.multiplyScalar(Math.exp(-8.5 * dt));
+
+            if (moveVelocity.lengthSq() > 0.00001) {
+                const step = moveVelocity.clone().multiplyScalar(dt);
+                camera.position.add(step);
+                controls.target.add(step);
+            }
+
+            let vAccel = 0;
+            if (keyState.KeyE) vAccel += 11.0;
+            if (keyState.KeyQ) vAccel -= 11.0;
+            verticalVelocity += vAccel * dt;
+            verticalVelocity *= Math.exp(-8.5 * dt);
+            if (Math.abs(verticalVelocity) > 0.0005) {
+                const vStep = verticalVelocity * dt;
+                camera.position.y += vStep;
+                controls.target.y += vStep;
+            }
+
+            clampCameraInsideRoom();
+        }
+
+        function onWindowResize() {
+            resize2DCanvas();
+            if (!renderer || !camera) return;
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+            if (composer) composer.setSize(w, h);
+            if (gtaoPass) gtaoPass.setSize(w, h);
+            if (bloomPass) bloomPass.resolution.set(w, h);
+        }
+        window.addEventListener('resize', onWindowResize);
+
+        // =========================================================================
+        // 5. MAIN ANIMATION LOOP & INITIALIZATION
+        // =========================================================================
+        const clock = new THREE.Clock();
+        let fpsFrames = 0;
+        let fpsAccum = 0;
+        const fpsCounterEl = document.getElementById('fps-counter');
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = Math.min(clock.getDelta(), 0.05);
+            const elapsed = clock.getElapsedTime();
+
+            if (activeTab !== '3d') return;
+
+            // Smooth door swing animation
+            if (doorPivot) {
+                const targetAngle = isDoorOpen ? -Math.PI * 0.48 : 0;
+                currentDoorAngle += (targetAngle - currentDoorAngle) * (1 - Math.exp(-7.5 * dt));
+                doorPivot.rotation.y = currentDoorAngle;
+            }
+
+            // Periodic TV screen animation update
+            tvAnimFrame++;
+            if (isTVOn && tvAnimFrame % 4 === 0) {
+                drawTVFrame(currentTVChannel, elapsed);
+            }
+
+            updateCameraMovement(dt);
+            controls.update();
+
+            try {
+                if (composer) {
+                    composer.render();
+                } else {
+                    renderer.render(scene, camera);
+                }
+            } catch (err) {
+                renderer.render(scene, camera);
+            }
+
+            fpsFrames++;
+            fpsAccum += dt;
+            if (fpsAccum >= 0.5) {
+                if (fpsCounterEl) {
+                    fpsCounterEl.textContent = Math.round(fpsFrames / fpsAccum);
+                }
+                fpsFrames = 0;
+                fpsAccum = 0;
+            }
+        }
+
+        // =====================================================================
+        // CHIDO ISOLATED LAB: HUMAN-FRIENDLY 2D PLAN EDITOR ENHANCEMENTS
+        // Keeps the existing Three.js, PBR, GTAO, lighting and post-process stack.
+        // =====================================================================
+        function install2DEnhancements() {
+            const canvas = document.getElementById('plan-canvas');
+            const toolbar = document.querySelector('#view-2d aside');
+            const inspector = document.getElementById('sel-item-controls');
+            if (!canvas || !toolbar || !inspector) return;
+            canvas.style.touchAction = 'none';
+
+            // Direct manipulation: drag a tool card onto a wall. Clicking is still supported.
+            document.querySelectorAll('#view-2d [id^="tool-btn-"]').forEach(btn => {
+                if (btn.id === 'tool-btn-select') return;
+                btn.draggable = true;
+                btn.title = 'برای انتخاب کلیک کنید؛ یا روی دیوار نقشه بکشید و رها کنید';
+                btn.addEventListener('dragstart', event => {
+                    const type = btn.id.replace('tool-btn-', '');
+                    event.dataTransfer.setData('text/plain', type);
+                    event.dataTransfer.effectAllowed = 'copy';
+                    window.setActiveTool(type);
+                });
+            });
+            canvas.addEventListener('dragover', e => {
+                if (!e.dataTransfer) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+            });
+            canvas.addEventListener('drop', e => {
+                e.preventDefault();
+                const type = e.dataTransfer?.getData('text/plain');
+                if (!ELEMENT_SPECS[type]) return;
+                window.setActiveTool(type);
+                canvas.dispatchEvent(new PointerEvent('pointerdown', {
+                    bubbles: true, clientX: e.clientX, clientY: e.clientY,
+                    pointerId: 1, pointerType: 'mouse'
+                }));
+                window.setActiveTool('select');
+            });
+
+            // Selected item: exact offset and wall are editable numerically, not only by dragging.
+            const inspectorExtra = document.createElement('div');
+            inspectorExtra.id = 'cad-exact-editor';
+            inspectorExtra.className = 'space-y-2 mt-3 pt-3 border-t border-white/10';
+            inspectorExtra.innerHTML = `
+                <label class="block text-[11px] text-slate-300">دیوار قرارگیری
+                    <select id="cad-selected-wall" class="mt-1 w-full rounded-lg bg-[#1a2432] text-white border border-white/20 p-2 text-xs">
+                        <option value="north">بالا / شمال</option>
+                        <option value="east">راست / شرق</option>
+                        <option value="south">پایین / جنوب</option>
+                        <option value="west">چپ / غرب</option>
+                    </select>
+                </label>
+                <label class="block text-[11px] text-slate-300">فاصله از ابتدای دیوار (متر)
+                    <input id="cad-selected-start" type="number" step="0.1" min="0" class="mt-1 w-full rounded-lg bg-[#1a2432] text-white border border-white/20 p-2 text-xs font-mono" />
+                </label>
+                <button id="cad-duplicate-item" type="button" class="w-full glass-btn rounded-lg px-3 py-2 text-xs">دوبرابر کردن این آیتم</button>
+            `;
+            inspector.appendChild(inspectorExtra);
+            const wallInput = inspectorExtra.querySelector('#cad-selected-wall');
+            const startInput = inspectorExtra.querySelector('#cad-selected-start');
+
+            function syncInspector() {
+                const item = planState.elements.find(el => el.id === selectedElementId);
+                if (!item) return;
+                const spec = ELEMENT_SPECS[item.type];
+                wallInput.value = item.wall;
+                startInput.value = (item.u - spec.width * 0.5).toFixed(2);
+                startInput.max = Math.max(0, getWallLength(item.wall) - spec.width).toFixed(2);
+            }
+            const nativeInspector = updateSelectedInspector;
+            updateSelectedInspector = function () {
+                nativeInspector();
+                syncInspector();
+            };
+
+            function repositionSelected() {
+                const el = planState.elements.find(item => item.id === selectedElementId);
+                if (!el) return;
+                const spec = ELEMENT_SPECS[el.type];
+                const nextWall = wallInput.value;
+                const nextStart = Number(startInput.value);
+                if (!Number.isFinite(nextStart)) { syncInspector(); return; }
+                const candidate = { ...el, wall: nextWall, u: nextStart + spec.width * 0.5 };
+                const verdict = validateElementPlacement(candidate, planState.elements);
+                if (!verdict.valid) {
+                    showStatusBanner('⛔ ' + verdict.reason);
+                    syncInspector();
+                    return;
+                }
+                el.wall = candidate.wall;
+                el.u = Math.round(candidate.u * 100) / 100;
+                isPlanDirtyFor3D = true;
+                syncInspector();
+                draw2DPlan();
+                saveHistory();
+            }
+            wallInput.addEventListener('change', repositionSelected);
+            startInput.addEventListener('change', repositionSelected);
+            inspectorExtra.querySelector('#cad-duplicate-item').addEventListener('click', () => {
+                const el = planState.elements.find(x => x.id === selectedElementId);
+                if (!el) return;
+                const spec = ELEMENT_SPECS[el.type];
+                const possibilities = [el.u + spec.width + 0.3, el.u - spec.width - 0.3];
+                for (const u of possibilities) {
+                    const copy = { ...el, id: 'el_' + Date.now() + '_copy', u };
+                    if (validateElementPlacement(copy, planState.elements).valid) {
+                        planState.elements.push(copy);
+                        selectedElementId = copy.id;
+                        isPlanDirtyFor3D = true;
+                        updateSelectedInspector();
+                        draw2DPlan();
+                        saveHistory();
+                        return;
+                    }
+                }
+                showStatusBanner('جای کافی برای کپی روی این دیوار نیست؛ ابتدا دیوار دیگری انتخاب کنید.');
+            });
+
+            // Real Undo/Redo, draft persistence, and JSON export/import.
+            const history = [];
+            let cursor = -1;
+            const STORAGE_KEY = 'chido-experimental-room-plan-v2';
+            let restoring = false;
+            const toolbarActions = document.createElement('div');
+            toolbarActions.className = 'grid grid-cols-4 gap-1.5 pb-3 border-b border-white/10';
+            toolbarActions.innerHTML = `
+                <button id="cad-undo" type="button" class="glass-btn rounded-lg py-2 text-[11px]" title="Ctrl+Z">↶ بازگشت</button>
+                <button id="cad-redo" type="button" class="glass-btn rounded-lg py-2 text-[11px]" title="Ctrl+Y">↷ دوباره</button>
+                <button id="cad-export" type="button" class="glass-btn rounded-lg py-2 text-[11px]">ذخیره</button>
+                <button id="cad-import" type="button" class="glass-btn rounded-lg py-2 text-[11px]">بازکردن</button>
+                <input id="cad-import-file" type="file" accept="application/json,.json" class="hidden" />
+            `;
+            toolbar.insertBefore(toolbarActions, toolbar.children[1] || null);
+            function snapshot() { return JSON.stringify(planState); }
+            function saveHistory() {
+                if (restoring) return;
+                const state = snapshot();
+                if (history[cursor] === state) return;
+                history.splice(cursor + 1);
+                history.push(state);
+                if (history.length > 80) history.shift();
+                cursor = history.length - 1;
+                try { localStorage.setItem(STORAGE_KEY, state); } catch (_) { }
+                updateHistoryButtons();
+            }
+            function updateHistoryButtons() {
+                toolbarActions.querySelector('#cad-undo').disabled = cursor <= 0;
+                toolbarActions.querySelector('#cad-redo').disabled = cursor >= history.length - 1;
+            }
+            function loadPlanObject(candidate) {
+                if (!candidate || !Number.isFinite(candidate.roomW) || !Number.isFinite(candidate.roomD) || !Array.isArray(candidate.elements)) throw Error('ساختار نقشه معتبر نیست');
+                if (candidate.roomW < 3.5 || candidate.roomW > 14 || candidate.roomD < 3.5 || candidate.roomD > 14) throw Error('ابعاد خارج از محدوده است');
+                const safe = { roomW: candidate.roomW, roomD: candidate.roomD, elements: [] };
+                for (const el of candidate.elements) {
+                    if (!el || !ELEMENT_SPECS[el.type] || !WALL_LABELS[el.wall] || typeof el.id !== 'string' || !Number.isFinite(el.u)) throw Error('آیتم نامعتبر در نقشه');
+                    safe.elements.push({ id: el.id, wall: el.wall, type: el.type, u: el.u });
+                }
+                const previous = planState;
+                planState = safe;
+                try {
+                    for (const el of safe.elements) {
+                        const verdict = validateElementPlacement(el, safe.elements);
+                        if (!verdict.valid) throw Error(verdict.reason);
+                    }
+                } catch (e) { planState = previous; throw e; }
+                selectedElementId = null;
+                document.getElementById('input-room-length').value = planState.roomW.toFixed(2);
+                document.getElementById('input-room-width').value = planState.roomD.toFixed(2);
+                isPlanDirtyFor3D = true;
+                updateRoomDimBadge();
+                updateSelectedInspector();
+                draw2DPlan();
+            }
+            function jumpHistory(nextIndex) {
+                if (nextIndex < 0 || nextIndex >= history.length) return;
+                restoring = true;
+                try { loadPlanObject(JSON.parse(history[nextIndex])); cursor = nextIndex; }
+                finally { restoring = false; }
+                updateHistoryButtons();
+                try { localStorage.setItem(STORAGE_KEY, snapshot()); } catch (_) { }
+            }
+            toolbarActions.querySelector('#cad-undo').addEventListener('click', () => jumpHistory(cursor - 1));
+            toolbarActions.querySelector('#cad-redo').addEventListener('click', () => jumpHistory(cursor + 1));
+            toolbarActions.querySelector('#cad-export').addEventListener('click', () => {
+                const blob = new Blob([JSON.stringify(planState, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = 'chido-room-plan.json'; a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            });
+            const fileInput = toolbarActions.querySelector('#cad-import-file');
+            toolbarActions.querySelector('#cad-import').addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', async () => {
+                const file = fileInput.files?.[0];
+                if (!file) return;
+                try { loadPlanObject(JSON.parse(await file.text())); saveHistory(); showStatusBanner('نقشه باز شد'); }
+                catch (e) { showStatusBanner('⛔ ' + e.message); }
+                fileInput.value = '';
+            });
+            document.addEventListener('keydown', e => {
+                if (activeTab !== '2d') return;
+                const tag = document.activeElement?.tagName;
+                const editing = ['INPUT','SELECT','TEXTAREA'].includes(tag);
+                if (!editing && (e.key === 'Delete' || e.key === 'Backspace')) {
+                    window.deleteSelectedElement(); return;
+                }
+                if (e.key === 'Escape') { window.setActiveTool('select'); selectedElementId = null; updateSelectedInspector(); draw2DPlan(); }
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); jumpHistory(cursor - 1); }
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); jumpHistory(cursor + 1); }
+            });
+
+            // Wrap mutation entrypoints; a room cannot be resized into invalid placements.
+            const originalApplyDimensions = window.applyRoomDimensions;
+            window.applyRoomDimensions = function (notify) {
+                const before = snapshot();
+                originalApplyDimensions(notify);
+                const invalid = planState.elements.map(el => validateElementPlacement(el, planState.elements)).find(v => !v.valid);
+                if (invalid) {
+                    restoring = true;
+                    loadPlanObject(JSON.parse(before));
+                    restoring = false;
+                    showStatusBanner('⛔ ابعاد جدید با آیتم‌ها تداخل دارد: ' + invalid.reason);
+                    return;
+                }
+                if (!wallDragState) saveHistory();
+            };
+            ['deleteSelectedElement','clearAllPlanElements','resetDefaultPlan'].forEach(name => {
+                const original = window[name];
+                window[name] = function (...args) { original(...args); saveHistory(); };
+            });
+            canvas.addEventListener('pointerdown', () => { if (activeTool !== 'select') saveHistory(); });
+            canvas.addEventListener('pointerup', () => saveHistory());
+
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) loadPlanObject(JSON.parse(saved));
+            } catch (e) { console.warn('Saved plan unavailable', e); }
+            saveHistory();
+            updateSelectedInspector();
+            const info = document.createElement('p');
+            info.className = 'text-[11px] text-slate-300 leading-5 rounded-lg bg-sky-500/10 border border-sky-500/20 p-2';
+            info.textContent = 'راهنما: یک ابزار را انتخاب کن و روی دیوار کلیک کن؛ یا کارت ابزار را روی دیوار بکش. برای جابه‌جایی، ابزار «انتخاب» را بزن. محل دقیق آیتم از بخش ویرایش عددی تنظیم می‌شود.';
+            toolbar.insertBefore(info, toolbar.children[2] || null);
+        }
+
+        window.onload = function() {
+            initCleanRectanglePlan();
+            init3DScene();
+            resize2DCanvas();
+            install2DEnhancements();
+            animate();
+
+            const loader = document.getElementById('loader');
+            if (loader) {
+                loader.style.opacity = '0';
+                setTimeout(() => loader.remove(), 500);
+            }
+        };
+    </script>
+</body>
+</html>
