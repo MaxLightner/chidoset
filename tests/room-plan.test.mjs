@@ -73,3 +73,17 @@ test('linked table and chairs must stay inside as a group',()=>{
  const point=constrainFurnitureToRoom(plan,[table,chair],{x:10,z:0});
  assert.ok(point.x+1.3+.35<=plan.w/2-.099);
 });
+
+
+test('selected perimeter wall can be removed without losing the rectangular floor',()=>{
+ const plan=defaultRoomPlan();plan.hiddenWalls=['east'];
+ const checked=normalizeRoomPlan(plan);
+ assert.ok(checked);
+ const arch=roomPlanToArchitecture(checked);
+ assert.equal(arch.floor.length,4);
+ assert.equal(arch.walls.length,3);
+ assert.equal(arch.walls.some(w=>w.id==='room-east'),false);
+ assert.equal(canPlaceRoomElement(checked,{id:'win',wall:'east',u:2,type:'win_tall_1'}).valid,false);
+ assert.equal(normalizeRoomPlan({...plan,elements:[{id:'win',type:'win_tall_1',wall:'east',u:2}]}),null);
+ assert.equal(roomPlanToArchitecture({...checked,hiddenWalls:[]}).walls.length,4);
+});
