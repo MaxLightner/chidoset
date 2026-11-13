@@ -179,6 +179,39 @@ export class ArchitectureLayer {
     this.makeBox(container,w,before,left,0,w.height,w.thickness,wallMat);
     this.makeBox(container,w,left,right,0,o.sill,w.thickness,wallMat);
     this.makeBox(container,w,left,right,o.sill+o.height,w.height,w.thickness,wallMat);
+    // Reuse the application's AR architecture renderer for authored rooms.
+    if(o.kind==='window'){
+     const glass=new THREE.MeshPhysicalMaterial({color:'#e9f7ff',roughness:.06,metalness:.02,transparent:true,opacity:.16,depthWrite:false,side:THREE.DoubleSide});
+     this.makeBox(container,w,left+.045,right-.045,o.sill+.045,o.sill+o.height-.045,.018,glass,o.id);
+     glass.dispose();
+    }
+    if(o.kind==='door'||o.kind==='kitchen'){
+     const len=wallLength(w),ux=(w.x2-w.x1)/len,uz=(w.z2-w.z1)/len;
+     const cx=w.x1+ux*o.along,cz=w.z1+uz*o.along;
+     const normal={north:[0,-1],south:[0,1],west:[-1,0],east:[1,0]}[o.wall]||[0,0];
+     const depth=o.kind==='door'?1.55:2.10;
+     const hallwayWidth=o.width+(o.kind==='door'?1.0:.55);
+     const hallwayFloor=new THREE.Mesh(new THREE.BoxGeometry(hallwayWidth,.10,depth),finishMaterial('ceramic-cream'));
+     hallwayFloor.position.set(cx+normal[0]*(depth/2+.14),-.05,cz+normal[1]*(depth/2+.14));
+     hallwayFloor.rotation.y=-Math.atan2(uz,ux);
+     hallwayFloor.receiveShadow=true;container.add(hallwayFloor);
+     const back=new THREE.Mesh(new THREE.BoxGeometry(hallwayWidth,w.height,.14),wallMat.clone());
+     back.rotation.y=-Math.atan2(uz,ux);
+     back.position.set(cx+normal[0]*(depth+.14),w.height/2,cz+normal[1]*(depth+.14));
+     back.receiveShadow=true;container.add(back);
+     if(o.kind==='door'){
+      const doorMat=new THREE.MeshStandardMaterial({color:'#634732',roughness:.52});
+      const leaf=this.makeBox(container,w,left+.06,right-.06,.035,o.height-.05,.055,doorMat,o.id);
+      if(leaf){leaf.position.x+=normal[0]*.055;leaf.position.z+=normal[1]*.055;leaf.castShadow=true;}
+      doorMat.dispose();
+     }else{
+      const base=new THREE.MeshStandardMaterial({color:'#5a493d',roughness:.54});
+      const top=new THREE.MeshPhysicalMaterial({color:'#f0e8dc',roughness:.24,metalness:.02,clearcoat:.35});
+      this.makeBox(container,w,left+.04,right-.04,0,.89,.62,base);
+      this.makeBox(container,w,left,right,.89,.95,.70,top);
+      base.dispose();top.dispose();
+     }
+    }
     const edge=Math.min(.05,o.width/8,o.height/8),t=w.thickness+.02;
     this.makeBox(container,w,left,left+edge,o.sill,o.sill+o.height,t,frameMat,o.id);
     this.makeBox(container,w,right-edge,right,o.sill,o.sill+o.height,t,frameMat,o.id);
@@ -187,6 +220,22 @@ export class ArchitectureLayer {
     before=right;
    }
    this.makeBox(container,w,before,len,0,w.height,w.thickness,wallMat);
+   for(const feature of this.data.features||[]){
+    if(feature.kind!=='tv'||feature.wall!==w.id.replace(/^room-/,'')||!Number.isFinite(feature.u))continue;
+    const pos=feature.u,half=(feature.width||2.2)/2;
+    const panelMat=new THREE.MeshStandardMaterial({color:'#534131',roughness:.46,metalness:.02});
+    const screenMat=new THREE.MeshStandardMaterial({color:'#161b20',roughness:.12,metalness:.12,emissive:'#244c64',emissiveIntensity:.48});
+    const consoleMat=new THREE.MeshPhysicalMaterial({color:'#74533b',roughness:.3,metalness:.02,clearcoat:.28});
+    const slab=this.makeBox(container,w,pos-half,pos+half,.1,2.96,.065,panelMat);
+    const screen=this.makeBox(container,w,pos-.91,pos+.91,1.12,2.18,.08,screenMat);
+    const consoleBox=this.makeBox(container,w,pos-1.0,pos+1.0,.22,.53,.42,consoleMat);
+    const nx=feature.wall==='west'?1:feature.wall==='east'?-1:0;
+    const nz=feature.wall==='north'?1:feature.wall==='south'?-1:0;
+    for(const [mesh,offset] of [[slab,.16],[screen,.22],[consoleBox,.39]]){
+     if(mesh){mesh.position.x+=nx*offset;mesh.position.z+=nz*offset;mesh.castShadow=true;mesh.receiveShadow=true;}
+    }
+    panelMat.dispose();screenMat.dispose();consoleMat.dispose();
+   }
    wallMat.dispose();
   }
   frameMat.dispose();
