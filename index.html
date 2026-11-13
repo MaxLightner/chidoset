@@ -98,30 +98,34 @@ if (['chidoset.ir', 'www.chidoset.ir'].includes(location.hostname) && location.p
  <section id="arMiniMap" class="ar-minimap" hidden aria-label="پلان زنده دو بعدی چیدمان">
     <div class="map-title"><strong>طراحی اتاق · چیدو</strong><button type="button" data-map-expand aria-label="بازکردن نقشه دوبعدی">▣</button></div>
      <div class="room-design-toolbar" role="toolbar" aria-label="ابزار طراحی اتاق">
-      <label title="طول اتاق">طول <input data-room-width type="number" min="3.5" max="14" step="0.1" value="6.8" inputmode="decimal">m</label>
-      <label title="عرض اتاق">عرض <input data-room-depth type="number" min="3.5" max="14" step="0.1" value="5.8" inputmode="decimal">m</label>
-      <button type="button" data-plan-create title="اعمال ابعاد اتاق">✓ ابعاد</button>
-      <span class="plan-tool-sep"></span>
-      <button type="button" data-plan-tool="select" class="active" title="انتخاب، جابه‌جایی و پن">↖ انتخاب</button>
-      <button type="button" data-plan-tool="win_tall_1" title="پنجره قدی عرض ۱ متر">▯ ۱m</button>
-      <button type="button" data-plan-tool="win_tall_25" title="پنجره قدی بزرگ عرض ۲٫۵ متر">▯ ۲٫۵m</button>
-      <button type="button" data-plan-tool="win_std_2" title="پنجره معمولی عرض ۲ متر، اوکابه ۱٫۱">▤ ۲m</button>
-      <button type="button" data-plan-tool="door" title="در و راهرو">🚪 در</button>
-      <button type="button" data-plan-tool="kitchen" title="اپن آشپزخانه ۳ متری">▥ اپن</button>
-      <button type="button" data-plan-tool="tv" title="تلویزیون">▣ TV</button>
-      <span class="plan-tool-sep"></span>
-      <select data-plan-model aria-label="مدل مبلمان برای افزودن"><option value="0">مبل سه‌نفره</option></select>
-      <button type="button" data-plan-add title="افزودن مدل به محیط">＋ مبل</button>
-      <button type="button" data-plan-delete title="حذف مورد انتخاب‌شده">× حذف</button>
-      <span class="plan-tool-sep"></span>
-      <button type="button" data-plan-zoom-in title="بزرگ‌نمایی">＋</button>
-      <button type="button" data-plan-zoom-out title="کوچک‌نمایی">−</button>
-      <button type="button" data-plan-fit title="جا دادن نقشه در صفحه">⊡</button>
-      <button type="button" data-plan-floor title="انتخاب رنگ یا جنس کف">کف</button>
-      <button type="button" data-plan-wall title="انتخاب رنگ دیوار">دیوار</button>
-      <button type="button" data-plan-start-ar title="شناسایی کف با دوربین">◎ اسکن AR</button>
-      <button type="button" data-plan-3d class="plan-to-3d" title="رفتن به نمای سه‌بعدی با همین مبلمان">◈ سه‌بعدی</button>
+      <div class="room-design-row room-design-row-main">
+       <label title="طول اتاق به متر">طول <input data-room-width type="number" min="3.5" max="14" step="0.1" value="6.8" inputmode="decimal"></label>
+       <label title="عرض اتاق به متر">عرض <input data-room-depth type="number" min="3.5" max="14" step="0.1" value="5.8" inputmode="decimal"></label>
+       <button type="button" data-plan-create title="اعمال ابعاد اتاق">✓</button>
+       <select data-plan-tool-select title="ابزار معماری" aria-label="ابزار رسم در، پنجره، اپن یا TV">
+        <option value="select">انتخاب و ویرایش</option>
+        <option value="win_tall_1">پنجره قدی ۱م</option>
+        <option value="win_tall_25">پنجره قدی ۲٫۵م</option>
+        <option value="win_std_2">پنجره ۲م</option>
+        <option value="door">در / راهرو</option>
+        <option value="kitchen">اپن آشپزخانه</option>
+        <option value="tv">تلویزیون</option>
+       </select>
+      </div>
+      <div class="room-design-row room-design-row-actions">
+       <select data-plan-model aria-label="مدل مبلمان برای افزودن"><option value="0">مبل سه‌نفره</option></select>
+       <button type="button" data-plan-add title="افزودن مبلمان">＋</button>
+       <button type="button" data-plan-delete title="حذف یا بازگرداندن انتخاب">× حذف</button>
+       <button type="button" data-plan-floor title="رنگ و متریال کف">کف</button>
+       <button type="button" data-plan-wall title="رنگ و متریال دیوار">دیوار</button>
+       <button type="button" data-plan-fit title="جای‌دادن نقشه در صفحه">⊡</button>
+       <button type="button" data-plan-3d class="plan-to-3d" title="اسکن کف و ورود به محیط سه‌بعدی">◈ ۳بعدی</button>
+      </div>
+      <button type="button" hidden data-plan-start-ar>اسکن AR</button>
+      <button type="button" hidden data-plan-zoom-in>زوم +</button>
+      <button type="button" hidden data-plan-zoom-out>زوم −</button>
      </div>
+     <section id="roomFinishPicker" class="room-finish-picker" hidden aria-label="انتخاب رنگ و متریال اتاق"></section>
     <svg id="arMiniSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 250" role="img" aria-label="نمای بالا از تمام مبلمان و خط A B"></svg>
     <div class="map-meta">
       <span data-map-measure>پلان در حال آماده‌سازی</span>
