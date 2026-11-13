@@ -47,8 +47,8 @@ test('daylight enters from authored windows rather than point lighting the room'
  assert.doesNotMatch(arch,/new THREE\.PointLight\(/);
  assert.match(arch,/applyMetricFloorUV\(geo,this\.data\.floorMaterial,material\)/);
  const gemini=read('gemini-room-materials.js');
- assert.match(gemini,/specularIntensity:\(key==='oak'\|\|key==='walnut'\)\?0/);
- assert.match(gemini,/envMapIntensity:\(key==='oak'\|\|key==='walnut'\)\?0/);
+ assert.match(gemini,/reflectedLight\.directSpecular = vec3\(0\.0\)/);
+ assert.match(gemini,/envMapIntensity:wooden\?\.67/);
 });
 
 test('repeat placement keeps architecture tool selected',()=>{
