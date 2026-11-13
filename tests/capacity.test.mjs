@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from '../vendor/three.module.js';
 import {Studio} from '../studio.js';
 import {SpatialState} from '../spatial.js';
+import {FURNITURE_SIZE_FACTOR} from '../furniture-scale.js';
 
 function studioFixture(){
  const s=Object.create(Studio.prototype);
@@ -20,7 +21,7 @@ for(const count of [2,4,6,8]){
   const chairs=s.items.filter(i=>i.userData.index===11);
   assert.ok(table);assert.equal(table.userData.capacity,count);
   assert.equal(chairs.length,count);
-  assert.ok(table.userData.product.size[0]>=1.05&&table.userData.product.size[0]<=2.35);
+  assert.ok(table.userData.product.size[0]>=1.05*FURNITURE_SIZE_FACTOR&&table.userData.product.size[0]<=2.35*FURNITURE_SIZE_FACTOR);
   const snapshot=s.exportState();
   const r=studioFixture();r.restoreState(snapshot);
   assert.equal(r.items.find(i=>i.userData.index===10).userData.capacity,count);
