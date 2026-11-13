@@ -28,7 +28,7 @@ test('baked AO multiplies final color with a +0.2 lift instead of affecting only
  pbr.onBeforeCompile(shader);
  assert.equal(shader.uniforms.chidoColorAO.value.colorSpace,THREE.NoColorSpace);
  assert.equal(shader.uniforms.chidoColorAO.value.channel,0);
- assert.match(shader.fragmentShader,/diffuseColor\\.rgb \\*= clamp\\(texture2D\\(chidoColorAO,vChidoAoUv\\)\\.r \\+ 0\\.2/);
+ assert.ok(shader.fragmentShader.includes('diffuseColor.rgb *= clamp(texture2D(chidoColorAO,vChidoAoUv).r + 0.2'));
 });
 test('baked unlit Fabric and Wood materials are exposed as independent selectable roles',()=>{
  const visual=new THREE.Group();
