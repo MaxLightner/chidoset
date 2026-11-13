@@ -63,7 +63,7 @@ export class WideViewRenderer{
   this.canvas.addEventListener('webglcontextrestored',()=>{this.lost=false;});
   this.mode='ar';this.natural=true;this.width=0;this.height=0;this.active=false;this.lost=false;
   this.horizontalFov=0;this.verticalFov=0;this.limited=false;
-  this.geminiQuality=null;this.geminiQualityPromise=null;this.geminiQualityFailed=false;this.disposed=false;
+  this.geminiQuality=null;this.geminiQualityPromise=null;this.geminiQualityFailed=false;this.disposed=false;this.aoEnabled=true;
   this.canvas.addEventListener('webglcontextlost',event=>{
    event.preventDefault();this.lost=true;this.disable();
    this.onFailure?.('مرورگر بافت گرافیکی نمای واید را از دست داد. به AR معمولی برگشتیم.');
@@ -75,6 +75,7 @@ export class WideViewRenderer{
   this.resize(true);
   this.ensureGeminiQuality();
  }
+ setAmbientOcclusion(enabled){this.aoEnabled=!!enabled;this.geminiQuality?.setAmbientOcclusion(this.aoEnabled);}
  resize(force=false){
   if(!this.active)return;
   const rect=this.overlay.getBoundingClientRect();
@@ -101,6 +102,7 @@ export class WideViewRenderer{
   this.geminiQualityPromise=import('./gemini-postfx.js?v=0.18.4').then(({createGeminiPostFX})=>{
    if(this.disposed)return;
    this.geminiQuality=createGeminiPostFX(this.renderer,this.scene,this.camera,this.width,this.height);
+   this.geminiQuality.setAmbientOcclusion(this.aoEnabled);
   }).catch(error=>{
    this.geminiQualityFailed=true;
    console.warn('Chido advanced Gemini post-processing unavailable; PBR renderer retained',error);
