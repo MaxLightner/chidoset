@@ -229,14 +229,30 @@ function defaultMaps(key){
 export function geminiFloorMaterial(key){
  const maps=defaultMaps(GEMINI_FLOOR_KEYS.includes(key)?key:'oak');
  const roughness={oak:.44,walnut:.42,marble:.22,concrete:.55}[key]??.44;
- return new THREE.MeshPhysicalMaterial({...maps,
+ const wooden=key==='oak'||key==='walnut';
+ const material=new THREE.MeshPhysicalMaterial({...maps,
   normalScale:new THREE.Vector2(key==='marble'?.3:key==='concrete'?.45:.42,key==='marble'?.3:key==='concrete'?.45:.42),
-  roughness:(key==='oak'||key==='walnut')?.98:roughness,
-  metalness:(key==='oak'||key==='walnut')?0:key==='marble'?.04:.02,
-  specularIntensity:(key==='oak'||key==='walnut')?0:.3,
-  envMapIntensity:(key==='oak'||key==='walnut')?0:.38,
+  roughness:wooden?.92:roughness,
+  metalness:wooden?0:key==='marble'?.04:.02,
+  // Environmental sheen is deliberately preserved. Wood does not reflect
+  // individual point/directional light highlights (Three.js has no per-light
+  // diffuse-only flag in its built-in physical lighting model).
+  specularIntensity:wooden?.8:.3,
+  envMapIntensity:wooden?.67:.38,
   clearcoat:0,side:THREE.DoubleSide
  });
+ if(wooden){
+  const originalCompile=material.onBeforeCompile;
+  material.onBeforeCompile=shader=>{
+   originalCompile?.call(material,shader);
+   shader.fragmentShader=shader.fragmentShader.replace(
+    '#include <lights_fragment_begin>',
+    '#include <lights_fragment_begin>\nreflectedLight.directSpecular = vec3(0.0);'
+   );
+  };
+  material.customProgramCacheKey=()=> 'chido-parquet-environment-only-specular-v1';
+ }
+ return material;
 }
 export function geminiPlasterMaterial(color='#f4efe6'){
  if(!plasterMaps){
