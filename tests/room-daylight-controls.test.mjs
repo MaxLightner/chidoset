@@ -22,7 +22,7 @@ test('floor textures keep metre-based density at every room size',()=>{
    assert.ok(Math.abs(uvs.getX(i)-expectedU)<.000002);
    assert.ok(Math.abs(uvs.getY(i)-expectedV)<.000002);
   }
-  const density=(uvs.getX(0)-uvs.getX(1))/(positions.getX(0)-positions.getX(1));
+  const density=uvs.getX(0)/positions.getX(0);
   geo.dispose();return density;
  };
  assert.ok(Math.abs(check(3.6,4,'parquet-oak')-check(13.8,12,'parquet-oak'))<.000002);
