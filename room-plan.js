@@ -12,7 +12,7 @@ export const ROOM_WALLS=['north','south','west','east'];
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const number=(x)=>Number.isFinite(Number(x))?Number(x):NaN;
 const cm=n=>Math.round(n*100)/100;
-export function defaultRoomPlan(){return {version:1,w:6.8,d:5.8,elements:[],hiddenWalls:[],tvChannel:'nature',tvOn:true,consoleFinish:'walnut'};}
+export function defaultRoomPlan(){return {version:1,w:6.8,d:5.8,elements:[],hiddenWalls:[],tvChannel:'nature',tvOn:true,consoleFinish:'walnut',roomLook:{daylight:1,ibl:.55,plasterDetail:1}};}
 export function wallLength(plan,wall){return wall==='north'||wall==='south'?plan.w:plan.d;}
 export function wallAnchor(plan,wall,u){
  const x0=-plan.w/2,z0=-plan.d/2;
@@ -47,7 +47,13 @@ export function normalizeRoomPlan(raw){
  if(!Array.isArray(hiddenWalls)||hiddenWalls.length>4||hiddenWalls.some(wall=>!ROOM_WALLS.includes(wall))||new Set(hiddenWalls).size!==hiddenWalls.length)return null;
  const tvChannel=['nature','fireplace','abstract'].includes(raw.tvChannel)?raw.tvChannel:'nature';
  const consoleFinish=['walnut','nero','lacquer'].includes(raw.consoleFinish)?raw.consoleFinish:'walnut';
- const plan={version:1,w,d,elements:[],hiddenWalls:[...hiddenWalls],tvChannel,tvOn:raw.tvOn!==false,consoleFinish};
+ const clampLook=(value,fallback,lo,hi)=>Number.isFinite(Number(value))?Math.max(lo,Math.min(hi,Number(value))):fallback;
+ const roomLook={
+  daylight:clampLook(raw.roomLook?.daylight,1,.45,2.1),
+  ibl:clampLook(raw.roomLook?.ibl,.55,0,1.5),
+  plasterDetail:clampLook(raw.roomLook?.plasterDetail,1,0,2)
+ };
+ const plan={version:1,w,d,elements:[],hiddenWalls:[...hiddenWalls],tvChannel,tvOn:raw.tvOn!==false,consoleFinish,roomLook};
  if(!Array.isArray(raw.elements)||raw.elements.length>48)return null;
  for(const item of raw.elements){
   if(!item||typeof item.id!=='string'||item.id.length>90||!ROOM_SPECS[item.type]||!ROOM_WALLS.includes(item.wall))return null;
@@ -83,7 +89,7 @@ export function roomPlanToArchitecture(plan,previous={}){
   windows.push({id:el.id,hostId:'room-'+el.wall,along:el.u,width:s.width,
    height:s.height,sill:s.sill,kind:s.kind,wall:el.wall});
  }
- return {floor,walls,windows,features,designedRoom:true,tvSettings:{channel:plan.tvChannel||'nature',on:plan.tvOn!==false,consoleFinish:plan.consoleFinish||'walnut'},
+ return {floor,walls,windows,features,designedRoom:true,roomLook:plan.roomLook||{daylight:1,ibl:.55,plasterDetail:1},tvSettings:{channel:plan.tvChannel||'nature',on:plan.tvOn!==false,consoleFinish:plan.consoleFinish||'walnut'},
   floorMaterial:previous.designedRoom?(previous.floorMaterial||'parquet-oak'):'parquet-oak',
   wallMaterial:previous.designedRoom?(previous.wallMaterial||'gemini-wall-warm'):'gemini-wall-warm'};
 }
