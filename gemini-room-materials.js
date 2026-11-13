@@ -229,9 +229,13 @@ function defaultMaps(key){
 export function geminiFloorMaterial(key){
  const maps=defaultMaps(GEMINI_FLOOR_KEYS.includes(key)?key:'oak');
  const roughness={oak:.44,walnut:.42,marble:.22,concrete:.55}[key]??.44;
- return new THREE.MeshStandardMaterial({...maps,
-  normalScale:new THREE.Vector2(key==='marble'?.3:key==='concrete'?.45:.5,key==='marble'?.3:key==='concrete'?.45:.5),
-  roughness,metalness:key==='marble'?.04:key==='concrete'?.03:.02,side:THREE.DoubleSide
+ return new THREE.MeshPhysicalMaterial({...maps,
+  normalScale:new THREE.Vector2(key==='marble'?.3:key==='concrete'?.45:.42,key==='marble'?.3:key==='concrete'?.45:.42),
+  roughness:(key==='oak'||key==='walnut')?.98:roughness,
+  metalness:(key==='oak'||key==='walnut')?0:key==='marble'?.04:.02,
+  specularIntensity:(key==='oak'||key==='walnut')?0:.3,
+  envMapIntensity:(key==='oak'||key==='walnut')?0:.38,
+  clearcoat:0,side:THREE.DoubleSide
  });
 }
 export function geminiPlasterMaterial(color='#f4efe6'){
