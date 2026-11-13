@@ -1235,3 +1235,8 @@ html:fullscreen{padding:0!important}html:fullscreen body{max-width:none;border-r
  #overlay .ar-material-rail .material-slot-thumbnails button{min-width:86px;flex-basis:86px;max-width:86px;}
  #overlay .ar-material-rail .material-slot-thumbnails img{width:76px;height:68px;}
 }
+
+#overlay .ar-material-rail .material-measured-size{
+ font-size:11px;color:#57705e;padding:5px 1px;margin:0 0 7px;
+ border-bottom:1px solid #d8dfd3;text-align:right;
+}
