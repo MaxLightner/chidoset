@@ -160,9 +160,9 @@ function configureMeshes(model,index){
     alphaMap:mask,transparent:true,opacity:1,depthWrite:false,
     side:THREE.DoubleSide,toneMapped:false});
    object.material.onBeforeCompile=shader=>{
-    shader.fragmentShader=shader.fragmentShader.replace('#include <alphamap_fragment>','#include <alphamap_fragment>\ndiffuseColor.a = clamp(diffuseColor.a - 0.2, 0.0, 1.0);');
+    shader.fragmentShader=shader.fragmentShader.replace('#include <alphamap_fragment>','#include <alphamap_fragment>\ndiffuseColor.a = clamp(diffuseColor.a - 0.5, 0.0, 1.0);');
    };
-   object.material.customProgramCacheKey=()=> 'chido-baked-shadow-alpha-minus-0.2';
+   object.material.customProgramCacheKey=()=> 'chido-baked-shadow-alpha-minus-0.5';
    previous?.dispose();
    object.userData.chidoBakedShadow=true;
    object.castShadow=false;object.receiveShadow=false;
