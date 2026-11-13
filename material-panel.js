@@ -1,4 +1,4 @@
-import {modelMaterialSlots,materialPresets,ROLE_LABELS} from './material-roles.js?v=0.18.6';
+import {modelMaterialSlots,materialPresets,ROLE_LABELS} from './material-roles.js?v=0.18.7';
 
 // Exactly one toolbar icon per GLB material. This is only the thumbnail strip
 // opened by that icon; there are NO category/slot tabs inside it and no upload.
