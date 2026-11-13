@@ -172,7 +172,7 @@ void main(){
   // share this.root, whose uniform scale is the measured correction factor.
   // Never reset calibration or shift the layout when inserting the room.
   this.syncSpatial();
-  this.flushRoomGeometry();this.roomVisible=true;this.architecture.group.visible=true;this.roomPendingPlacement=false;this.floorNet.visible=false;this.root.visible=true;this.changed();return true;
+  this.flushRoomGeometry();this.roomVisible=true;if(this.architecture?.group)this.architecture.group.visible=true;this.roomPendingPlacement=false;this.floorNet.visible=false;this.root.visible=true;this.changed();return true;
  }
  setDesignedRoomVisible(visible){
   if(!this.roomPlan||!this.architecture)return false;
