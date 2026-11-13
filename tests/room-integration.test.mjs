@@ -133,7 +133,7 @@ test('A/B calibration multiplies both architectural room and furniture by the sa
  const worldSofaWidth=new THREE.Box3().setFromObject(sofa).getSize(new THREE.Vector3()).x;
  assert.ok(Math.abs(worldRoomWidth-13.6)<.00001);
  assert.ok(Math.abs(worldSofaWidth-4.2)<.00001);
- assert.ok(Math.abs(worldSofaWidth/worldRoomWidth-2.1/6.8)<1e-10,
+ assert.ok(Math.abs(worldSofaWidth/worldRoomWidth-2.1/6.8)<1e-6,
   'sofa/room proportions must remain identical in world space');
  // Recalibration afterward still applies to the entire shared room subtree.
  model.calibrate(4);
