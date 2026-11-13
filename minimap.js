@@ -161,7 +161,7 @@ export class LiveMiniMap{
    const mesh=s.items.find(m=>m.userData.id===Number(furniture.dataset.objectId));
    if(mesh){
     s.select(mesh);this.selectedArch=null;
-    const pos=s.planPosition(mesh);
+    const pos=s.roomPlan?{x:mesh.position.x,z:mesh.position.z}:s.planPosition(mesh);
     this.gesture={type:'furniture',id:mesh.userData.id,dx:pos.x-point.x,dz:pos.z-point.z};
     this.render();return;
    }
@@ -203,7 +203,10 @@ export class LiveMiniMap{
     x=clamp(x,-s.roomPlan.w/2+halfX,s.roomPlan.w/2-halfX);
     z=clamp(z,-s.roomPlan.d/2+halfZ,s.roomPlan.d/2-halfZ);
    }
-   s.moveObjectFromPlan(g.id,x,z);
+   if(s.roomPlan){
+    const m=s.model,c=Math.cos(m.layoutYaw),sn=Math.sin(m.layoutYaw),k=m.correction;
+    s.moveObjectFromPlan(g.id,m.layoutOffset.x+(x*c+z*sn)*k,m.layoutOffset.z+(-x*sn+z*c)*k);
+   }else s.moveObjectFromPlan(g.id,x,z);
   }else if(g.type==='architecture'&&s.roomPlan){
    const el=s.roomPlan.elements.find(x=>x.id===g.id);
    if(!el)return;
@@ -230,8 +233,8 @@ export class LiveMiniMap{
   const studio=this.getStudio();if(!studio||!this.svg)return;
   const state=studio.model,plan=studio.roomPlan;
   const items=studio.items.map(mesh=>{
-   const pos=studio.planPosition(mesh),[w,,d]=mesh.userData.product.size,k=state.correction;
-   return {mesh,x:pos.x,z:pos.z,w:w*k,d:d*k,angle:mesh.rotation.y+state.layoutYaw};
+   const pos=plan?{x:mesh.position.x,z:mesh.position.z}:studio.planPosition(mesh),[w,,d]=mesh.userData.product.size,k=plan?1:state.correction;
+   return {mesh,x:pos.x,z:pos.z,w:w*k,d:d*k,angle:mesh.rotation.y+(plan?0:state.layoutYaw)};
   });
   const a=state.a,b=state.b;
   const lim=plan?[{x:-plan.w/2,z:-plan.d/2,w:0,d:0},{x:plan.w/2,z:plan.d/2,w:0,d:0}]:
