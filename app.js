@@ -31,11 +31,11 @@ bindAROrientation($('#overlay'));
 let studio,Scene,palette,space='پذیرایی',layout='empty',supported=false,routeVersion=0,photoURLs=[],savedItems=[],arReport=null,sceneMemory=null,arStarting=false,lastXRErrorReport='',activeSavedLayoutId=null;
 const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio,{
  getProducts:()=>[...publishedCatalogIndexes()].filter(i=>i>=0).map(index=>({index,name:getCloudProduct(index)?.name||getCloudProductInfo(index)?.name||libraryModel(index)?.name||catalogImages[index]?.[0]||'مدل'})),
- onToast:toast,on3D:showDesignedRoom3D,onStartAR:startScanFromRoom,onTV:showRoomTVPicker,onTemplates:toggleRoomTemplates,
+ onToast:toast,on3D:showDesignedRoom3D,onStartAR:startScanFromRoom,onTemplates:toggleRoomTemplates,
  onClose:()=>{if(!studio?.session){$('#overlay').classList.remove('room-design-offline');$('#overlay').hidden=true;$('#arMiniMap').hidden=true;}},
  onFloor:()=>cycleRoomFinish('floor'),onWall:()=>cycleRoomFinish('wall')
 });
-let roomDesignOnLaunch=false,roomWaitingForFloor=false,activeQuickMaterialSlot=null,quickMaterialsForId=null,lastQuickMaterialKey='';
+let roomDesignOnLaunch=false,roomWaitingForFloor=false,activeQuickMaterialSlot=null,quickMaterialsForId=null,lastQuickMaterialKey='',photoUnavailableTimer=null;
 let chidoMenuOpen=false;
 let pendingARSession=null,calibrationPrompted=false;
 let homeExitRequested=false,homeExitBusy=false,homeExitFallback=null;
@@ -320,7 +320,7 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
     if(activeLiveSession)void endLiveShare(true);
     resetWideViewControls();closeChidoMenu();minimap.collapse();setPhotoMode(false);closeArSheet();closeRoomCenterMode();
     $('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=true;
-    $('#roomArControls').hidden=true;$('#arMaterialRail').hidden=true;
+    $('#roomArControls').hidden=true;$('#arMaterialRail').hidden=true;closeArTVControls();
     $('#measureHint').hidden=true;$('#arMiniMap').hidden=true;$('#roomPlaceActions').hidden=true;$('#abInline').hidden=true;$('#arBottomActions').hidden=true;$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;$('#arSurfaceActions').hidden=true;
    }catch(error){recordRuntimeError('exit-ui-error',error);console.warn('AR controls cleanup',error);}
     $('#overlay').classList.remove('room-design-offline','floor-ready');$('#overlay').hidden=true;
@@ -337,6 +337,7 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
    };
   studio.onPhotoTap=()=>{};
   studio.onHint=toast;
+  studio.onTelevisionTap=()=>showRoomTVPicker();
   studio.onWideViewError=message=>{resetWideViewControls();toast(message);};
   studio.onWideViewReset=resetWideViewControls;
   studio.onRenderQualityChange=({level,fps,auto})=>{
@@ -850,7 +851,15 @@ $('#liveShareClose').onclick=()=>$('#liveShareDialog').close();
 $('#liveShareCopy').onclick=async()=>{try{await navigator.clipboard.writeText(activeLiveSession?.url||$('#liveShareUrl').textContent);toast('لینک نمایش کپی شد.');}catch{toast('کپی خودکار ممکن نیست؛ لینک را دستی انتخاب کن.');}};
 $('#liveShareStop').onclick=()=>endLiveShare(false);
 $('#arSettingsTool').onclick=()=>showArSheet('settings');
-$('#arPhotoTool').onclick=()=>setPhotoMode(true);
+$('#arPhotoTool').onclick=()=>{
+ const button=$('#arPhotoTool'),notice=$('#arPhotoUnavailable');
+ const rect=button.getBoundingClientRect();
+ notice.style.left=Math.max(72,Math.min(innerWidth-80,rect.left+rect.width/2))+'px';
+ notice.style.top=Math.max(12,rect.top-34)+'px';
+ notice.hidden=false;
+ clearTimeout(photoUnavailableTimer);
+ photoUnavailableTimer=setTimeout(()=>{notice.hidden=true;},1750);
+};
 $('#arRulerTool').onclick=()=>{
  if(!studio||!studio.placed)return;
  studio.setMoveLayoutMode(false);
@@ -899,6 +908,7 @@ function handleARReport(report){
 async function startAR(basic=false,incomingSession=null){if(!studio||studio.session||arStarting)return;closeRoomPlanner();$('#overlay').classList.remove('room-design-offline','floor-ready');arStarting=true;liveSharingPaused=false;liveRetryAt=0;calibrationPrompted=false;const launchingStudio=studio;const button=$('#startAR');button.disabled=true;$('#arError').close();try{$('#overlay').hidden=false;$('#roomPlaceActions').hidden=true;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=false;$('#scanProgress').value=12;$('#scanStage').textContent='راه‌اندازی AR…';$('#scanPercent').textContent='۱۲٪';closeArSheet();$('#arSettings').hidden=true;$('#arStatus').textContent='در حال شناسایی کف…';resetWideViewControls();const result=await launchingStudio.startAR(message=>$('#arStatus').textContent=message,handleARReport,basic,{light:!basic&&$('#lightEnabled').checked,depth:!basic&&$('#depthEnabled').checked},incomingSession);if(studio!==launchingStudio||!launchingStudio.session)return;if(!result.hasOverlay){await endXRSession(launchingStudio.session);throw Object.assign(new Error('دستگاه DOM Overlay را فعال نکرده است؛ کنترل اسکن و تثبیت کف بدون آن قابل نمایش نیست.'),{name:'NotSupportedError',xrStage:'overlay'});}$('#overlay').hidden=false;$('#launchProgress').value=3;$('#launchStage').textContent='نشست AR آماده شد؛ کف را اسکن کن.';studio.setDebugVisible(debugEnabled);updateObjects();}catch(error){if(studio!==launchingStudio)return;$('#overlay').hidden=true;$('#arDock').hidden=true;button.hidden=false;$('#launchStage').textContent='ورود به AR ناموفق بود؛ جزئیات را بررسی کن.';const failure=explainXR(error);lastXRErrorReport=JSON.stringify({version:'0.4.1',mode:basic?'basic':'full',stage:failure.stage,name:failure.name,message:failure.detail,secureContext:isSecureContext,webXR:!!navigator.xr,supportCheck:supported,userAgent:navigator.userAgent},null,2);$('#arErrorMessage').textContent=failure.message;$('#arErrorDetails').textContent=lastXRErrorReport;$('#arError').showModal();console.error(error);}finally{arStarting=false;button.disabled=false;}}
 function openRoomPlanner(){
  if(!studio)return;
+ closeArTVControls();
  closeRoomCenterMode();$('#arMaterialRail').hidden=true;
  studio.setRoomCalibrationGuides(false);
  // Fetch Three.js postprocessing modules while the user is drawing, not after
@@ -956,27 +966,31 @@ $('#placeDesignedRoom').onclick=()=>{
 };
 $('#editDesignedRoom').onclick=()=>openRoomPlanner();
 function showRoomTVPicker(){
- if(!studio?.roomPlan||!minimap.expanded)return;
- const host=$('#roomFinishPicker');if(!host)return;
+ if(!studio?.roomPlan||minimap.expanded||!studio.placed)return;
+ const host=$('#arTvControls');if(!host)return;
  const plan=studio.roomPlan;
- host.hidden=false;host.dataset.kind='tv';
- const channels=[['nature','طبیعت و دریاچه'],['fireplace','شومینه'],['abstract','هنر انتزاعی']];
- const finishes=[['walnut','کنسول گردویی'],['nero','سنگ نرو'],['lacquer','لاک تیره']];
- const buttons=(data,attr,current)=>data.map(([id,label])=>'<button type="button" '+attr+'="'+id+'" class="'+(current===id?'selected':'')+'">'+label+'</button>').join('');
- host.innerHTML='<div class="picker-header"><strong>تنظیمات تلویزیون Gemini</strong><button type="button" data-close-finish>بستن ×</button></div>'+
-  '<div class="tv-settings"><div class="tv-group"><b>تصویر نمایشگر</b><div class="tv-options">'+buttons(channels,'data-tv-channel',plan.tvChannel||'nature')+'</div></div>'+
-  '<div class="tv-group"><b>جنس کنسول</b><div class="tv-options">'+buttons(finishes,'data-tv-console',plan.consoleFinish||'walnut')+'</div></div>'+
-  '<label class="tv-power"><input type="checkbox" data-tv-power '+(plan.tvOn!==false?'checked':'')+'> نمایشگر روشن باشد</label></div>';
- host.querySelector('[data-close-finish]').onclick=closeRoomFinishPicker;
+ const channels=[['nature','طبیعت'],['fireplace','شومینه'],['abstract','انتزاعی']];
+ const finishes=[['walnut','گردویی'],['nero','سنگ مشکی'],['lacquer','لاک تیره']];
+ const buttons=(data,attr,current)=>data.map(([id,label])=>
+  '<button type="button" '+attr+'="'+id+'" class="'+(current===id?'selected':'')+'">'+label+'</button>').join('');
+ host.hidden=false;
+ host.innerHTML='<div class="tv-controls-head"><strong>تلویزیون</strong><button type="button" data-tv-close aria-label="بستن تنظیمات">×</button></div>'+
+  '<div class="tv-controls-group"><small>تصویر</small><div class="tv-options">'+buttons(channels,'data-tv-channel',plan.tvChannel||'nature')+'</div></div>'+
+  '<div class="tv-controls-group"><small>کنسول</small><div class="tv-options">'+buttons(finishes,'data-tv-console',plan.consoleFinish||'walnut')+'</div></div>'+
+  '<label class="tv-power"><input type="checkbox" data-tv-power '+(plan.tvOn!==false?'checked':'')+'> روشن</label>';
+ host.querySelector('[data-tv-close]').onclick=closeArTVControls;
  host.querySelectorAll('[data-tv-channel]').forEach(button=>button.onclick=()=>{
-  studio.setRoomPlan({...studio.roomPlan,tvChannel:button.dataset.tvChannel});showRoomTVPicker();
+  if(studio.updateRoomTVSettings({tvChannel:button.dataset.tvChannel}))showRoomTVPicker();
  });
  host.querySelectorAll('[data-tv-console]').forEach(button=>button.onclick=()=>{
-  studio.setRoomPlan({...studio.roomPlan,consoleFinish:button.dataset.tvConsole});showRoomTVPicker();
+  if(studio.updateRoomTVSettings({consoleFinish:button.dataset.tvConsole}))showRoomTVPicker();
  });
  host.querySelector('[data-tv-power]').onchange=e=>{
-  studio.setRoomPlan({...studio.roomPlan,tvOn:e.target.checked});showRoomTVPicker();
+  if(studio.updateRoomTVSettings({tvOn:e.target.checked}))showRoomTVPicker();
  };
+}
+function closeArTVControls(){
+ const host=$('#arTvControls');if(host){host.hidden=true;host.replaceChildren();}
 }
 function closeRoomTemplates(){
  const panel=$('#roomTemplatesPanel');if(panel)panel.hidden=true;
