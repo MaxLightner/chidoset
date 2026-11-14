@@ -343,7 +343,7 @@ export class ArchitectureLayer {
     applyMetricFloorUV(geo,this.data.floorMaterial,material);
     surface=new THREE.Mesh(geo,material);surface.position.y=-.008;
    }
-   surface.receiveShadow=!this.data.designedRoom;surface.renderOrder=-2;surface.userData.archKind='floor';surface.userData.archId='floor';
+   surface.receiveShadow=true;surface.renderOrder=-2;surface.userData.archKind='floor';surface.userData.archId='floor';
    this.group.add(surface);this.floorMesh=surface;
   }
   if(!floor.length)this.floorMesh=null;
@@ -351,7 +351,7 @@ export class ArchitectureLayer {
    const width=Math.abs(floor[1].x-floor[0].x),depth=Math.abs(floor[2].z-floor[1].z),height=3.0;
    const plaster=finishMaterial(this.data.wallMaterial);
    const roof=new THREE.Mesh(new THREE.BoxGeometry(width+.6,.12,depth+.6),plaster.clone());
-   roof.position.y=height+.06;roof.castShadow=false;roof.receiveShadow=true;this.group.add(roof);
+   roof.position.y=height+.06;roof.castShadow=true;roof.receiveShadow=true;this.group.add(roof);
    // Daytime room: cove is subtle trim, not a nighttime emissive light.
    const cove=new THREE.MeshStandardMaterial({color:0xf8f5ef,emissive:0xffffff,emissiveIntensity:.015,roughness:.93,metalness:0});
    for(const [x,z,w,d] of [[0,-depth/2,width-.15,.045],[0,depth/2,width-.15,.045],[-width/2,0,.045,depth-.15],[width/2,0,.045,depth-.15]]){
@@ -359,10 +359,7 @@ export class ArchitectureLayer {
     bar.position.set(x,height-.06,z);bar.castShadow=false;bar.receiveShadow=false;this.group.add(bar);
    }
    cove.dispose();plaster.dispose();
-   // Ambient daylight makes window-free rooms readable without artificial
-   // overhead or point-light hot spots on the parquet.
-   const daylight=new THREE.HemisphereLight(0xe8f3ff,0xc2b6a2,1.0+(.2*(this.data.roomLook?.daylight||1)));
-   this.group.add(daylight);
+   // Use the single scene-level IBL/Hemisphere. No room-only ambient or ceiling fill.
    // Each actual glazed opening is a daylight source. Directions point from
    // outdoors through the opening into the room, rather than from the ceiling.
    const glazed=this.data.windows.filter(o=>o.kind==='window');
