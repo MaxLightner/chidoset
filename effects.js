@@ -5,7 +5,7 @@ export class EnvironmentEffects{
  setRealShadows(enabled){if(this.renderer?.shadowMap)this.renderer.shadowMap.enabled=!!enabled;}
  updateCameraLight(camera,focus){camera.getWorldPosition(this.cameraFill.position);camera.getWorldDirection(this.lightDirection);this.cameraFill.target.position.copy(this.cameraFill.position).add(this.lightDirection);this.cameraFill.target.updateMatrixWorld(true);if(focus)focus.getWorldPosition(this.rim.target.position);else this.rim.target.position.set(0,0,0);this.lightDirection.copy(this.cameraFill.position).sub(this.rim.target.position);this.lightDirection.y=0;if(this.lightDirection.lengthSq()<.001)this.lightDirection.set(0,0,1);else this.lightDirection.normalize();this.rim.position.copy(this.rim.target.position).addScaledVector(this.lightDirection,-4);this.rim.position.x+=2;this.rim.position.y+=3;this.rim.target.updateMatrixWorld(true);}
  dispose(){this.reset();this.environmentTexture?.dispose();this.environmentTexture=null;this.scene.environment=null;this.renderer=null;}
- async loadIBL(){try{const texture=await loadEnvironmentHDR();if(!this.renderer)return texture.dispose();this.environmentTexture?.dispose();this.environmentTexture=texture;this.scene.environment=texture;this.scene.environmentIntensity=this.scene.userData?.roomIblIntensity??.42;this.hemi.intensity=.65;this.sun.intensity=this.sunRoomDirection?4.8*(this.roomDaylight??1):1.6;}catch(error){console.warn('Chido IBL unavailable; using direct lights',error);}}
+ async loadIBL(){try{const texture=await loadEnvironmentHDR();if(!this.renderer)return texture.dispose();this.environmentTexture?.dispose();this.environmentTexture=texture;this.scene.environment=texture;this.scene.environmentIntensity=this.scene.userData?.roomIblIntensity??.42;this.hemi.intensity=.65;this.sun.intensity=(this.sunRoomDirection?4.8:1.6)*(this.roomDaylight??1);}catch(error){console.warn('Chido IBL unavailable; using direct lights',error);}}
  setRoomSun(plan,root){
   const first=plan?.elements?.find(e=>e.type?.startsWith('win_'));
   this.roomSunWindow=first?.id||null;
@@ -16,7 +16,7 @@ export class EnvironmentEffects{
   if(this.sunRoomDirection){
    this.sun.color.set(0xfff7e8);
    this.sun.intensity=(this.environmentTexture?1.6:2.5)*3*this.roomDaylight;
-  }else this.sun.intensity=this.environmentTexture?1.6:2.5;
+  }else this.sun.intensity=(this.environmentTexture?1.6:2.5)*this.roomDaylight;
  }
  updateShadowAnchor(anchor){
   if(!anchor)return;
@@ -31,7 +31,7 @@ export class EnvironmentEffects{
   this.lightState='نور ثابت صحنه';
   this.depthState='غیرفعال';
   this.hemi.intensity=this.environmentTexture?.65:2.2;
-  this.sun.intensity=(this.environmentTexture?1.6:2.5)*(this.sunRoomDirection?3*(this.roomDaylight??1):1);
+  this.sun.intensity=(this.environmentTexture?1.6:2.5)*(this.sunRoomDirection?3:1)*(this.roomDaylight??1);
   this.sun.color.set(0xfff7e8);
  }
  async start(session){this.reset();this.session=session;}
