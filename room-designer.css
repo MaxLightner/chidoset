@@ -590,7 +590,7 @@
 #overlay.cad-active #arMiniMap .room-number-pad:not([hidden]){z-index:500!important;pointer-events:auto!important}
 
 /* 0.18.15: the compact plan button must sit ABOVE both AR toolbars, never behind them. */
-#overlay:not(.cad-active) #arMiniMap:not(.expanded){
+#overlay:not(.cad-active) #arMiniMap:not(.expanded):not([hidden]){
  display:flex!important;visibility:visible!important;
  position:fixed!important;z-index:85!important;
  left:50%!important;right:auto!important;top:auto!important;
@@ -601,7 +601,7 @@
  padding:5px!important;align-items:center!important;justify-content:center!important;
  overflow:visible!important;pointer-events:auto!important;touch-action:manipulation!important
 }
-#overlay:not(.cad-active) #arMiniMap:not(.expanded) [data-map-expand]{
+#overlay:not(.cad-active) #arMiniMap:not(.expanded):not([hidden]) [data-map-expand]{
  display:grid!important;place-items:center!important;position:relative!important;
  z-index:86!important;width:52px!important;height:48px!important;
  min-height:48px!important;pointer-events:auto!important;touch-action:manipulation!important;
@@ -620,3 +620,5 @@
 #overlay.cad-active #arMiniMap .room-design-toolbar select,
 #overlay.cad-active #arMiniMap .map-title button{pointer-events:auto!important;touch-action:manipulation!important}
 #overlay.cad-active #arMiniMap>svg{pointer-events:auto!important;touch-action:none!important}
+
+#overlay #arMiniMap[hidden]{display:none!important;pointer-events:none!important}
