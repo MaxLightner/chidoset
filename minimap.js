@@ -13,6 +13,8 @@ export class LiveMiniMap{
   this.zoom=1;this.panX=0;this.panZ=0;this.viewport=null;this.viewportLock=null;
   this.pointers=new Map();this.gesture=null;
   this.angleInput=panel.querySelector('[data-map-angle]');
+  this.drawingPoints=[];
+  panel.querySelector('[data-plan-finish-drawing]').onclick=()=>this.finishDrawing();
   panel.querySelector('[data-map-expand]').onclick=()=>this.setExpanded(!this.expanded);
   panel.querySelector('[data-map-add]').onclick=()=>this.addFurniture();
   panel.querySelector('[data-map-remove]').onclick=()=>this.removeSelected();
@@ -23,7 +25,12 @@ export class LiveMiniMap{
    const studio=this.getStudio();if(!studio)return;
    const current=studio.roomPlan||defaultRoomPlan();
    const next={...current,structureMode:button.dataset.roomMode};
-   if(studio.setRoomPlan(next)){this.syncRoomFields();this.render();}
+   if(studio.setRoomPlan(next)){
+    this.drawingPoints=[];
+    this.tool=button.dataset.roomMode==='floor'?'draw-floor':button.dataset.roomMode==='walls'?'draw-wall':'select';
+    this.syncRoomFields();this.updateTools();this.render();
+    if(this.tool!=='select')this.options.onToast?.(this.tool==='draw-floor'?'رأس‌های کف را روی پلان لمس کن و «اتمام ترسیم» را بزن.':'نقطه‌های دیوار را به ترتیب لمس کن و «اتمام ترسیم» را بزن.');
+   }
   });
   this.numberPad=panel.querySelector('#roomNumberPad');
   this.numberTarget=null;this.numberReplace=true;
@@ -78,8 +85,26 @@ export class LiveMiniMap{
   });
  }
  updateTools(){
+  const finish=this.panel.querySelector('[data-plan-finish-drawing]');
+  finish.hidden=!['draw-floor','draw-wall'].includes(this.tool);
+  finish.textContent=this.tool==='draw-floor'?'✓ اتمام کف':'✓ اتمام دیوار';
   this.panel.querySelectorAll('[data-plan-tool]').forEach(b=>b.classList.toggle('active',b.dataset.planTool===this.tool));
   const menu=this.panel.querySelector('[data-plan-tool-select]');if(menu)menu.value=this.tool;
+ }
+ finishDrawing(){
+  const studio=this.getStudio(),points=this.drawingPoints;
+  if(!studio||!['draw-floor','draw-wall'].includes(this.tool))return;
+  if(this.tool==='draw-floor'&&points.length<3){this.options.onToast?.('برای کف حداقل سه رأس لازم است.');return;}
+  if(this.tool==='draw-wall'&&points.length<2){this.options.onToast?.('برای دیوار حداقل دو نقطه لازم است.');return;}
+  const plan=studio.roomPlan||defaultRoomPlan();
+  const next=this.tool==='draw-floor'
+   ?{...plan,structureMode:'floor',floorPolygon:points.map(p=>({...p}))}
+   :{...plan,structureMode:'walls',wallSegments:[
+     ...(plan.wallSegments||[]),...points.slice(1).map((p,i)=>({x1:points[i].x,z1:points[i].z,x2:p.x,z2:p.z}))
+    ]};
+  if(!studio.setRoomPlan(next)){this.options.onToast?.('هندسه ترسیم‌شده معتبر نیست.');return;}
+  this.drawingPoints=[];this.tool='select';this.updateTools();this.render();
+  this.options.onToast?.('ترسیم ثبت شد و در نمای سه‌بعدی هم قابل نمایش است.');
  }
  syncRoomFields(){
   const s=this.getStudio(),p=s?.roomPlan;
@@ -236,6 +261,17 @@ export class LiveMiniMap{
   if(this.pointers.size>2)return;
   const s=this.getStudio(),point=this.point(e);
   if(!s||!point)return;
+  if(this.tool==='draw-floor'||this.tool==='draw-wall'){
+   const plan=s.roomPlan||defaultRoomPlan();
+   if(Math.abs(point.x)>plan.w/2||Math.abs(point.z)>plan.d/2){
+    this.options.onToast?.('نقطه باید داخل محدوده ابعاد تعیین‌شده باشد.');return;
+   }
+   const vertex={x:Math.round(point.x*100)/100,z:Math.round(point.z*100)/100};
+   if(this.drawingPoints.length&&Math.hypot(vertex.x-this.drawingPoints.at(-1).x,vertex.z-this.drawingPoints.at(-1).z)<.06)return;
+   if(this.drawingPoints.length>=40){this.options.onToast?.('حداکثر ۴۰ رأس مجاز است.');return;}
+   this.drawingPoints.push(vertex);
+   this.render();return;
+  }
   if(this.tool!=='select'){
    const plan=s.roomPlan||defaultRoomPlan(),snap=this.closestWall(point,plan);
    if(!snap){this.options.onToast?.('برای قرار دادن آیتم، روی دیوار بزن.');this.gesture=null;return;}
@@ -398,12 +434,17 @@ export class LiveMiniMap{
     {side:'west',d:'M'+x+' '+z+'V'+(z+plan.d*100)},
     {side:'east',d:'M'+(x+plan.w*100)+' '+z+'V'+(z+plan.d*100)}
    ];
-   const perimeter=(plan.structureMode==='floor'?[]:wallPaths).map(({side,d})=>{
+   const perimeter=(plan.structureMode==='room'?wallPaths:[]).map(({side,d})=>{
     const removed=plan.hiddenWalls?.includes(side),selected=this.selectedWall===side;
     return '<path d="'+d+'" fill="none" stroke="'+(selected?'#24886b':removed?'#a8b2a9':'#697477')+
      '" stroke-width="'+(selected?30:removed?9:23)+'" '+(removed?'stroke-dasharray="19 15" ':'')+'pointer-events="none"/>';
    }).join('');
-   architecture='<rect x="'+x+'" y="'+z+'" width="'+plan.w*100+'" height="'+plan.d*100+'" fill="'+(plan.structureMode==='walls'?'none':'#f6f3ed')+'"/>'+perimeter+
+   const polygon=plan.structureMode==='floor'&&plan.floorPolygon?.length>=3
+     ?'<polygon points="'+plan.floorPolygon.map(p=>p.x*100+','+p.z*100).join(' ')+'" fill="#e9ebe2" stroke="#697477" stroke-width="12"/>':'';
+   const segments=plan.structureMode==='walls'?(plan.wallSegments||[]).map(w=>
+     '<path d="M'+w.x1*100+' '+w.z1*100+'L'+w.x2*100+' '+w.z2*100+'" fill="none" stroke="#697477" stroke-width="20"/>'
+   ).join(''):'';
+   architecture=(polygon||'<rect x="'+x+'" y="'+z+'" width="'+plan.w*100+'" height="'+plan.d*100+'" fill="'+(plan.structureMode==='walls'?'none':'#f6f3ed')+'"/>')+perimeter+segments+
     '<path d="M'+x+' '+(z-45)+'h'+plan.w*100+'" stroke="#778a83" stroke-width="1.5"/>'+
     '<text x="0" y="'+(z-60)+'" font-size="19" fill="#495b55" text-anchor="middle">'+num(plan.w)+' m</text>'+
     '<text x="'+(x-48)+'" y="0" font-size="19" fill="#495b55" text-anchor="middle" transform="rotate(-90 '+(x-48)+' 0)">'+num(plan.d)+' m</text>';
@@ -416,6 +457,10 @@ export class LiveMiniMap{
       '<rect x="'+(x0-(vertical?11:length/2))+'" y="'+(y0-(vertical?length/2:11))+'" width="'+(vertical?22:length)+'" height="'+(vertical?length:22)+'" rx="2" fill="'+(isTV?'#bd91db':spec.color)+'" stroke="'+(selected?'#1e3b33':'#f9fafb')+'" stroke-width="'+(selected?6:3)+'"/>'+
       '<text x="'+x0+'" y="'+(y0+(vertical?-length/2-20:-22))+'" font-size="15" fill="#3a4c48" text-anchor="middle" pointer-events="none">'+esc(spec.label)+'</text></g>';
    }
+  }
+  if(this.drawingPoints.length){
+   architecture+='<polyline points="'+this.drawingPoints.map(p=>p.x*100+','+p.z*100).join(' ')+'" fill="none" stroke="#0b9878" stroke-width="8" stroke-dasharray="10 4"/>'+
+    this.drawingPoints.map(p=>'<circle cx="'+p.x*100+'" cy="'+p.z*100+'" r="12" fill="#0b9878"/>').join('');
   }
   const lengthAB=Math.hypot(a.x-b.x,a.z-b.z)/Math.max(.001,state.correction);
   const marks=plan?'':'<path d="M'+a.x*100+' '+a.z*100+'L'+b.x*100+' '+b.z*100+'" stroke="#4b827c" stroke-width="2.5" stroke-dasharray="8 5"/>'+
