@@ -31,7 +31,7 @@ bindAROrientation($('#overlay'));
 let studio,Scene,palette,space='پذیرایی',layout='empty',supported=false,routeVersion=0,photoURLs=[],savedItems=[],arReport=null,sceneMemory=null,arStarting=false,lastXRErrorReport='',activeSavedLayoutId=null;
 const minimap=new LiveMiniMap($('#arMiniMap'),()=>studio,{
  getProducts:()=>[...publishedCatalogIndexes()].filter(i=>i>=0).map(index=>({index,name:getCloudProduct(index)?.name||getCloudProductInfo(index)?.name||libraryModel(index)?.name||catalogImages[index]?.[0]||'مدل'})),
- onToast:toast,on3D:showDesignedRoom3D,onStartAR:startScanFromRoom,onTemplates:toggleRoomTemplates,
+ onToast:toast,onOpen:openRoomPlanner,on3D:showDesignedRoom3D,onStartAR:startScanFromRoom,onTemplates:toggleRoomTemplates,
  onClose:()=>{if(!studio?.session){$('#overlay').classList.remove('room-design-offline');$('#overlay').hidden=true;$('#arMiniMap').hidden=true;}},
  onFloor:()=>cycleRoomFinish('floor'),onWall:()=>cycleRoomFinish('wall')
 });
@@ -1005,6 +1005,7 @@ function handleARReport(report){
 }
 async function startAR(basic=false,incomingSession=null){if(!studio||studio.session||arStarting)return;closeRoomPlanner();$('#overlay').classList.remove('room-design-offline','floor-ready');arStarting=true;liveSharingPaused=false;liveRetryAt=0;calibrationPrompted=false;const launchingStudio=studio;const button=$('#startAR');button.disabled=true;$('#arError').close();try{$('#overlay').hidden=false;$('#roomPlaceActions').hidden=true;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=false;$('#scanProgress').value=12;$('#scanStage').textContent='راه‌اندازی AR…';$('#scanPercent').textContent='۱۲٪';closeArSheet();$('#arSettings').hidden=true;$('#arStatus').textContent='در حال شناسایی کف…';resetWideViewControls();const result=await launchingStudio.startAR(message=>$('#arStatus').textContent=message,handleARReport,basic,{},incomingSession);if(studio!==launchingStudio||!launchingStudio.session)return;if(!result.hasOverlay){await endXRSession(launchingStudio.session);throw Object.assign(new Error('دستگاه DOM Overlay را فعال نکرده است؛ کنترل اسکن و تثبیت کف بدون آن قابل نمایش نیست.'),{name:'NotSupportedError',xrStage:'overlay'});}$('#overlay').hidden=false;$('#launchProgress').value=3;$('#launchStage').textContent='نشست AR آماده شد؛ کف را اسکن کن.';studio.setDebugVisible(debugEnabled);updateObjects();}catch(error){if(studio!==launchingStudio)return;$('#overlay').hidden=true;$('#arDock').hidden=true;button.hidden=false;$('#launchStage').textContent='ورود به AR ناموفق بود؛ جزئیات را بررسی کن.';const failure=explainXR(error);lastXRErrorReport=JSON.stringify({version:'0.4.1',mode:basic?'basic':'full',stage:failure.stage,name:failure.name,message:failure.detail,secureContext:isSecureContext,webXR:!!navigator.xr,supportCheck:supported,userAgent:navigator.userAgent},null,2);$('#arErrorMessage').textContent=failure.message;$('#arErrorDetails').textContent=lastXRErrorReport;$('#arError').showModal();console.error(error);}finally{arStarting=false;button.disabled=false;}}
 function openRoomPlanner(){
+ try{
  if(!studio)return;
  closeArTVControls();
  closeRoomCenterMode();$('#arMaterialRail').hidden=true;
@@ -1024,9 +1025,14 @@ function openRoomPlanner(){
  $('#overlay').hidden=false;$('#overlay').classList.toggle('room-design-offline',offline);
  $('#arMiniMap').hidden=false;$('#roomPlaceActions').hidden=true;
  minimap.setExpanded(true);
- $('#arMiniMap').hidden=false;
- $('#arMiniMap').classList.add('expanded');
- $('#overlay').classList.add('cad-active');
+ if(!minimap.expanded||$('#arMiniMap').hidden)throw Error('پنجره پلان پس از باز کردن قابل نمایش نشد.');
+ }catch(error){
+  console.error('Chido 2D planner opening failed',error);
+  // Keep the session alive, expose the failure rather than swallowing the tap.
+  $('#arMiniMap').hidden=false;
+  $('#overlay').hidden=false;
+  toast('بازکردن نقشه ناموفق بود: '+(error?.message||'خطای ناشناخته'));
+ }
 }
 function closeRoomPlanner(){
  closeRoomTemplates();closeRoomFinishPicker();
