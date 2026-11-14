@@ -1423,3 +1423,23 @@ html:fullscreen{padding:0!important}html:fullscreen body{max-width:none;border-r
 .ar-numeric-pad button:last-child{grid-column:span 2;font-size:14px}
 .ar-numeric-pad button:nth-last-child(2){font-size:13px}
 @media(max-height:600px){#overlay.ab-keypad-open #abCalibrationSheet{top:8px!important;transform:translateX(-50%)!important}}
+
+/* Chido v0.18.12: a single compact seven-action dock. */
+#overlay .ar-dock,#overlay.floor-ready .ar-dock{grid-template-columns:repeat(7,minmax(0,1fr))!important;max-width:min(680px,calc(100vw - 12px))!important;gap:2px!important;padding:5px!important}
+#overlay .ar-dock button{min-width:0!important;min-height:51px!important;padding:5px 1px!important;font-size:19px!important;white-space:normal}
+#overlay .ar-dock button span{font-size:clamp(10px,2.2vw,13px)!important;line-height:1.2!important;white-space:nowrap}
+#overlay.floor-ready .ar-bottom.compact{display:none!important}
+#overlay .ar-tool-sheet:has(#arSettings:not([hidden])){max-width:min(380px,calc(100vw - 20px))!important;max-height:min(58svh,430px)!important;padding:10px 12px!important}
+#overlay .ar-tool-sheet #arSettings{margin:4px 0!important;padding:0!important}
+#overlay .ar-tool-sheet #arSettings summary{font-size:13px!important;line-height:1.4!important}
+#overlay .ar-tool-sheet #arSettings .xr-option{margin:5px 0!important;min-height:28px!important;font-size:13px!important}
+#overlay .ar-tool-sheet .room-look-settings{padding:5px 0!important;margin:4px 0!important;gap:3px!important}
+#overlay .ar-tool-sheet .room-look-settings label{font-size:13px!important;margin:5px 0!important;line-height:1.4!important}
+#overlay .ar-tool-sheet .room-look-settings input[type=range]{margin-top:3px!important}
+#overlay #arSettingsFPS{font:600 15px/1.4 system-ui,sans-serif;direction:ltr;text-align:center;padding:4px 8px;margin:0 auto 4px;width:fit-content;border:1px solid #a9bbad;border-radius:8px}
+#overlay #arSettings #rescanFloor{min-height:30px!important;padding:5px 10px!important;font-size:13px!important}
+#overlay .ar-identity,#overlay .ar-top #arIdentity,#appIdentity,
+#overlay .ar-top .ar-identity,#overlay .ar-demo-label,
+#overlay [class*="seller-demo"],#overlay [class*="demo-seller"]{font-size:13px!important;line-height:1.5!important}
+/* Keep calibration, product and customer UI readable on tablets. */
+#overlay .ar-sheet-head strong,#overlay .sheet-tip{font-size:max(13px,1em)}
