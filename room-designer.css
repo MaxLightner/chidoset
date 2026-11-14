@@ -436,3 +436,6 @@
 #overlay .room-number-buttons{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;direction:ltr}
 #overlay .room-number-buttons button{min-height:38px!important;padding:5px!important;font-size:17px!important;border-radius:8px}
 #overlay .room-number-buttons button:last-child{grid-column:span 2;background:#dcece3}
+
+#overlay .room-number-pad{position:fixed!important;inset:auto!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;z-index:200!important;width:min(280px,calc(100vw - 24px))!important;max-height:calc(100dvh - 20px)!important}
+#overlay .room-design-row-mode [data-plan-finish-drawing]:not([hidden]){background:#447e69!important;color:white!important}
