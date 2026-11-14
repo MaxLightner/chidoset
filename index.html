@@ -25,6 +25,7 @@ if (['chidoset.ir', 'www.chidoset.ir'].includes(location.hostname) && location.p
   <button type="button" id="chidoMenuHome" class="chido-explicit-exit">خروج از AR و صفحه اصلی</button>
  </section>
  <div id="scanReadiness" class="scan-readiness" hidden>
+   <div class="scan-direction-guide"><span class="scan-arrow scan-arrow-left" aria-hidden="true">←</span><div><strong>دستگاه را آرام به چپ و راست حرکت بده</strong><small>دوربین را به سمت کف نگه دار</small></div><span class="scan-arrow scan-arrow-right" aria-hidden="true">→</span></div>
    <div class="scan-readiness-row"><strong id="scanStage">در حال آغاز دوربین…</strong><span id="scanPercent">۰٪</span></div>
    <progress id="scanProgress" value="0" max="100"></progress>
    <small>نوار آمادگی بر اساس Tracking و برخوردهای معتبر است؛ درصد پیشرفت واقعی ARCore نیست.</small>
