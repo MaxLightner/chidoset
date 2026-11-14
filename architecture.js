@@ -330,7 +330,7 @@ export class ArchitectureLayer {
   const floor=this.data.floor;
   if(floor.length>=3&&validPolygon(floor)){
    let geo,surface;
-   if(this.data.designedRoom&&floor.length===4){
+   if(this.data.designedRoom&&floor.length===4&&this.data.walls.length){
     // Gemini uses a solid 14cm floor slab with its texture over 0..1 UVs.
     const width=Math.abs(floor[1].x-floor[0].x),depth=Math.abs(floor[2].z-floor[1].z);
     geo=new THREE.BoxGeometry(width+.4,.14,depth+.4);
