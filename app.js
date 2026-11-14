@@ -221,6 +221,37 @@ document.querySelectorAll('#arNumericPad [data-calkey]').forEach(button=>{
  });
 });
 $('#aractual').addEventListener('click',showCalibrationKeypad);
+// Internal keypad for room geometry fields; readonly inputs never summon native keyboard.
+function useRoomPropertyKeypad(input,onCommit){
+ input.readOnly=true;input.inputMode='none';
+ input.addEventListener('click',()=>{
+  document.querySelector('#roomPropertyKeypad')?.remove();
+  let replacing=true;
+  const pad=document.createElement('div');
+  pad.id='roomPropertyKeypad';pad.className='room-property-keypad';
+  pad.innerHTML='<strong>مقدار جدید (متر)</strong><div class="value">'+input.value+'</div><div class="keys">'+
+   ['1','2','3','4','5','6','7','8','9','⌫','0','.','پاک','ثبت'].map(key=>'<button type="button" data-room-key="'+key+'">'+key+'</button>').join('')+
+   '</div><button type="button" data-room-cancel>انصراف</button>';
+  $('#arToolSheet').append(pad);
+  pad.querySelector('[data-room-cancel]').onclick=()=>pad.remove();
+  pad.querySelectorAll('[data-room-key]').forEach(button=>button.onclick=()=>{
+   const key=button.dataset.roomKey;
+   if(key==='ثبت'){
+    if(!Number.isFinite(Number(input.value))){toast('عدد معتبر وارد کن.');return;}
+    pad.remove();onCommit();return;
+   }
+   if(key==='پاک'){input.value='';replacing=false;}
+   else if(key==='⌫'){input.value=input.value.slice(0,-1);replacing=false;}
+   else{
+    if(replacing){input.value='';replacing=false;}
+    if(key!=='.'||!input.value.includes('.'))input.value+=key;
+   }
+   pad.querySelector('.value').textContent=input.value||'۰';
+  });
+  input.blur();
+ });
+}
+
 
 function snapshotItems(){savedItems=studio?studio.items.map(m=>({id:m.userData.id,name:m.userData.product.name,price:m.userData.price,color:'#'+m.material.color.getHexString()})):savedItems;}
 function uploadControl(){return `<label class="upload">بارگذاری تصویر +<input id="upload" type="file" accept="image/png,image/jpeg,image/webp" multiple></label>`;}
@@ -582,7 +613,12 @@ function showArSheet(mode){
  const selected=studio.selected;
  if(mode==='arrangements'){
   title.textContent='چیدمان‌ها و رنگ‌بندی‌ها';
-  body.innerHTML='<div class="ar-category-tabs"><button type="button" data-layout-choice="layouts">تنوع چیدمان</button><button type="button" data-layout-choice="colors">رنگ‌بندی‌های آماده</button></div><p class="sheet-tip">چیدمان و رنگ‌بندی را از گزینه‌های ذخیره‌شده انتخاب کن.</p>';
+  const areas=[['پذیرایی','پذیرایی'],['ناهارخوری','ناهارخوری'],['خواب','اتاق خواب'],['اداری','اداری']];
+  body.innerHTML='<p class="sheet-tip">دسته چیدمان:</p><div class="ar-category-tabs">'+areas.map(([id,label])=>'<button type="button" data-layout-area="'+id+'" class="'+(space===id?'selected':'')+'">'+label+'</button>').join('')+'</div><div class="ar-category-tabs"><button type="button" data-layout-choice="layouts">تنوع چیدمان</button><button type="button" data-layout-choice="colors">رنگ‌بندی‌های آماده</button></div>';
+  body.querySelectorAll('[data-layout-area]').forEach(btn=>btn.onclick=()=>{
+   space=btn.dataset.layoutArea;
+   body.querySelectorAll('[data-layout-area]').forEach(b=>b.classList.toggle('selected',b===btn));
+  });
   body.querySelector('[data-layout-choice="layouts"]').onclick=()=>{closeArSheet();showArSheet(activeCloudSetId?'cloud-layouts':'saved');};
   body.querySelector('[data-layout-choice="colors"]').onclick=()=>{closeArSheet();showArSheet('colorways');};
  }else if(mode==='add'||mode==='replace'||mode==='accessories'){
@@ -764,9 +800,11 @@ function showArSheet(mode){
    $('#arArchitectureHint').textContent=mode==='floor'?'کف · رأس‌ها را ثبت کن':mode==='wall'?'دیوار · ابتدا A سپس B':mode==='window'?'پنجره · دیوار را لمس کن':'';
    if(mode)toast('ابزار «'+button.textContent+'» فعال شد.');
   });
-  body.querySelectorAll('[data-window-edit]').forEach(input=>input.onchange=()=>{
-   try{if(!a.editSelected({[input.dataset.windowEdit]:Number(input.value)}))throw Error('ابعاد یا موقعیت با دیوار سازگار نیست.');closeArSheet();showArSheet('architecture');}
-   catch(error){toast(error.message);}
+  body.querySelectorAll('[data-window-edit]').forEach(input=>{
+   useRoomPropertyKeypad(input,()=>{
+    try{if(!a.editSelected({[input.dataset.windowEdit]:Number(input.value)}))throw Error('ابعاد یا موقعیت با دیوار سازگار نیست.');closeArSheet();showArSheet('architecture');}
+    catch(error){toast(error.message);}
+   });
   });
   if(chosen)body.querySelector('#architectureDeleteWindow').onclick=()=>{a.removeSelected();closeArSheet();};
  }else if(mode==='settings'){
