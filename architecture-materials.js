@@ -77,13 +77,21 @@ export function finishMaterial(id){
  if(finish.kind==='gemini-wall')return geminiPlasterMaterial(finish.hex);
  const maps=finishTextures(finish.id);
  const tile=finish.kind==='ceramic';
- return new THREE.MeshPhysicalMaterial({
+ const material=new THREE.MeshPhysicalMaterial({
   ...maps,color:0xffffff,roughness:finish.kind==='carpet'?1:finish.roughness,metalness:0,ior:1.5,
   specularIntensity:finish.kind==='carpet'?0:1,
   clearcoat:tile ? .72 : 0,clearcoatRoughness:tile ? .27 : 1,
   normalScale:new THREE.Vector2(finish.kind==='carpet' ? .85 : .38,finish.kind==='carpet' ? .85 : .38),
   side:THREE.DoubleSide,transparent:false,depthWrite:true,envMapIntensity:finish.kind==='carpet'?0:tile?1.65:.75
  });
+ if(finish.kind==='carpet'){
+  material.onBeforeCompile=shader=>{
+   shader.fragmentShader=shader.fragmentShader.replace('#include <opaque_fragment>',
+    'outgoingLight *= 1.0 - 0.12 * pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 2.0);\\n#include <opaque_fragment>');
+  };
+  material.customProgramCacheKey=()=> 'chido-carpet-dark-grazing-v1';
+ }
+ return material;
 }
 // Preview is generated from the very same procedural texture, no external image requests.
 export function finishPreviewDataUrl(id){
