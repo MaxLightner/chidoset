@@ -5,7 +5,8 @@ export const ROOM_SPECS=Object.freeze({
  win_tall_1:{label:'پنجره قدی ۱ متر',width:1,sill:.14,height:2.58,kind:'window',color:'#39a9df'},
  win_tall_25:{label:'پنجره قدی ۲٫۵ متر',width:2.5,sill:.14,height:2.58,kind:'window',color:'#2584ba'},
  win_std_2:{label:'پنجره ۲ متر · اوکابه ۱٫۱',width:2,sill:1.10,height:1.62,kind:'window',color:'#72bfdc'},
- door:{label:'در و راهرو',width:1,sill:0,height:2.22,kind:'door',color:'#df9d38'},
+ door:{label:'در ورودی',width:1,sill:0,height:2.22,kind:'door',color:'#df9d38'},
+ hallway:{label:'بازشوی راهرو ۱٫۳ متر',width:1.3,sill:0,height:3,kind:'hallway',color:'#b88767'},
  kitchen:{label:'اپن آشپزخانه ۳ متر',width:3,sill:0,height:2.42,kind:'kitchen',color:'#40ae86'},
  tv:{label:'محل تلویزیون',width:2.2,sill:0,height:2.86,kind:'tv',color:'#936cc7'}
 });
@@ -34,8 +35,8 @@ export function canPlaceRoomElement(plan,candidate,others=plan.elements){
   if(el.wall===candidate.wall&&Math.abs(el.u-candidate.u)<(s.width+t.width)/2+.15)return {valid:false,reason:'هم‌پوشانی با '+t.label};
   const opp={north:'south',south:'north',west:'east',east:'west'};
   if(el.wall===opp[candidate.wall]&&Math.abs(el.u-candidate.u)<(s.width+t.width)/2+.2){
-   if((candidate.type==='tv'&&['door','kitchen'].includes(el.type))||
-      (el.type==='tv'&&['door','kitchen'].includes(candidate.type)))return {valid:false,reason:'تلویزیون نمی‌تواند مقابل در، راهرو یا اپن باشد.'};
+   if((candidate.type==='tv'&&['door','kitchen','hallway'].includes(el.type))||
+      (el.type==='tv'&&['door','kitchen','hallway'].includes(candidate.type)))return {valid:false,reason:'تلویزیون نمی‌تواند مقابل در، راهرو یا اپن باشد.'};
   }
  }
  return {valid:true,reason:''};
@@ -160,7 +161,7 @@ export function roomWallCollisionFootprints(plan,{thickness=.24}={}){
  for(const [side,length,edge,angle] of walls){
   if(hidden.has(side))continue;
   const gaps=(plan.elements||[])
-   .filter(el=>el.wall===side&&['door','kitchen'].includes(el.type))
+   .filter(el=>el.wall===side&&['door','kitchen','hallway'].includes(el.type))
    .map(el=>{const width=ROOM_SPECS[el.type]?.width||0;return [el.u-width/2,el.u+width/2]})
    .sort((a,b)=>a[0]-b[0]);
   const segments=[];
