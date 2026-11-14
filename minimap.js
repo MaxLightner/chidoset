@@ -15,7 +15,18 @@ export class LiveMiniMap{
   this.angleInput=panel.querySelector('[data-map-angle]');
   this.drawingPoints=[];
   panel.querySelector('[data-plan-finish-drawing]').onclick=()=>this.finishDrawing();
-  panel.querySelector('[data-map-expand]').onclick=()=>this.setExpanded(!this.expanded);
+  // The compact map is the launch action, not a second independently managed view.
+  // Route ALL openings through the same safe room editor entrypoint as the AR menu.
+  panel.querySelector('[data-map-expand]').onclick=event=>{
+   event?.preventDefault?.();event?.stopPropagation?.();
+   if(this.expanded){this.setExpanded(false);return;}
+   if(this.options.onOpen)this.options.onOpen();
+   else this.setExpanded(true);
+  };
+  panel.addEventListener('click',event=>{
+   if(this.expanded||event.target.closest('button,input,select,[data-map-expand]'))return;
+   if(this.options.onOpen)this.options.onOpen();else this.setExpanded(true);
+  });
   panel.querySelector('[data-map-add]').onclick=()=>this.addFurniture();
   panel.querySelector('[data-map-remove]').onclick=()=>this.removeSelected();
   panel.querySelector('[data-map-left]').onclick=()=>{const studio=getStudio();if(studio?.selected)studio.rotate(studio.selected.rotation.y*180/Math.PI-45);};
