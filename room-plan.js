@@ -12,7 +12,7 @@ export const ROOM_WALLS=['north','south','west','east'];
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const number=(x)=>Number.isFinite(Number(x))?Number(x):NaN;
 const cm=n=>Math.round(n*100)/100;
-export function defaultRoomPlan(){return {version:1,w:6.8,d:5.8,elements:[],hiddenWalls:[],tvChannel:'nature',tvOn:true,consoleFinish:'walnut',roomLook:{daylight:1,ibl:.42,plasterDetail:1}};}
+export function defaultRoomPlan(){return {version:1,w:6.8,d:5.8,elements:[],hiddenWalls:[],tvChannel:'nature',tvOn:true,consoleFinish:'walnut',roomLook:{daylight:1,ibl:.42,plasterDetail:1},structureMode:'room'};}
 export function wallLength(plan,wall){return wall==='north'||wall==='south'?plan.w:plan.d;}
 export function wallAnchor(plan,wall,u){
  const x0=-plan.w/2,z0=-plan.d/2;
@@ -53,7 +53,8 @@ export function normalizeRoomPlan(raw){
   ibl:clampLook(raw.roomLook?.ibl,.42,0,1.5),
   plasterDetail:clampLook(raw.roomLook?.plasterDetail,1,0,2)
  };
- const plan={version:1,w,d,elements:[],hiddenWalls:[...hiddenWalls],tvChannel,tvOn:raw.tvOn!==false,consoleFinish,roomLook};
+ const structureMode=['room','floor','walls'].includes(raw.structureMode)?raw.structureMode:'room';
+ const plan={version:1,w,d,elements:[],hiddenWalls:[...hiddenWalls],tvChannel,tvOn:raw.tvOn!==false,consoleFinish,roomLook,structureMode};
  if(!Array.isArray(raw.elements)||raw.elements.length>48)return null;
  for(const item of raw.elements){
   if(!item||typeof item.id!=='string'||item.id.length>90||!ROOM_SPECS[item.type]||!ROOM_WALLS.includes(item.wall))return null;
@@ -75,13 +76,13 @@ export function sizedRoomPlan(plan,w,d){
 }
 export function roomPlanToArchitecture(plan,previous={}){
  const x=plan.w/2,z=plan.d/2;
- const floor=[{x:-x,z:-z},{x:x,z:-z},{x:x,z:z},{x:-x,z:z}];
+ const floor=plan.structureMode==='walls'?[]:[{x:-x,z:-z},{x:x,z:-z},{x:x,z:z},{x:-x,z:z}];
  const walls=[
   {id:'room-north',x1:-x,z1:-z,x2:x,z2:-z},
   {id:'room-south',x1:-x,z1:z,x2:x,z2:z},
   {id:'room-west',x1:-x,z1:-z,x2:-x,z2:z},
   {id:'room-east',x1:x,z1:-z,x2:x,z2:z}
- ].filter(w=>!plan.hiddenWalls?.includes(w.id.slice(5))).map(w=>({...w,height:3.0,thickness:.24}));
+ ].filter(w=>plan.structureMode!=='floor'&&!plan.hiddenWalls?.includes(w.id.slice(5))).map(w=>({...w,height:3.0,thickness:.24}));
  const windows=[],features=[];
  for(const el of plan.elements){
   const s=ROOM_SPECS[el.type];
@@ -89,7 +90,7 @@ export function roomPlanToArchitecture(plan,previous={}){
   windows.push({id:el.id,hostId:'room-'+el.wall,along:el.u,width:s.width,
    height:s.height,sill:s.sill,kind:s.kind,wall:el.wall});
  }
- return {floor,walls,windows,features,designedRoom:true,roomLook:plan.roomLook||{daylight:1,ibl:.42,plasterDetail:1},tvSettings:{channel:plan.tvChannel||'nature',on:plan.tvOn!==false,consoleFinish:plan.consoleFinish||'walnut'},
+ return {floor,walls,windows,features,structureMode:plan.structureMode||'room',designedRoom:true,roomLook:plan.roomLook||{daylight:1,ibl:.42,plasterDetail:1},tvSettings:{channel:plan.tvChannel||'nature',on:plan.tvOn!==false,consoleFinish:plan.consoleFinish||'walnut'},
   floorMaterial:previous.designedRoom?(previous.floorMaterial||'parquet-oak'):'parquet-oak',
   wallMaterial:previous.designedRoom?(previous.wallMaterial||'gemini-wall-warm'):'gemini-wall-warm'};
 }
