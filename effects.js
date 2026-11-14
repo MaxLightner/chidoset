@@ -5,7 +5,7 @@ export class EnvironmentEffects{
  setRealShadows(enabled){if(this.renderer?.shadowMap)this.renderer.shadowMap.enabled=!!enabled;}
  updateCameraLight(camera,focus){camera.getWorldPosition(this.cameraFill.position);camera.getWorldDirection(this.lightDirection);this.cameraFill.target.position.copy(this.cameraFill.position).add(this.lightDirection);this.cameraFill.target.updateMatrixWorld(true);if(focus)focus.getWorldPosition(this.rim.target.position);else this.rim.target.position.set(0,0,0);this.lightDirection.copy(this.cameraFill.position).sub(this.rim.target.position);this.lightDirection.y=0;if(this.lightDirection.lengthSq()<.001)this.lightDirection.set(0,0,1);else this.lightDirection.normalize();this.rim.position.copy(this.rim.target.position).addScaledVector(this.lightDirection,-4);this.rim.position.x+=2;this.rim.position.y+=3;this.rim.target.updateMatrixWorld(true);}
  dispose(){this.reset();this.environmentTexture?.dispose();this.environmentTexture=null;this.scene.environment=null;this.renderer=null;}
- async loadIBL(){try{const texture=await loadEnvironmentHDR();if(!this.renderer)return texture.dispose();this.environmentTexture?.dispose();this.environmentTexture=texture;this.scene.environment=texture;this.scene.environmentIntensity=this.scene.userData?.roomIblIntensity??.42;this.hemi.intensity=.65;this.sun.intensity=this.sunRoomDirection?4.8:1.6;}catch(error){console.warn('Chido IBL unavailable; using direct lights',error);}}
+ async loadIBL(){try{const texture=await loadEnvironmentHDR();if(!this.renderer)return texture.dispose();this.environmentTexture?.dispose();this.environmentTexture=texture;this.scene.environment=texture;this.scene.environmentIntensity=this.scene.userData?.roomIblIntensity??.42;this.hemi.intensity=.65;this.sun.intensity=this.sunRoomDirection?4.8*(this.roomDaylight??1):1.6;}catch(error){console.warn('Chido IBL unavailable; using direct lights',error);}}
  setRoomSun(plan,root){
   const first=plan?.elements?.find(e=>e.type?.startsWith('win_'));
   this.roomSunWindow=first?.id||null;
@@ -14,7 +14,7 @@ export class EnvironmentEffects{
   this.sunRoomDirection=outward?new THREE.Vector3(outward[0]*.82,1.35,outward[2]*.82).normalize():null;
   if(this.sunRoomDirection){
    this.sun.color.set(0xfff7e8);
-   this.sun.intensity=(this.environmentTexture?1.6:2.5)*3;
+   this.sun.intensity=(this.environmentTexture?1.6:2.5)*3*this.roomDaylight;
   }else this.sun.intensity=this.environmentTexture?1.6:2.5;
  }
  updateShadowAnchor(anchor){
@@ -25,7 +25,7 @@ export class EnvironmentEffects{
   }
   this.sun.target.position.copy(anchor);this.sun.position.copy(anchor).addScaledVector(this.shadowDirection,9);this.sun.target.updateMatrixWorld(true);
  }
- reset(){if(this.occlusionMesh){if(this.occlusionMesh.isObject3D)this.scene.remove(this.occlusionMesh);this.occlusionMesh.visible=false;this.occlusionMesh=null;}this.session=null;this.probe=null;this.lightState='ثابت';this.depthState='خاموش';this.lastLight=0;this.slowSince=null;this.depthDisabled=false;this.hemi.intensity=this.environmentTexture ? 0.65 : 2.2;this.sun.intensity=(this.environmentTexture ? 1.6 : 2.5)*(this.sunRoomDirection?3:1);this.sun.color.set(0xfff7e8);}
+ reset(){if(this.occlusionMesh){if(this.occlusionMesh.isObject3D)this.scene.remove(this.occlusionMesh);this.occlusionMesh.visible=false;this.occlusionMesh=null;}this.session=null;this.probe=null;this.lightState='ثابت';this.depthState='خاموش';this.lastLight=0;this.slowSince=null;this.depthDisabled=false;this.hemi.intensity=this.environmentTexture ? 0.65 : 2.2;this.sun.intensity=(this.environmentTexture ? 1.6 : 2.5)*(this.sunRoomDirection?3*(this.roomDaylight??1):1);this.sun.color.set(0xfff7e8);}
  async start(session,options){this.reset();this.session=session;this.options=options;if(options.depth)this.depthState=session.enabledFeatures?.includes('depth-sensing')?'در انتظار داده':'پشتیبانی نشد';
   if(options.light&&session.requestLightProbe){try{const probe=await session.requestLightProbe();if(this.session!==session)return;this.probe=probe;this.lightState='در انتظار نور';}catch{if(this.session===session)this.lightState='ثابت (fallback)';}}
  }
