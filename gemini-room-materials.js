@@ -259,10 +259,16 @@ export function geminiPlasterMaterial(color='#f4efe6'){
   plasterMaps=createPlasterTextures();
   for(const tex of Object.values(plasterMaps))tex.anisotropy=4;
  }
- return new THREE.MeshStandardMaterial({
+ const material=new THREE.MeshStandardMaterial({
   color:new THREE.Color(color),...plasterMaps,normalScale:new THREE.Vector2(.35,.35),
   roughness:.86,metalness:0,side:THREE.DoubleSide
  });
+ material.onBeforeCompile=shader=>{
+  shader.fragmentShader=shader.fragmentShader.replace('#include <opaque_fragment>',
+   'outgoingLight *= 1.0 - 0.022 * pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 2.0);\\n#include <opaque_fragment>');
+ };
+ material.customProgramCacheKey=()=> 'chido-plaster-subtle-dark-depth-v1';
+ return material;
 }
 let tvScreenCanvas=null,tvScreenCtx=null,tvScreenTexture=null,isTVOn=true;
 function drawTVFrame(channel, time) {
