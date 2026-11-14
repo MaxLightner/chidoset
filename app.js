@@ -463,7 +463,7 @@ function updateCloudControls(){
  if(open){open.hidden=!hasSet;open.textContent='چیدمان‌های رسمی';}
  if(color)color.hidden=!hasSet;
  if(share)share.hidden=false;
- const menuSave=$('#chidoMenuSave'),menuSaved=$('#chidoMenuSaved');
+ const menuSave=$('#chidoMenuSave'),menuSaved=null;
  if(menuSave)menuSave.hidden=!(manager&&hasSet);
  if(menuSaved)menuSaved.hidden=!hasSet;
 }
@@ -580,15 +580,23 @@ function showArSheet(mode){
  closeArSheet();$('#abCalibrationSheet').hidden=true;$('#arArchitectureActions').hidden=true;arSheetMode=mode;
  const body=$('#arSheetContent'),title=$('#arSheetTitle');body.innerHTML='';
  const selected=studio.selected;
- if(mode==='add'||mode==='replace'){
+ if(mode==='arrangements'){
+  title.textContent='چیدمان‌ها و رنگ‌بندی‌ها';
+  body.innerHTML='<div class="ar-category-tabs"><button type="button" data-layout-choice="layouts">تنوع چیدمان</button><button type="button" data-layout-choice="colors">رنگ‌بندی‌های آماده</button></div><p class="sheet-tip">چیدمان و رنگ‌بندی را از گزینه‌های ذخیره‌شده انتخاب کن.</p>';
+  body.querySelector('[data-layout-choice="layouts"]').onclick=()=>{closeArSheet();showArSheet(activeCloudSetId?'cloud-layouts':'saved');};
+  body.querySelector('[data-layout-choice="colors"]').onclick=()=>{closeArSheet();showArSheet('colorways');};
+ }else if(mode==='add'||mode==='replace'||mode==='accessories'){
   const replacing=mode==='replace';
-  title.textContent=replacing?'تعویض مدل با حفظ جایگاه':'انتخاب مدل برای نشانگر +';
+  title.textContent=replacing?'تعویض مدل با حفظ جایگاه':mode==='accessories'?'اکسسوری‌ها و فرش':'افزودن آیتم مبلمان';
   if(!replacing)studio.setPlacementEnabled(true);
   const activeSet=getActiveCloudSet(),allowedProducts=publishedCatalogIndexes();
   const categories=ASSET_CATEGORIES.map(c=>({...c,indexes:[...new Set([...c.indexes.filter(i=>!libraryHidden(i)&&(!getCloudProductInfo(i)?.metadata.category||getCloudProductInfo(i).metadata.category===c.id)),...cloudProductInfoList().filter(p=>(p.catalog_index<32||getCloudProduct(p.catalog_index))&&p.metadata.category===c.id).map(p=>p.catalog_index)])]}));
+  const furnitureIds=new Set(['seating','low-tables','dining','workspace','bedroom']);
   const groups=replacing&&selected?
    categories.map(c=>({...c,indexes:variantsFor(selected.userData.index).filter(i=>c.indexes.includes(i)&&(!allowedProducts||allowedProducts.has(i)))})).filter(c=>c.indexes.length):
-   categories.map(c=>({...c,indexes:c.indexes.filter(i=>i!==5&&(!allowedProducts||allowedProducts.has(i)))})).filter(c=>c.indexes.length);
+   mode==='accessories'
+    ?[{id:'accessories',label:'همه اکسسوری‌ها',indexes:[...new Set(categories.filter(c=>!furnitureIds.has(c.id)).flatMap(c=>c.indexes))].filter(i=>i!==5&&(!allowedProducts||allowedProducts.has(i)))}]
+    :categories.filter(c=>furnitureIds.has(c.id)).map(c=>({...c,indexes:c.indexes.filter(i=>i!==5&&(!allowedProducts||allowedProducts.has(i)))})).filter(c=>c.indexes.length);
   body.innerHTML=`<div class="ar-category-tabs">${groups.map((c,i)=>`<button data-category="${c.id}" class="${i===0?'selected':''}">${c.label}</button>`).join('')}</div>
    <div class="ar-object-grid" id="categoryObjects"></div>
    <small class="sheet-tip">${replacing?'جایگاه و رنگ مدل تا حد ممکن حفظ می‌شود.':'نشانگر + روی کف، محل مدل جدید را نشان می‌دهد؛ قبل از انتخاب مدل دوربین را به جای دلخواه بگیر.'}</small>
@@ -765,7 +773,7 @@ function showArSheet(mode){
   title.textContent='تنظیمات نور و ردیابی AR';
   const details=$('#arSettings');details.hidden=false;details.open=true;body.append(details);
   syncRoomLookControls();
-  const status=document.createElement('p');status.className='xr-status';status.textContent='عمق: '+(arReport?.depth||'نامشخص')+' · نور: '+(arReport?.light||'نامشخص');body.append(status);
+  $('#arSettingsFPS').textContent=String(arReport?.fps??'—')+' FPS';
  }
  $('#arToolSheet').hidden=false;
 }
@@ -871,8 +879,6 @@ $('#arSurfaceDelete').onclick=()=>{
  const s=studio?.architecture?.selectedSurface();if(!s)return;
  if(studio.architecture.deleteSelected()){closeArSheet();toast('سطح انتخاب‌شده حذف شد.');}
 };
-$('#arArchitectureTool').onclick=()=>showArSheet('architecture');
-$('#arRoomTool').onclick=()=>openRoomPlanner();
 $('#arArchitectureConfirm').onclick=()=>{if(!studio?.architecture.confirmWall()){toast('دو نقطه معتبر برای دیوار مشخص کن.');return;}toast('دیوار ثبت شد؛ برای ادامه نقطه بعدی را انتخاب کن.');};
 $('#arArchitectureCancel').onclick=()=>{studio?.architecture.cancelPlacement();$('#arArchitectureActions').hidden=true;toast('ترسیم دیوار لغو شد.');};
 $('#arArchitectureFinish').onclick=()=>{if(!studio?.architecture.finish()){toast('برای ساخت کف، سه رأس معتبر و بدون تقاطع لازم است.');return;}$('#arArchitectureActions').hidden=true;toast('ابزار معماری بسته شد.');};
@@ -898,7 +904,8 @@ function updateLampPowerControl(){
 }
 $('#quickPower').onclick=()=>{if(!studio?.selected||!isLamp(studio.selected.userData.index))return;const on=!studio.selected.userData.lampOn;if(studio.setLampOn(on))updateLampPowerControl();};
 $('#quickDelete').onclick=()=>{studio?.remove();};
-$('#arListTool').onclick=()=>showArSheet('objects');
+$('#arListTool').onclick=()=>showArSheet('arrangements');
+$('#arAccessoryTool').onclick=()=>showArSheet('accessories');
 $('#arBottomSave').onclick=()=>{if(cloudMembership?.role!=='company_admin'||!activeCloudSetId){toast('ذخیره رسمی فقط برای مدیر شرکت و داخل یک ست فعال است.');return;}showArSheet('save');};
 $('#arBottomOpen').onclick=()=>showArSheet(activeCloudSetId?'cloud-layouts':'saved');
 $('#arColorwayTool').onclick=()=>showArSheet('colorways');
@@ -943,6 +950,7 @@ function handleARReport(report){
  $('#objectQuick').hidden=!report.placed||!studio?.selected;
 
  const scanInfo=(!report.placed&&report.scanDrop!==null)?` · raw ${report.scanHits} · valid ${report.validHits} · cluster ${report.inlierHits} · vertical ${report.scanDrop.toFixed(2)}m · ray ${report.scanDistance.toFixed(2)}m`:'';
+ $('#arSettingsFPS').textContent=String(report.fps??'—')+' FPS';
  $('#diagnostics').textContent=`${report.objects} objects · visible ${report.visible} · ${report.fps} FPS · tracking ${report.tracking?'OK':'LOST'} · hit ${report.placed?'LOCKED':report.hit?'READY':'SEARCH'} · placed ${report.placed?'YES':'NO'} · anchor ${report.anchor} · light ${report.light} · depth ${report.depth}${scanInfo}`;
  $('#confirmFloor').hidden=report.placed;$('#confirmFloor').disabled=!report.hit||!report.tracking;
  $('#confirmFloor').textContent=report.hit?'تثبیت کف و ورود به چیدمان':'در حال شناسایی کف…';
@@ -961,7 +969,7 @@ function handleARReport(report){
  if(!report.placed){closeArSheet();$('#measureHint').hidden=true;}
  updateMeasurements();
 }
-async function startAR(basic=false,incomingSession=null){if(!studio||studio.session||arStarting)return;closeRoomPlanner();$('#overlay').classList.remove('room-design-offline','floor-ready');arStarting=true;liveSharingPaused=false;liveRetryAt=0;calibrationPrompted=false;const launchingStudio=studio;const button=$('#startAR');button.disabled=true;$('#arError').close();try{$('#overlay').hidden=false;$('#roomPlaceActions').hidden=true;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=false;$('#scanProgress').value=12;$('#scanStage').textContent='راه‌اندازی AR…';$('#scanPercent').textContent='۱۲٪';closeArSheet();$('#arSettings').hidden=true;$('#arStatus').textContent='در حال شناسایی کف…';resetWideViewControls();const result=await launchingStudio.startAR(message=>$('#arStatus').textContent=message,handleARReport,basic,{light:!basic&&$('#lightEnabled').checked,depth:!basic&&$('#depthEnabled').checked},incomingSession);if(studio!==launchingStudio||!launchingStudio.session)return;if(!result.hasOverlay){await endXRSession(launchingStudio.session);throw Object.assign(new Error('دستگاه DOM Overlay را فعال نکرده است؛ کنترل اسکن و تثبیت کف بدون آن قابل نمایش نیست.'),{name:'NotSupportedError',xrStage:'overlay'});}$('#overlay').hidden=false;$('#launchProgress').value=3;$('#launchStage').textContent='نشست AR آماده شد؛ کف را اسکن کن.';studio.setDebugVisible(debugEnabled);updateObjects();}catch(error){if(studio!==launchingStudio)return;$('#overlay').hidden=true;$('#arDock').hidden=true;button.hidden=false;$('#launchStage').textContent='ورود به AR ناموفق بود؛ جزئیات را بررسی کن.';const failure=explainXR(error);lastXRErrorReport=JSON.stringify({version:'0.4.1',mode:basic?'basic':'full',stage:failure.stage,name:failure.name,message:failure.detail,secureContext:isSecureContext,webXR:!!navigator.xr,supportCheck:supported,userAgent:navigator.userAgent},null,2);$('#arErrorMessage').textContent=failure.message;$('#arErrorDetails').textContent=lastXRErrorReport;$('#arError').showModal();console.error(error);}finally{arStarting=false;button.disabled=false;}}
+async function startAR(basic=false,incomingSession=null){if(!studio||studio.session||arStarting)return;closeRoomPlanner();$('#overlay').classList.remove('room-design-offline','floor-ready');arStarting=true;liveSharingPaused=false;liveRetryAt=0;calibrationPrompted=false;const launchingStudio=studio;const button=$('#startAR');button.disabled=true;$('#arError').close();try{$('#overlay').hidden=false;$('#roomPlaceActions').hidden=true;$('#confirmFloor').hidden=false;$('#confirmFloor').disabled=true;$('#arEditControls').hidden=true;$('#arDock').hidden=true;$('#objectQuick').hidden=true;$('#scanReadiness').hidden=false;$('#scanProgress').value=12;$('#scanStage').textContent='راه‌اندازی AR…';$('#scanPercent').textContent='۱۲٪';closeArSheet();$('#arSettings').hidden=true;$('#arStatus').textContent='در حال شناسایی کف…';resetWideViewControls();const result=await launchingStudio.startAR(message=>$('#arStatus').textContent=message,handleARReport,basic,{light:false,depth:false},incomingSession);if(studio!==launchingStudio||!launchingStudio.session)return;if(!result.hasOverlay){await endXRSession(launchingStudio.session);throw Object.assign(new Error('دستگاه DOM Overlay را فعال نکرده است؛ کنترل اسکن و تثبیت کف بدون آن قابل نمایش نیست.'),{name:'NotSupportedError',xrStage:'overlay'});}$('#overlay').hidden=false;$('#launchProgress').value=3;$('#launchStage').textContent='نشست AR آماده شد؛ کف را اسکن کن.';studio.setDebugVisible(debugEnabled);updateObjects();}catch(error){if(studio!==launchingStudio)return;$('#overlay').hidden=true;$('#arDock').hidden=true;button.hidden=false;$('#launchStage').textContent='ورود به AR ناموفق بود؛ جزئیات را بررسی کن.';const failure=explainXR(error);lastXRErrorReport=JSON.stringify({version:'0.4.1',mode:basic?'basic':'full',stage:failure.stage,name:failure.name,message:failure.detail,secureContext:isSecureContext,webXR:!!navigator.xr,supportCheck:supported,userAgent:navigator.userAgent},null,2);$('#arErrorMessage').textContent=failure.message;$('#arErrorDetails').textContent=lastXRErrorReport;$('#arError').showModal();console.error(error);}finally{arStarting=false;button.disabled=false;}}
 function openRoomPlanner(){
  if(!studio)return;
  closeArTVControls();
@@ -1119,7 +1127,7 @@ function syncRoomLookControls(){
 }
 for(const [id,key] of [['roomDaylightIntensity','daylight'],['roomIblIntensity','ibl'],['roomPlasterDetail','plasterDetail']]){
  $('#'+id).oninput=e=>{
-  if(studio?.setRoomLookSettings({[key]:Number(e.target.value)}))syncRoomLookControls();
+  if(studio?.updateRoomLookSettings({[key]:Number(e.target.value)})){syncRoomLookControls();scheduleDraftSave();}
  };
 }
 $('#autoRenderQuality').onchange=()=>{
@@ -1294,8 +1302,6 @@ function toggleChidoMenu(){
 $('#overlay').addEventListener('beforexrselect',event=>event.preventDefault());
 $('#homeAR').onclick=toggleChidoMenu;
 $('#chidoMenuContinue').onclick=closeChidoMenu;
-$('#chidoMenuDesign').onclick=()=>{closeChidoMenu();openRoomPlanner();};
-$('#chidoMenuSaved').onclick=()=>{closeChidoMenu();if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}showArSheet(activeCloudSetId?'cloud-layouts':'saved');};
 $('#chidoMenuSave').onclick=()=>{closeChidoMenu();if(cloudMembership?.role!=='company_admin'||!activeCloudSetId){toast('ذخیره رسمی فقط برای مدیر شرکت و داخل یک ست فعال است.');return;}if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}showArSheet('save');};
 $('#chidoMenuBlank').onclick=()=>{
  if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}
