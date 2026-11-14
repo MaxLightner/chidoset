@@ -9,6 +9,7 @@ export class EnvironmentEffects{
  setRoomSun(plan,root){
   const first=plan?.elements?.find(e=>e.type?.startsWith('win_'));
   this.roomSunWindow=first?.id||null;
+  this.roomDaylight=plan?.roomLook?.daylight??1;
   this.sunRoomRoot=root||null;
   const outward={north:[0,0,-1],south:[0,0,1],west:[-1,0,0],east:[1,0,0]}[first?.wall];
   this.sunRoomDirection=outward?new THREE.Vector3(outward[0]*.82,1.35,outward[2]*.82).normalize():null;
