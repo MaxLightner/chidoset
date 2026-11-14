@@ -1347,7 +1347,6 @@ $('#homeAR').onclick=toggleChidoMenu;
 $('#chidoMenuContinue').onclick=closeChidoMenu;
 $('#chidoMenuDesign').onclick=()=>{closeChidoMenu();openRoomPlanner();};
 $('#openPlanAR').onclick=()=>openRoomPlanner();
-$('#chidoMenuShare').onclick=()=>{closeChidoMenu();void beginLiveShare();};
 $('#chidoMenuSave').onclick=()=>{closeChidoMenu();if(cloudMembership?.role!=='company_admin'||!activeCloudSetId){toast('ذخیره رسمی فقط برای مدیر شرکت و داخل یک ست فعال است.');return;}if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}showArSheet('save');};
 $('#chidoMenuBlank').onclick=()=>{
  if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}
