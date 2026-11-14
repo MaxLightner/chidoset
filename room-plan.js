@@ -1,3 +1,4 @@
+import {validPolygon} from './architecture-geometry.js?v=0.9.0';
 // Chido room planner: metric model shared by 2D editing and the existing AR scene.
 // Local X/Z coordinates; no independent renderer or camera is created here.
 export const ROOM_SPECS=Object.freeze({
@@ -63,11 +64,16 @@ export function normalizeRoomPlan(raw){
   plan.elements.push(el);
  }
  const goodPoint=p=>p&&Number.isFinite(Number(p.x))&&Number.isFinite(Number(p.z))&&Math.abs(Number(p.x))<=w/2+.01&&Math.abs(Number(p.z))<=d/2+.01;
- if(Array.isArray(raw.floorPolygon)&&raw.floorPolygon.length>=3&&raw.floorPolygon.length<=40&&raw.floorPolygon.every(goodPoint)){
-  plan.floorPolygon=raw.floorPolygon.map(p=>({x:cm(p.x),z:cm(p.z)}));
+ if(raw.floorPolygon!==undefined){
+  if(!Array.isArray(raw.floorPolygon)||raw.floorPolygon.length<3||raw.floorPolygon.length>40||!raw.floorPolygon.every(goodPoint))return null;
+  const points=raw.floorPolygon.map(p=>({x:cm(p.x),z:cm(p.z)}));
+  if(!validPolygon(points))return null;
+  plan.floorPolygon=points;
  }
- if(Array.isArray(raw.wallSegments)&&raw.wallSegments.length<=40){
-  plan.wallSegments=raw.wallSegments.filter(v=>v&&goodPoint({x:v.x1,z:v.z1})&&goodPoint({x:v.x2,z:v.z2})&&Math.hypot(v.x2-v.x1,v.z2-v.z1)>.1).map((v,i)=>({id:'free-wall-'+i,x1:cm(v.x1),z1:cm(v.z1),x2:cm(v.x2),z2:cm(v.z2)}));
+ if(raw.wallSegments!==undefined){
+  if(!Array.isArray(raw.wallSegments)||raw.wallSegments.length>40||
+   raw.wallSegments.some(v=>!v||!goodPoint({x:v.x1,z:v.z1})||!goodPoint({x:v.x2,z:v.z2})||Math.hypot(v.x2-v.x1,v.z2-v.z1)<=.1))return null;
+  plan.wallSegments=raw.wallSegments.map((v,i)=>({id:'free-wall-'+i,x1:cm(v.x1),z1:cm(v.z1),x2:cm(v.x2),z2:cm(v.z2)}));
  }
  return plan;
 }
