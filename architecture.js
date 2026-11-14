@@ -194,7 +194,7 @@ export class ArchitectureLayer {
   const glass=new THREE.Mesh(new THREE.PlaneGeometry(width-thick*2,height-thick*2),glassMat);
   glass.position.y=sill+height/2;group.add(glass);
   const curtainMat=new THREE.MeshStandardMaterial({color:0xf7f3eb,roughness:.92,
-   transparent:true,opacity:.39,side:THREE.DoubleSide});
+   transparent:true,opacity:.82,depthWrite:true,side:THREE.DoubleSide});
   const curtainW=Math.min(.42,width*.25),curtainH=2.92;
   const curtainGeo=new THREE.PlaneGeometry(curtainW,curtainH,10,4);
   const pos=curtainGeo.attributes.position;
@@ -394,6 +394,24 @@ export class ArchitectureLayer {
      this.makeBox(container,w,left+.045,right-.045,o.sill+.045,o.sill+o.height-.045,.018,glass,o.id);
      glass.dispose();
     }
+    if(o.kind==='hallway'){
+     // A full-height 1.3m clear wall opening; two short perpendicular returns
+     // communicate a corridor without a back wall or added artificial light.
+     const ux=(w.x2-w.x1)/len,uz=(w.z2-w.z1)/len;
+     const cx=w.x1+ux*o.along,cz=w.z1+uz*o.along;
+     const normal={north:[0,-1],south:[0,1],west:[-1,0],east:[1,0]}[o.wall]||[0,1];
+     const passageDepth=1.55;
+     for(const side of [-1,1]){
+      const returnWall=new THREE.Mesh(new THREE.BoxGeometry(.14,w.height,passageDepth),wallMat.clone());
+      returnWall.position.set(cx+side*ux*(o.width/2+.07)+normal[0]*(passageDepth/2+.08),w.height/2,cz+side*uz*(o.width/2+.07)+normal[1]*(passageDepth/2+.08));
+      returnWall.rotation.y=Math.atan2(normal[0],normal[1]);
+      returnWall.castShadow=true;returnWall.receiveShadow=true;container.add(returnWall);
+     }
+     const floor=new THREE.Mesh(new THREE.BoxGeometry(o.width+.18,.08,passageDepth),finishMaterial(this.data.floorMaterial));
+     floor.position.set(cx+normal[0]*(passageDepth/2+.06),-.04,cz+normal[1]*(passageDepth/2+.06));
+     floor.rotation.y=Math.atan2(normal[0],normal[1]);
+     floor.receiveShadow=true;container.add(floor);
+    }
     if(o.kind==='kitchen'&&this.data.designedRoom)this.makeGeminiKitchen(container,w,o);
     else if(o.kind==='door'||o.kind==='kitchen'){
      const len=wallLength(w),ux=(w.x2-w.x1)/len,uz=(w.z2-w.z1)/len;
@@ -428,7 +446,7 @@ export class ArchitectureLayer {
       base.dispose();top.dispose();
      }
     }
-    if(!this.data.designedRoom||!['window','kitchen'].includes(o.kind)){
+    if(o.kind!=='hallway'&&(!this.data.designedRoom||!['window','kitchen'].includes(o.kind))){
      const edge=Math.min(.05,o.width/8,o.height/8),t=w.thickness+.02;
      this.makeBox(container,w,left,left+edge,o.sill,o.sill+o.height,t,frameMat,o.id);
      this.makeBox(container,w,right-edge,right,o.sill,o.sill+o.height,t,frameMat,o.id);
