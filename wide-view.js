@@ -45,7 +45,7 @@ export class WideViewRenderer{
  constructor(scene,overlay){
   if(!overlay)throw Error('Wide View requires an active DOM overlay');
   this.scene=scene;this.overlay=overlay;
-  this.camera=new THREE.PerspectiveCamera(60,1,.03,40);
+  this.camera=new THREE.PerspectiveCamera(60,1,.03,40);this.camera.layers.enable(3);
   this.renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
   // Match Gemini's color pipeline and physically based soft shadows in the
   // virtual tracked view. This renderer never replaces the XR pose source.
