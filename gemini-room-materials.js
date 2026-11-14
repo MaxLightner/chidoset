@@ -265,7 +265,7 @@ export function geminiPlasterMaterial(color='#f4efe6'){
  });
  material.onBeforeCompile=shader=>{
   shader.fragmentShader=shader.fragmentShader.replace('#include <opaque_fragment>',
-   'outgoingLight *= 1.0 - 0.022 * pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 2.0);\\n#include <opaque_fragment>');
+   'outgoingLight *= 1.0 - 0.022 * pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 2.0);\n#include <opaque_fragment>');
  };
  material.customProgramCacheKey=()=> 'chido-plaster-subtle-dark-depth-v1';
  return material;
