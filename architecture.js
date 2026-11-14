@@ -353,9 +353,8 @@ export class ArchitectureLayer {
    const width=Math.abs(floor[1].x-floor[0].x),depth=Math.abs(floor[2].z-floor[1].z),height=3.0;
    const plaster=finishMaterial(this.data.wallMaterial);
    const roof=new THREE.Mesh(new THREE.BoxGeometry(width+.6,.12,depth+.6),plaster.clone());
-   // The visual ceiling remains, but must not blanket the furniture with a full-room sun shadow.
-   // Exterior walls/window frames retain castShadow, allowing daylight from the first window to illuminate sofas.
-   roof.position.y=height+.06;roof.castShadow=false;roof.receiveShadow=true;this.group.add(roof);
+   // Full ceiling geometry casts real shadows. Sofa lighting is handled separately.
+   roof.position.y=height+.06;roof.castShadow=true;roof.receiveShadow=true;this.group.add(roof);
    // Daytime room: cove is subtle trim, not a nighttime emissive light.
    const cove=new THREE.MeshStandardMaterial({color:0xf8f5ef,emissive:0xffffff,emissiveIntensity:.015,roughness:.93,metalness:0});
    for(const [x,z,w,d] of [[0,-depth/2,width-.15,.045],[0,depth/2,width-.15,.045],[-width/2,0,.045,depth-.15],[width/2,0,.045,depth-.15]]){
