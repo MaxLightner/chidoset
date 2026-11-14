@@ -473,3 +473,37 @@
 @media(max-width:500px){#overlay .ar-minimap.expanded .room-design-toolbar .room-design-row-architecture{
  grid-template-columns:repeat(2,minmax(110px,1fr))!important
 }}
+
+/* Expand the old fixed 3-row toolbar; otherwise illustrated buttons are clipped. */
+#overlay .ar-minimap.expanded .room-design-toolbar,
+#overlay.floor-ready .ar-minimap.expanded .room-design-toolbar,
+#overlay[data-ui-orientation].floor-ready .ar-minimap.expanded .room-design-toolbar{
+ display:grid!important;
+ grid-template-columns:minmax(0,1fr)!important;
+ grid-template-rows:40px 36px 40px auto!important;
+ height:auto!important;min-height:0!important;max-height:49dvh!important;
+ flex:0 1 auto!important;overflow-x:hidden!important;overflow-y:auto!important;
+ row-gap:5px!important;padding:5px!important;overscroll-behavior:contain!important;
+}
+#overlay .ar-minimap.expanded .room-design-toolbar .room-design-row-main,
+#overlay .ar-minimap.expanded .room-design-toolbar .room-design-row-mode,
+#overlay .ar-minimap.expanded .room-design-toolbar .room-design-row-actions{
+ height:40px!important;min-height:36px!important;max-height:40px!important;
+}
+#overlay .ar-minimap.expanded .room-design-toolbar .room-design-row-architecture{
+ height:auto!important;min-height:105px!important;max-height:none!important;
+ overflow:visible!important;align-content:start!important
+}
+#overlay .ar-minimap.expanded .room-design-toolbar .room-design-row-architecture button,
+#overlay.floor-ready .ar-minimap.expanded .room-design-toolbar .room-design-row-architecture button{
+ height:100px!important;min-height:100px!important;max-height:none!important;
+ display:flex!important;flex-direction:column!important;align-items:center!important;
+ white-space:normal!important;overflow:visible!important;
+}
+@media(max-width:650px){
+ #overlay .ar-minimap.expanded .room-design-toolbar,
+ #overlay.floor-ready .ar-minimap.expanded .room-design-toolbar,
+ #overlay[data-ui-orientation].floor-ready .ar-minimap.expanded .room-design-toolbar{
+  grid-template-rows:38px 36px 38px auto!important;max-height:46dvh!important;
+ }
+}
