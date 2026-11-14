@@ -256,7 +256,11 @@ export class LiveMiniMap{
   const s=this.getStudio();if(s?.selected)s.rotate((s.selected.rotation.y*180/Math.PI)+delta);
  }
  start(e){
-  if(!this.expanded){this.setExpanded(true);return;}
+  if(!this.expanded){
+   e.preventDefault();e.stopPropagation();
+   if(this.options.onOpen)this.options.onOpen();else this.setExpanded(true);
+   return;
+  }
   e.preventDefault();e.stopPropagation();
   this.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   try{this.svg.setPointerCapture(e.pointerId);}catch{}
