@@ -19,8 +19,6 @@ if (['chidoset.ir', 'www.chidoset.ir'].includes(location.hostname) && location.p
   <div class="chido-menu-head"><strong>CHIDO</strong><span>منوی چیدو</span></div>
   <p>برای ادامه چیدمان، بدون خروج از دوربین به ابزارها برگرد.</p>
   <button type="button" id="chidoMenuContinue" class="primary">ادامه چیدمان در AR</button>
-  <button type="button" id="chidoMenuDesign">▣ طراحی اتاق و نقشه دوبعدی</button>
-   <button type="button" id="chidoMenuSaved">چیدمان‌های رسمی</button>
   <button type="button" id="chidoMenuSave">ذخیره رسمی چیدمان</button>
   <button type="button" id="chidoMenuBlank">＋ ایجاد صحنه خالی</button>
   <button type="button" id="chidoMenuHome" class="chido-explicit-exit">خروج از AR و صفحه اصلی</button>
@@ -83,14 +81,12 @@ if (['chidoset.ir', 'www.chidoset.ir'].includes(location.hostname) && location.p
   </section>
 </section>
  <nav id="arDock" class="ar-dock" hidden aria-label="ابزارهای چیدمان واقعیت افزوده">
-  <button id="arAddTool" aria-label="افزودن مدل">＋ <span>افزودن</span></button>
-  <button id="arListTool" aria-label="فهرست اشیا">▤ <span>اشیا</span></button>
-  
-  <button id="arRulerTool" aria-pressed="false" aria-label="نمایش خط‌کش مستقل">⌗ <span>خط‌کش</span></button>
-  <button id="arArchitectureTool" aria-label="کف، دیوار و پنجره">▱ <span>فضا</span></button>
-   <button id="arRoomTool" aria-label="طراحی اتاق و نقشه دوبعدی">▣ <span>پلان</span></button>
+  <button id="arAddTool" aria-label="افزودن آیتم مبلمان">＋ <span>افزودن آیتم</span></button>
+  <button id="arListTool" aria-label="چیدمان‌ها و رنگ‌بندی‌های آماده">▤ <span>چیدمان‌ها</span></button>
+  <button id="arAccessoryTool" aria-label="افزودن اکسسوری">♧ <span>اکسسوری</span></button>
+  <button id="arRulerTool" aria-pressed="false" aria-label="خط‌کش">▱ <span>خط‌کش</span></button>
   <button id="arCalibrationTool" aria-label="مرجع و مقیاس A/B">A—B <span>مقیاس</span></button>
-  <button id="arSettingsTool" aria-label="تنظیمات و خط جهت">⚙ <span>تنظیمات</span></button>
+  <button id="arSettingsTool" aria-label="تنظیمات">⚙ <span>تنظیمات</span></button>
   <button id="arPhotoTool" aria-label="عکس">◎ <span>عکس</span></button>
  </nav>
  <div id="roomArControls" class="room-ar-controls" hidden aria-label="ابزارهای اتاق در AR">
@@ -115,10 +111,15 @@ if (['chidoset.ir', 'www.chidoset.ir'].includes(location.hostname) && location.p
     <div class="map-title"><strong>طراحی اتاق · چیدو</strong><button type="button" data-plan-templates title="فهرست تمپلیت‌های چیدمان">▤ تمپلیت‌ها</button><button type="button" data-map-expand aria-label="بازکردن نقشه دوبعدی">▣</button></div>
      <div class="room-design-toolbar" role="toolbar" aria-label="ابزار طراحی اتاق">
       <div class="room-design-row room-design-row-main">
-       <label title="طول اتاق به متر"><span>طول اتاق</span><input data-room-width type="number" min="3.5" max="14" step="0.1" value="6.8" inputmode="decimal"><span>متر</span></label>
-       <label title="عرض اتاق به متر"><span>عرض اتاق</span><input data-room-depth type="number" min="3.5" max="14" step="0.1" value="5.8" inputmode="decimal"><span>متر</span></label>
-       <button type="button" data-plan-create title="اعمال ابعاد اتاق">ثبت ابعاد</button>
+       <label title="طول اتاق به متر"><span>طول اتاق</span><input data-room-width type="text" inputmode="none" readonly min="3.5" max="14" step="0.1" value="6.8"><span>متر</span></label>
+       <label title="عرض اتاق به متر"><span>عرض اتاق</span><input data-room-depth type="text" inputmode="none" readonly min="3.5" max="14" step="0.1" value="5.8"><span>متر</span></label>
+       <button type="button" data-plan-create class="primary" title="اعمال ابعاد اتاق">ثبت ابعاد</button>
        <button type="button" data-plan-fit title="نمایش کل نقشه">⊡</button>
+      </div>
+      <div class="room-design-row room-design-row-mode" role="group" aria-label="حالت ساخت محیط">
+       <button type="button" data-room-mode="room" class="active">اتاق کامل</button>
+       <button type="button" data-room-mode="floor">فقط کف</button>
+       <button type="button" data-room-mode="walls">فقط دیوار</button>
       </div>
       <div class="room-design-row room-design-row-actions">
        <select data-plan-model aria-label="مدل مبلمان برای افزودن"><option value="0">مبل سه‌نفره</option></select>
@@ -126,7 +127,7 @@ if (['chidoset.ir', 'www.chidoset.ir'].includes(location.hostname) && location.p
        <button type="button" data-plan-delete title="حذف یا بازگرداندن انتخاب">× حذف</button>
        <button type="button" data-plan-floor title="رنگ و متریال کف">کف</button>
        <button type="button" data-plan-wall title="رنگ و متریال دیوار">دیوار</button>
-       <button type="button" data-plan-3d class="plan-to-3d" title="اسکن کف و ورود به محیط سه‌بعدی">◈ سه‌بعدی</button>
+       <button type="button" data-plan-3d class="plan-to-3d" title="بازگشت به AR با جانمایی قبلی">◈ سه‌بعدی / AR</button>
       </div>
       <div class="room-design-row room-design-row-architecture" aria-label="در و پنجره و اجزای دیوار">
        <button type="button" data-plan-tool="select" class="active" title="انتخاب و جابه‌جایی">انتخاب</button>
@@ -142,6 +143,7 @@ if (['chidoset.ir', 'www.chidoset.ir'].includes(location.hostname) && location.p
       <button type="button" hidden data-plan-zoom-in>زوم +</button>
       <button type="button" hidden data-plan-zoom-out>زوم −</button>
      </div>
+     <div id="roomNumberPad" class="room-number-pad" hidden aria-label="کیپد اندازه‌های پلان"><strong>عدد جدید (متر)</strong><div class="room-number-preview"></div><div class="room-number-buttons"><button type="button" data-room-num="1">1</button><button type="button" data-room-num="2">2</button><button type="button" data-room-num="3">3</button><button type="button" data-room-num="4">4</button><button type="button" data-room-num="5">5</button><button type="button" data-room-num="6">6</button><button type="button" data-room-num="7">7</button><button type="button" data-room-num="8">8</button><button type="button" data-room-num="9">9</button><button type="button" data-room-num="⌫">⌫</button><button type="button" data-room-num="0">0</button><button type="button" data-room-num=".">.</button><button type="button" data-room-num="پاک">پاک</button><button type="button" data-room-num="ثبت">ثبت</button></div></div>
      <section id="roomTemplatesPanel" class="room-templates-panel" hidden aria-label="تمپلیت‌های چیدمان">
       <div class="template-panel-heading"><strong>تمپلیت‌های چیدمان من</strong><button data-close-templates type="button" aria-label="بستن تمپلیت‌ها">×</button></div>
       <p>هنوز تمپلیتی ذخیره نشده است.</p>
@@ -176,12 +178,11 @@ if (['chidoset.ir', 'www.chidoset.ir'].includes(location.hostname) && location.p
    <span id="arArchitectureHint">ابزار معماری</span><button id="arArchitectureUndo">بازگشت یک نقطه</button><button id="arArchitectureCancel" hidden>لغو</button><button class="primary" id="arArchitectureConfirm" hidden>تأیید دیوار</button><button class="primary" id="arArchitectureFinish">اتمام</button>
  </div>
   <div id="arSettingsBin" hidden></div><div id="measureHint" hidden role="status"><span id="measureReadout">نقطه اول را روی کف لمس کن</span> <button id="measureClear">پاک کردن</button></div><div class="ar-bottom compact"><div id="arBottomActions" class="ar-bottom-actions" hidden><button id="arBottomSave">▣ ذخیره رسمی</button><button id="arBottomOpen">▤ چیدمان‌های رسمی</button><button id="arColorwayTool">رنگ‌بندی</button><button id="arShareSession">نمایش زنده ↗</button></div><button id="confirmFloor" class="primary" disabled>تثبیت این کف</button><div id="arEditControls" hidden><div id="arSelection"></div><div class="tools"><div id="selectedARTools"><button id="rotateAR">↻ ۴۵°</button><button id="colorAR">رنگ</button><button id="deleteAR">حذف</button></div><select id="arProduct" aria-label="نوع قطعه AR"><option value="0">کاناپه ۲۱۰</option><option value="1">تک‌نفره ۹۰</option><option value="2">میز ۱۱۰</option></select><button id="addAR">افزودن +</button></div></div><details id="arSettings" hidden><summary>تنظیمات AR</summary>
- <label class="xr-option"><input id="lightEnabled" type="checkbox" checked> نور محیط (در صورت پشتیبانی)</label>
- <label class="xr-option"><input id="depthEnabled" type="checkbox" checked> اکلوژن عمق واقعی (در صورت پشتیبانی)</label>
- <label class="xr-option"><input id="autoRenderQuality" type="checkbox" checked> کاهش تدریجی افکت‌های سنگین زیر ۲۰ FPS</label>
- <small id="renderQualityStatus" role="status">کیفیت کامل · نورپردازی یکسان</small>
+ <div id="arSettingsFPS" class="ar-settings-fps" role="status">— FPS</div>
+ <label class="xr-option"><input id="autoRenderQuality" type="checkbox" checked> سبک‌سازی خودکار در دستگاه ضعیف</label>
+ <small id="renderQualityStatus" role="status">کیفیت خودکار</small>
  <div id="roomLookSettings" class="room-look-settings" hidden>
-  <strong>تنظیمات واقعی نور و متریال اتاق</strong>
+  <strong>نور و متریال اتاق</strong>
   <label>شدت نور روز <output id="roomDaylightValue">۱٫۰۰×</output>
    <input type="range" id="roomDaylightIntensity" min=".45" max="2.1" step=".05" value="1"></label>
   <label>شدت بازتاب HDRI <output id="roomIblValue">۰٫۴۲</output>
