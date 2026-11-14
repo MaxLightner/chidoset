@@ -973,8 +973,7 @@ function showDesignedRoom3D(){
   $('#roomPlaceActions').hidden=false;
   toast('کف آماده است؛ اکنون «قرار دادن اتاق» را بزن.');
  }else{
-  const result=studio.setWideView('normal',{natural:true});
-  if(result.ok){$('#wideViewMode').value='normal';showWideProjection({horizontal:result.hfov,requestedHorizontal:result.requestedHfov,limited:result.limited});}
+  studio.setWideView('ar');resetWideViewControls();
   updateRoomArControls();
   toast('اتاق با جانمایی قبلی نمایش داده شد؛ نیازی به جانمایی دوباره نیست.');
  }
@@ -990,13 +989,9 @@ $('#placeDesignedRoom').onclick=()=>{
  if(!studio?.placeDesignedRoom()){toast('برای قرار دادن اتاق ابتدا کف را تثبیت کن.');return;}
  $('#roomPlaceActions').hidden=true;
  $('#abCalibrationSheet').hidden=true;
- const result=studio.setWideView('normal',{natural:true});
- if(result.ok){
-  $('#wideViewMode').value='normal';
-  showWideProjection({horizontal:result.hfov,requestedHorizontal:result.requestedHfov,limited:result.limited});
-  updateRoomArControls();
-  toast('اتاق در AR قرار گرفت؛ ردیابی موقعیت و چرخش گوشی فعال است.');
- }else toast('اتاق در AR قرار گرفت؛ پوشش تمام‌صفحه در این دستگاه در دسترس نیست: '+result.reason);
+ studio.setWideView('ar');resetWideViewControls();
+ updateRoomArControls();
+ toast('اتاق در همان نمای عادی AR قرار گرفت.');
 };
 $('#editDesignedRoom').onclick=()=>openRoomPlanner();
 function showRoomTVPicker(){
