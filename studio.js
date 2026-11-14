@@ -32,7 +32,7 @@ export class Studio{
  constructor(host,changed){
   Object.assign(this,{host,changed,items:[],serial:0,selected:null,session:null,photoMode:false,tracking:true,anchor:null,anchorGeneration:0,anchorPending:false,anchorState:'بدون Anchor',lastStatus:'',lastReport:0,frames:0,fps:0,points:new Map(),gesture:null,needsAnchor:false,wideMode:'ar',wideView:null});
   this.roomPlan=null;this.roomVisible=true;this.roomCalibrationGuides=false;this.roomPendingPlacement=false;this.roomGeometryTimer=null;this.roomGeometryDirty=false;this.model=new SpatialState();this.scanner=new FloorScanner();this.anchorRig=new AnchorStabilizer();this.anchorNodes=[];this.anchorCandidates=[];this.anchorActive=false;this.anchorLastTime=0;this.extraHitSources=[];this.scanHits=0;this.scanDrop=null;this.scanDistance=null;this.revealStart=null;this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#eeeee3');this.debugView=new ARDebugView(this.scene);this.debugView.setVisible(false);
-  this.camera=new THREE.PerspectiveCamera(48,1,.03,40);this.camera.position.set(5.2,4.4,6);this.camera.lookAt(.6,0,-.5);
+  this.camera=new THREE.PerspectiveCamera(48,1,.03,40);this.camera.layers.enable(3);this.camera.position.set(5.2,4.4,6);this.camera.lookAt(.6,0,-.5);
   this.renderPolicy=rendererPolicy({coarse:!!globalThis.matchMedia?.('(pointer:coarse)').matches,pixelRatio:globalThis.devicePixelRatio||1});
   this.renderer=new THREE.WebGLRenderer({antialias:this.renderPolicy.antialias,alpha:true,preserveDrawingBuffer:this.renderPolicy.preserveDrawingBuffer});this.renderer.setPixelRatio(this.renderPolicy.pixelRatio);
   // Same Reinhard exposure as the Gemini virtual Wide View; do not substitute
