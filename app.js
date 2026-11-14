@@ -166,7 +166,35 @@ function bindCalibration(prefix=''){
   toast('مقیاس '+factor+'× اعمال شد'+(Math.abs(before-result.scale)<.001?' (بدون تغییر نسبت به قبل)':'')+'.');
  });
  $('#'+prefix+'resetScale').onclick=fail(()=>{studio.resetCalibration();updateMeasurements();input.value=studio.measurement().measuredCm.toFixed(1);toast('مقیاس ۱:۱ اعمال شد.');});
+ input.addEventListener('focus',()=>{
+  input.select();
+  requestAnimationFrame(positionCalibrationSheetForKeyboard);
+ });
+ input.addEventListener('click',()=>input.select());
+ input.addEventListener('keydown',event=>{
+  if(event.key!=='Enter')return;
+  event.preventDefault();
+  $('#'+prefix+'calibrate').click();
+  if(prefix==='ar'){
+   input.blur();
+   $('#abCalibrationSheet').hidden=true;
+   studio?.setRoomCalibrationGuides(false);
+  }else input.blur();
+ });
 }
+// The numeric calibration sheet must stay above a tablet's software keyboard.
+function positionCalibrationSheetForKeyboard(){
+ const sheet=$('#abCalibrationSheet'),viewport=window.visualViewport;
+ if(!sheet||sheet.hidden)return;
+ const covered=viewport?Math.max(0,innerHeight-(viewport.offsetTop+viewport.height)):0;
+ sheet.style.position='fixed';
+ sheet.style.top='auto';
+ sheet.style.bottom=Math.max(12,covered+12)+'px';
+ sheet.style.maxHeight=Math.max(120,(viewport?.height||innerHeight)-24)+'px';
+ sheet.style.overflowY='auto';
+}
+window.visualViewport?.addEventListener('resize',positionCalibrationSheetForKeyboard);
+window.visualViewport?.addEventListener('scroll',positionCalibrationSheetForKeyboard);
 function snapshotItems(){savedItems=studio?studio.items.map(m=>({id:m.userData.id,name:m.userData.product.name,price:m.userData.price,color:'#'+m.material.color.getHexString()})):savedItems;}
 function uploadControl(){return `<label class="upload">بارگذاری تصویر +<input id="upload" type="file" accept="image/png,image/jpeg,image/webp" multiple></label>`;}
 async function uploadFiles(e){const files=[...e.target.files];if(files.length>20){toast('هر بار حداکثر ۲۰ تصویر بارگذاری کن.');return;}let count=0;for(const f of files){if(!['image/png','image/jpeg','image/webp'].includes(f.type)||f.size>15*1024*1024){toast('فقط PNG، JPEG و WebP تا ۱۵ مگابایت پذیرفته می‌شود.');continue;}try{const img=await createImageBitmap(f);img.close();await savePhoto(f,'تصویر بارگذاری‌شده');count++;}catch{toast('تصویر خوانده یا ذخیره نشد؛ فضای مرورگر را بررسی کن.');}}if(count){toast(`${fa(count)} تصویر به گالری اضافه شد.`);await render();}e.target.value='';}
@@ -714,7 +742,7 @@ function showArSheet(mode){
  }
  $('#arToolSheet').hidden=false;
 }
-$('#abLengthButton').onclick=()=>{$('#abCalibrationSheet').hidden=false;studio?.setRoomCalibrationGuides(true);$('#aractual').value=studio?.measurement().actualCm||Math.round(studio?.measurement().correctedCm||100);};
+$('#abLengthButton').onclick=()=>{$('#abCalibrationSheet').hidden=false;studio?.setRoomCalibrationGuides(true);$('#aractual').value=studio?.measurement().actualCm||Math.round(studio?.measurement().correctedCm||100);positionCalibrationSheetForKeyboard();};
 $('#abCalibrationClose').onclick=()=>{$('#abCalibrationSheet').hidden=true;studio?.setRoomCalibrationGuides(false);};
 $('#arCalibrationTool').onclick=()=>{closeArSheet();$('#arArchitectureActions').hidden=true;$('#abCalibrationSheet').hidden=!$('#abCalibrationSheet').hidden;studio?.setRoomCalibrationGuides(!$('#abCalibrationSheet').hidden);};
 function syncQuickMaterialButtons(mesh){
@@ -944,7 +972,12 @@ function showDesignedRoom3D(){
  if(studio.roomPendingPlacement){
   $('#roomPlaceActions').hidden=false;
   toast('کف آماده است؛ اکنون «قرار دادن اتاق» را بزن.');
- }else toast('اتاق در AR قرار دارد؛ برای ویرایش دوباره پلان را باز کن.');
+ }else{
+  const result=studio.setWideView('normal',{natural:true});
+  if(result.ok){$('#wideViewMode').value='normal';showWideProjection({horizontal:result.hfov,requestedHorizontal:result.requestedHfov,limited:result.limited});}
+  updateRoomArControls();
+  toast('اتاق با جانمایی قبلی نمایش داده شد؛ نیازی به جانمایی دوباره نیست.');
+ }
 }
 function startScanFromRoom(){
  if(!studio)return;
