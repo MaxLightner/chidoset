@@ -171,12 +171,16 @@ if (['chidoset.ir', 'www.chidoset.ir'].includes(location.hostname) && location.p
   </section>
   <div id="abInline" class="ab-inline" hidden><button id="abLengthButton" type="button">A—B ✎</button></div>
  <section id="abCalibrationSheet" class="ab-calibration-sheet" hidden aria-label="کالیبراسیون A/B">
-  <div class="ar-sheet-head"><strong>متر دیجیتال · مرجع A/B</strong><button id="abCalibrationClose" aria-label="جمع کردن پنل کالیبراسیون">×</button></div>
-  <p>نقطه A کل چیدمان را جابه‌جا می‌کند؛ نقطه B راستا را تنظیم می‌کند. دو نقطه را روی طول معلوم قرار بده.</p>
-  <p id="arMeasurement" class="measurement"></p>
-  <label for="aractual">طول واقعی A—B (سانتی‌متر)</label>
-  <div class="input-row"><input id="aractual" type="text" inputmode="none" autocomplete="off" readonly dir="ltr" aria-label="طول واقعی A-B در سانتی‌متر" placeholder="مثلاً ۱۰۰">
-   <button id="arcalibrate" class="primary">اعمال مقیاس</button><button id="arresetScale">۱:۱</button></div><div id="arNumericPad" class="ar-numeric-pad" role="group" aria-label="صفحه کلید عددی مقیاس"><button type="button" data-calkey="1">1</button><button type="button" data-calkey="2">2</button><button type="button" data-calkey="3">3</button><button type="button" data-calkey="4">4</button><button type="button" data-calkey="5">5</button><button type="button" data-calkey="6">6</button><button type="button" data-calkey="7">7</button><button type="button" data-calkey="8">8</button><button type="button" data-calkey="9">9</button><button type="button" data-calkey="⌫">⌫</button><button type="button" data-calkey="0">0</button><button type="button" data-calkey=".">.</button><button type="button" data-calkey="پاک کردن">پاک کردن</button><button type="button" data-calkey="ثبت و بستن" class="primary">ثبت و بستن</button></div>
+  <div class="ar-sheet-head"><strong>تنظیم مقیاس A—B</strong><button id="abCalibrationClose" type="button" aria-label="بستن تنظیم مقیاس">×</button></div>
+  <p id="arMeasurement" class="measurement" hidden></p>
+  <div class="ar-calibration-row">
+   <div class="ar-calibration-values">
+    <label for="aractual">طول واقعی (سانتی‌متر)</label>
+    <input id="aractual" type="text" inputmode="none" autocomplete="off" readonly dir="ltr" aria-label="طول واقعی A-B در سانتی‌متر" placeholder="۱۰۰">
+    <div class="ar-calibration-actions"><button id="arcalibrate" type="button" class="primary">اعمال مقیاس</button><button id="arresetScale" type="button">۱:۱</button></div>
+   </div>
+   <div id="arNumericPad" class="ar-numeric-pad" role="group" aria-label="صفحه کلید عددی مقیاس"><button type="button" data-calkey="1">1</button><button type="button" data-calkey="2">2</button><button type="button" data-calkey="3">3</button><button type="button" data-calkey="4">4</button><button type="button" data-calkey="5">5</button><button type="button" data-calkey="6">6</button><button type="button" data-calkey="7">7</button><button type="button" data-calkey="8">8</button><button type="button" data-calkey="9">9</button><button type="button" data-calkey="⌫">⌫</button><button type="button" data-calkey="0">0</button><button type="button" data-calkey=".">.</button><button type="button" data-calkey="پاک کردن">پاک کردن</button><button type="button" data-calkey="ثبت و بستن" class="primary">ثبت و بستن</button></div>
+  </div>
  </section>
  <div id="arArchitectureActions" class="ar-architecture-actions" hidden>
    <span id="arArchitectureHint">ابزار معماری</span><button id="arArchitectureUndo">بازگشت یک نقطه</button><button id="arArchitectureCancel" hidden>لغو</button><button class="primary" id="arArchitectureConfirm" hidden>تأیید دیوار</button><button class="primary" id="arArchitectureFinish">اتمام</button>
