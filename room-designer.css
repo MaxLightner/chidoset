@@ -789,3 +789,12 @@
  #overlay.cad-active #arMiniMap .room-design-toolbar{max-height:46dvh!important}
  #overlay.cad-active #arMiniMap .map-meta{height:28px!important;min-height:28px!important;max-height:28px!important}
 }
+
+/* Keep the 3D return action in its original warm orange accent. */
+#overlay.cad-active #arMiniMap .room-design-toolbar .room-design-row-actions [data-plan-3d],
+#overlay.cad-active #arMiniMap .room-design-toolbar [data-plan-3d]{
+ background:#d7ab58!important;
+ border-color:#bc8c37!important;
+ color:#42321e!important;
+ font-weight:700!important;
+}
