@@ -130,6 +130,7 @@ export class LiveMiniMap{
  }
  setExpanded(value){
   this.expanded=!!value;
+  this.panel.closest('#overlay')?.classList.toggle('cad-active',this.expanded);
   this.panel.classList.toggle('expanded',this.expanded);
   this.panel.querySelector('[data-map-expand]').textContent=this.expanded?'بستن':'▣';
   this.panel.querySelector('[data-map-expand]').setAttribute('aria-label',this.expanded?'بستن پلان':'باز کردن پلان');
