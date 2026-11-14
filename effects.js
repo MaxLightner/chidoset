@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.js';
 import {loadEnvironmentHDR} from './environment-hdr.js';
 export class EnvironmentEffects{
- constructor(scene,renderer){this.scene=scene;this.renderer=renderer;this.occlusionMesh=null;this.hemi=new THREE.HemisphereLight(0xffffff,0x817362,2.2);this.sun=new THREE.DirectionalLight(0xfff7e8,2.5);this.sun.position.set(2,4,3);this.cameraFill=new THREE.DirectionalLight(0xffffff,1.1);this.cameraFill.castShadow=false;this.rim=new THREE.DirectionalLight(0xfff5e8,.75);this.rim.castShadow=false;this.lightDirection=new THREE.Vector3();scene.add(this.hemi,this.sun,this.cameraFill,this.cameraFill.target,this.rim,this.rim.target);this.shadowDirection=new THREE.Vector3(2,4,3).normalize();this.sun.castShadow=true;this.sun.shadow.mapSize.set(2048,2048);this.sun.shadow.camera.left=-9;this.sun.shadow.camera.right=9;this.sun.shadow.camera.top=9;this.sun.shadow.camera.bottom=-9;this.sun.shadow.camera.near=.05;this.sun.shadow.camera.far=30;this.sun.shadow.normalBias=.018;this.sun.shadow.bias=-.0001;this.sun.shadow.radius=2;if(renderer.shadowMap){renderer.shadowMap.enabled=false;renderer.shadowMap.type=THREE.PCFSoftShadowMap;}renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ReinhardToneMapping;renderer.toneMappingExposure=1.15;this.reset();this.loadIBL();}
+ constructor(scene,renderer){this.scene=scene;this.renderer=renderer;this.hemi=new THREE.HemisphereLight(0xffffff,0x817362,2.2);this.sun=new THREE.DirectionalLight(0xfff7e8,2.5);this.sun.position.set(2,4,3);this.cameraFill=new THREE.DirectionalLight(0xffffff,1.1);this.cameraFill.castShadow=false;this.rim=new THREE.DirectionalLight(0xfff5e8,.75);this.rim.castShadow=false;this.lightDirection=new THREE.Vector3();scene.add(this.hemi,this.sun,this.cameraFill,this.cameraFill.target,this.rim,this.rim.target);this.shadowDirection=new THREE.Vector3(2,4,3).normalize();this.sun.castShadow=true;this.sun.shadow.mapSize.set(2048,2048);this.sun.shadow.camera.left=-9;this.sun.shadow.camera.right=9;this.sun.shadow.camera.top=9;this.sun.shadow.camera.bottom=-9;this.sun.shadow.camera.near=.05;this.sun.shadow.camera.far=30;this.sun.shadow.normalBias=.018;this.sun.shadow.bias=-.0001;this.sun.shadow.radius=2;if(renderer.shadowMap){renderer.shadowMap.enabled=false;renderer.shadowMap.type=THREE.PCFSoftShadowMap;}renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ReinhardToneMapping;renderer.toneMappingExposure=1.15;this.reset();this.loadIBL();}
  setRealShadows(enabled){if(this.renderer?.shadowMap)this.renderer.shadowMap.enabled=!!enabled;}
  updateCameraLight(camera,focus){camera.getWorldPosition(this.cameraFill.position);camera.getWorldDirection(this.lightDirection);this.cameraFill.target.position.copy(this.cameraFill.position).add(this.lightDirection);this.cameraFill.target.updateMatrixWorld(true);if(focus)focus.getWorldPosition(this.rim.target.position);else this.rim.target.position.set(0,0,0);this.lightDirection.copy(this.cameraFill.position).sub(this.rim.target.position);this.lightDirection.y=0;if(this.lightDirection.lengthSq()<.001)this.lightDirection.set(0,0,1);else this.lightDirection.normalize();this.rim.position.copy(this.rim.target.position).addScaledVector(this.lightDirection,-4);this.rim.position.x+=2;this.rim.position.y+=3;this.rim.target.updateMatrixWorld(true);}
  dispose(){this.reset();this.environmentTexture?.dispose();this.environmentTexture=null;this.scene.environment=null;this.renderer=null;}
@@ -26,24 +26,15 @@ export class EnvironmentEffects{
   }
   this.sun.target.position.copy(anchor);this.sun.position.copy(anchor).addScaledVector(this.shadowDirection,9);this.sun.target.updateMatrixWorld(true);
  }
- reset(){if(this.occlusionMesh){if(this.occlusionMesh.isObject3D)this.scene.remove(this.occlusionMesh);this.occlusionMesh.visible=false;this.occlusionMesh=null;}this.session=null;this.probe=null;this.lightState='ثابت';this.depthState='خاموش';this.lastLight=0;this.slowSince=null;this.depthDisabled=false;this.hemi.intensity=this.environmentTexture ? 0.65 : 2.2;this.sun.intensity=(this.environmentTexture ? 1.6 : 2.5)*(this.sunRoomDirection?3*(this.roomDaylight??1):1);this.sun.color.set(0xfff7e8);}
- async start(session,options){this.reset();this.session=session;this.options=options;if(options.depth)this.depthState=session.enabledFeatures?.includes('depth-sensing')?'در انتظار داده':'پشتیبانی نشد';
-  if(options.light&&session.requestLightProbe){try{const probe=await session.requestLightProbe();if(this.session!==session)return;this.probe=probe;this.lightState='در انتظار نور';}catch{if(this.session===session)this.lightState='ثابت (fallback)';}}
+ reset(){
+  this.session=null;
+  this.lightState='نور ثابت صحنه';
+  this.depthState='غیرفعال';
+  this.hemi.intensity=this.environmentTexture?.65:2.2;
+  this.sun.intensity=(this.environmentTexture?1.6:2.5)*(this.sunRoomDirection?3*(this.roomDaylight??1):1);
+  this.sun.color.set(0xfff7e8);
  }
- update(frame,time,fps){
-  if(this.probe&&time-this.lastLight>120){this.lastLight=time;try{const estimate=frame.getLightEstimate(this.probe);if(estimate){const i=estimate.primaryLightIntensity,max=Math.max(i.x,i.y,i.z,1);if(!this.sunRoomDirection){this.sun.color.setRGB(i.x/max,i.y/max,i.z/max);this.sun.intensity=THREE.MathUtils.clamp(max,.3,4);const d=estimate.primaryLightDirection;this.shadowDirection.set(d.x,d.y,d.z).normalize();}this.hemi.intensity=this.environmentTexture ? 0.65 : 1.5;this.lightState='تخمین محیط';}}catch{this.probe=null;this.lightState='ثابت (fallback)';}}
-  if(this.options?.depth&&this.session?.enabledFeatures?.includes('depth-sensing')){
-   try{
-    const hasDepth=this.renderer.xr.hasDepthSensing?.()??true;
-    const mesh=hasDepth?this.renderer.xr.getDepthSensingMesh?.():null;
-    if(mesh){
-     if(fps>0&&fps<24){this.slowSince??=time;if(time-this.slowSince>3000)this.depthDisabled=true;}else this.slowSince=null;
-     if(this.occlusionMesh!==mesh){if(this.occlusionMesh?.isObject3D)this.scene.remove(this.occlusionMesh);this.occlusionMesh=mesh;if(mesh.isObject3D)this.scene.add(mesh);}
-     mesh.renderOrder=-100;if(mesh.material){mesh.material.depthTest=true;mesh.material.depthWrite=true;mesh.material.colorWrite=false;}
-     mesh.visible=!this.depthDisabled;
-     this.depthState=this.depthDisabled?'خاموش (افت سرعت)':'عمق فعال (در انتظار آزمون پوشانندگی)';
-    }else this.depthState='در انتظار داده عمق';
-   }catch{this.depthState='پشتیبانی یا اجرا ناموفق';}
-  }
- }
+ async start(session){this.reset();this.session=session;}
+ update(){/* No WebXR light estimation or real-world depth occlusion. */}
+
 }
