@@ -303,7 +303,7 @@ void main(){
   mesh.position.fromArray(defaults[index]||[0,h/2,-1.65]);if(position)mesh.position.copy(position);
   mesh.position.y=isWallArt(index)?(position?.y>1?position.y:1.55):h/2;
   if(isSofa(index))installSofaCushions(mesh,options.cushionPreset||'none');
-  this.root.add(mesh);this.items.push(mesh);
+  this.root.add(mesh);this.items.push(mesh);this.enableFurnitureSun(mesh);
   if(!position&&index===4){
    const table=this.items.find(m=>m!==mesh&&isTable(m.userData.index));
    if(table)mesh.userData.attachment={id:table.userData.id,offset:[0,table.userData.height/2+h/2,0]};
@@ -332,7 +332,15 @@ void main(){
    }
   if(!options.silentSelect)this.select(mesh);this.setGuides();return mesh;
  }
- enableShadowCasting(mesh){mesh.traverse(node=>{if(node.isMesh&&node.visible&&node.material?.opacity!==0&&node.name!=='chido-contact-shadow'&&node.name!=='contact-shadow-receiver'&&!node.userData.chidoBakedShadow)node.castShadow=true;});}
+ enableFurnitureSun(mesh){
+  mesh.traverse(node=>{
+   if(node.isMesh&&(node.layers.mask&1)&&!node.userData.chidoBakedShadow
+    &&!node.userData.chidoCollider&&!node.userData.tripo_prep_contact_shadow
+    &&node.name!=='chido-contact-shadow'&&node.name!=='contact-shadow-receiver'
+    &&!/^CHIDO_SHADOW_PLANE(?:\\.\\d+)?$/i.test(node.name))node.layers.enable(3);
+  });
+ }
+ enableShadowCasting(mesh){mesh.traverse(node=>{if(node.isMesh&&node.visible&&node.material?.opacity!==0&&node.name!=='chido-contact-shadow'&&node.name!=='contact-shadow-receiver'&&!node.userData.chidoBakedShadow)node.castShadow=true;});this.enableFurnitureSun(mesh);}
  refreshAttachments(){for(const item of this.items){const link=item.userData.attachment;if(!link)continue;const base=this.items.find(m=>m.userData.id===link.id);if(!base){item.userData.attachment=null;this.keepOnFloor(item);continue;}const offset=new THREE.Vector3(...link.offset).applyAxisAngle(new THREE.Vector3(0,1,0),base.rotation.y);item.position.copy(base.position).add(offset);}}
  seed(kind='conversation',room='پذیرایی',people=5){
   this.clear();
