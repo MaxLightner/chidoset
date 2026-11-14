@@ -1093,7 +1093,13 @@ safeObjectMotion(mesh,desired){
    }
    if(time-this.lastSelectionUI>65){this.onSelectionScreen?.(this.selectionScreenPosition());this.onABPosition?.(this.rulerScreenPosition());this.lastSelectionUI=time;}
   }
-  this.effects.setRealShadows?.(!!(this.architecture?.data.floor.length||this.architecture?.data.walls.length));this.scaleLabels();this.effects.updateCameraLight?.(this.renderer.xr.isPresenting?this.renderer.xr.getCamera():this.camera,this.items.find(m=>[22,23,24,1000].includes(m.userData.index))||this.root);this.renderer.render(this.scene,this.camera);
+  this.effects.setRealShadows?.(!!(this.architecture?.data.floor.length||this.architecture?.data.walls.length));this.scaleLabels();
+  if(this.renderer.xr.isPresenting){
+   const xrCamera=this.renderer.xr.getCamera();
+   xrCamera?.layers.enable(3);
+   for(const eye of xrCamera?.cameras||[])eye.layers.enable(3);
+  }
+  this.effects.updateCameraLight?.(this.renderer.xr.isPresenting?this.renderer.xr.getCamera():this.camera,this.items.find(m=>[22,23,24,1000].includes(m.userData.index))||this.root);this.renderer.render(this.scene,this.camera);
   try{this.onFrame?.(time,frame);}catch(error){console.warn('Chido live frame callback failed',error);}
   if(this.wideView?.active&&this.tracking){
    try{this.wideView.draw();}catch(error){
