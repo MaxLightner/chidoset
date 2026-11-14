@@ -1,8 +1,8 @@
 import * as THREE from './vendor/three.module.js';
 import {cm,distance,wallLength,nearestWall,snapPoint,closestFloorEdge,validPolygon,normalizedWindow,windowIntersects,updateWindow,validArchitecture} from './architecture-geometry.js?v=0.9.0';
-import {finishMaterial,applyMetricFloorUV,FLOOR_FINISHES,WALL_FINISHES,floorFinish} from './architecture-materials.js?v=0.18.7';
+import {finishMaterial,applyMetricFloorUV,FLOOR_FINISHES,WALL_FINISHES,floorFinish} from './architecture-materials.js?v=0.18.8';
 import {FloorReflection} from './floor-reflection.js';
-import {geminiFloorMaterial,geminiConsoleMaterial,makeGeminiTVScreenMaterial,setGeminiTVChannel,setGeminiTVOn} from './gemini-room-materials.js?v=0.18.7';
+import {geminiFloorMaterial,geminiConsoleMaterial,makeGeminiTVScreenMaterial,setGeminiTVChannel,setGeminiTVOn} from './gemini-room-materials.js?v=0.18.8';
 
 const axis=new THREE.Vector3(0,1,0);
 const point=(x,z)=>new THREE.Vector3(x,.012,z);
