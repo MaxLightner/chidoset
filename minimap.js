@@ -447,14 +447,12 @@ export class LiveMiniMap{
   const top=this.viewportLock?.top??baseZ+this.panZ-height/2;
   this.viewport={width,height,left,top};
   this.svg.setAttribute('viewBox',[num(left*100),num(top*100),num(width*100),num(height*100)].join(' '));
-  // One-metre checker cells remain visible both outside and INSIDE the room floor.
-  // Previously the solid room rectangle painted over the drawn grid.
-  const checker='<defs><pattern id="chido-plan-checker" width="200" height="200" patternUnits="userSpaceOnUse">'+
-   '<rect width="200" height="200" fill="#f2efe9"/><rect width="100" height="100" fill="#dfd9ce"/>'+
-   '<rect x="100" y="100" width="100" height="100" fill="#dfd9ce"/></pattern></defs>';
-  let grid='';
-  for(let x=Math.ceil(left);x<left+width;x++)grid+='<path d="M'+x*100+' '+top*100+'v'+height*100+'" stroke="#bdb7ad" stroke-width="1.4"/>';
-  for(let z=Math.ceil(top);z<top+height;z++)grid+='<path d="M'+left*100+' '+z*100+'h'+width*100+'" stroke="#bdb7ad" stroke-width="1.4"/>';
+  // Thin half-metre graph-paper lines, not alternating chessboard squares.
+  const gridPattern='<defs><pattern id="chido-plan-grid" width="50" height="50" patternUnits="userSpaceOnUse">'+
+   '<rect width="50" height="50" fill="#f5f3ef"/>'+
+   '<path d="M50 0V50M0 50H50" fill="none" stroke="#d5d2cc" stroke-width="0.8"/>'+
+   '</pattern></defs>';
+  const grid='';
   let architecture='';
   if(plan){
    const x=-plan.w*50,z=-plan.d*50;
@@ -470,7 +468,7 @@ export class LiveMiniMap{
      '" stroke-width="'+(selected?30:removed?9:23)+'" '+(removed?'stroke-dasharray="19 15" ':'')+'pointer-events="none"/>';
    }).join('');
    const polygon=plan.structureMode==='floor'&&plan.floorPolygon?.length>=3
-     ?'<polygon points="'+plan.floorPolygon.map(p=>p.x*100+','+p.z*100).join(' ')+'" fill="url(#chido-plan-checker)" stroke="#697477" stroke-width="12"/>':'';
+     ?'<polygon points="'+plan.floorPolygon.map(p=>p.x*100+','+p.z*100).join(' ')+'" fill="url(#chido-plan-grid)" stroke="#697477" stroke-width="12"/>':'';
    const segments=plan.structureMode==='walls'?(plan.wallSegments||[]).map(w=>
      '<path d="M'+w.x1*100+' '+w.z1*100+'L'+w.x2*100+' '+w.z2*100+'" fill="none" stroke="#697477" stroke-width="20"/>'
    ).join(''):'';
@@ -503,7 +501,7 @@ export class LiveMiniMap{
    return '<g data-object-id="'+id+'" aria-label="'+title+'" transform="translate('+x*100+' '+z*100+') rotate('+angle*180/Math.PI+')" style="cursor:grab;opacity:'+(mesh.visible?1:.4)+'">'+
     '<rect x="'+(-w*50)+'" y="'+(-d*50)+'" width="'+w*100+'" height="'+Math.max(wall?6:4,d*100)+'" rx="'+(isRug?1:4)+'" fill="'+color+'" stroke="'+(selected?'#245b53':'#786b60')+'" stroke-width="'+(selected?4:1.6)+'"/>'+caption+'</g>';
   }).join('');
-  this.svg.innerHTML=checker+'<rect x="'+left*100+'" y="'+top*100+'" width="'+width*100+'" height="'+height*100+'" fill="url(#chido-plan-checker)"/>'+grid+architecture+marks+objects;
+  this.svg.innerHTML=gridPattern+'<rect x="'+left*100+'" y="'+top*100+'" width="'+width*100+'" height="'+height*100+'" fill="url(#chido-plan-grid)"/>'+grid+architecture+marks+objects;
   const measure=this.panel.querySelector('[data-map-measure]');
   if(measure)measure.textContent=(plan?num(plan.w)+' × '+num(plan.d)+' متر · ':'A—B '+num(lengthAB)+' متر · ')+items.length.toLocaleString('fa-IR')+' مدل · '+Math.round(this.zoom*100)+'٪';
   const selected=studio.selected;
