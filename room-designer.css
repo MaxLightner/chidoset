@@ -569,3 +569,22 @@
  #overlay.cad-active #arMiniMap .room-design-toolbar{max-height:60dvh!important;grid-template-rows:38px 36px 38px auto!important}
  #overlay.cad-active #arMiniMap .room-design-row-architecture{grid-template-columns:repeat(2,minmax(85px,1fr))!important;grid-auto-rows:92px!important}
 }
+
+/* Minimal monochrome line-work, no colored backgrounds or heavy outlines. */
+#overlay.cad-active #arMiniMap .room-design-row-architecture button{
+ background:#fafafa!important;border:1px solid #dedede!important;
+ border-radius:9px!important;box-shadow:none!important;
+ color:#303638!important;font-weight:400!important;
+}
+#overlay.cad-active #arMiniMap .room-design-row-architecture button.active{
+ background:#f0f0ef!important;border-color:#555!important;
+ box-shadow:inset 0 0 0 1px #777!important;color:#202426!important;
+}
+#overlay.cad-active #arMiniMap .room-design-row-architecture .plan-tool-thumb{
+ color:#35393a!important;stroke-width:1.8!important;
+ width:min(100%,88px)!important;height:56px!important;flex:0 0 56px!important;
+}
+#overlay.cad-active #arMiniMap .room-design-row-architecture button span{
+ color:#34383a!important;font-size:13px!important;font-weight:500!important;
+}
+#overlay.cad-active #arMiniMap .room-number-pad:not([hidden]){z-index:500!important;pointer-events:auto!important}
