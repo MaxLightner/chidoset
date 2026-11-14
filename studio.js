@@ -147,6 +147,7 @@ void main(){
  }
  setRoomPlan(data){
   const next=normalizeRoomPlan(data);if(!next)return false;
+  const previouslyPlaced=!!this.session&&!!this.roomPlan&&this.model.locked&&!this.roomPendingPlacement&&this.root.visible;
   this.roomPlan=next;
   // Authored rooms do not show the legacy pulsing selection box, emissive rim or edge overlay.
   for(const item of this.items){
@@ -154,7 +155,7 @@ void main(){
    if(item.userData.selectionHalo)item.userData.selectionHalo.visible=false;
    if(item.material?.emissive&&!isLamp(item.userData.index))item.material.emissiveIntensity=0;
   }
-  if(this.session){this.roomPendingPlacement=true;this.root.visible=false;}
+  if(this.session&&!previouslyPlaced){this.roomPendingPlacement=true;this.root.visible=false;}
   // Keep CAD dragging responsive; build the single shared 3D scene after edits settle.
   this.roomGeometryDirty=true;
   if(this.roomGeometryTimer!==null)clearTimeout(this.roomGeometryTimer);
