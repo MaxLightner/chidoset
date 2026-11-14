@@ -18,7 +18,7 @@ import {SpatialState,CATALOG,pairAngle,wrappedAngle} from './spatial.js?v=0.16.1
 import {FloorScanner,floorCandidates} from './surfaces.js?v=0.5.4';
 import {recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.15.0';
 import {rendererPolicy} from './renderer-policy.js';
-import {EnvironmentEffects} from './effects.js?v=0.18.10';
+import {EnvironmentEffects} from './effects.js?v=0.18.11';
 import {AnchorStabilizer,transformPoint} from './anchor-rig.js?v=0.5.4';
 import {ARDebugView} from './ar-debug.js?v=0.5.4';
 import {buildLayout} from './layout-templates.js?v=0.5.4';
