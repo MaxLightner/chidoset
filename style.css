@@ -1480,3 +1480,98 @@ html:fullscreen{padding:0!important}html:fullscreen body{max-width:none;border-r
 #overlay .scan-readiness-row{font-size:12px!important;margin-top:5px;opacity:.8}
 #overlay .scan-readiness progress{height:4px!important;margin-top:6px!important}
 #overlay .scan-readiness>small{display:none!important}
+
+
+/* v0.18.20 — Compact calibration dock: keypad at bottom, actions beside it. */
+#overlay.ab-keypad-open #abCalibrationSheet{
+ position:fixed!important;z-index:500!important;
+ left:50%!important;right:auto!important;
+ top:auto!important;bottom:max(8px,env(safe-area-inset-bottom,0px))!important;
+ transform:translateX(-50%)!important;
+ width:min(428px,calc(100vw - 14px))!important;
+ height:auto!important;min-height:0!important;
+ max-height:min(280px,calc(100dvh - 20px))!important;
+ box-sizing:border-box!important;
+ margin:0!important;padding:8px!important;
+ border-radius:12px!important;
+ overflow-x:hidden!important;overflow-y:auto!important;
+ background:#faf8f2ed!important;box-shadow:0 6px 24px #0005!important;
+ backdrop-filter:blur(10px);
+ pointer-events:auto!important;
+}
+#overlay.ab-keypad-open #abCalibrationSheet .ar-sheet-head{
+ display:flex!important;align-items:center!important;justify-content:space-between!important;
+ min-height:24px!important;max-height:24px!important;
+ margin:0 0 5px!important;padding:0 3px!important;
+ gap:8px!important;
+}
+#overlay.ab-keypad-open #abCalibrationSheet .ar-sheet-head strong{font-size:13px!important;font-weight:600!important}
+#overlay.ab-keypad-open #abCalibrationSheet #abCalibrationClose{
+ min-width:25px!important;min-height:24px!important;
+ width:25px!important;height:24px!important;padding:0!important;
+ line-height:1!important;
+}
+#overlay.ab-keypad-open #abCalibrationSheet #arMeasurement{display:none!important}
+#overlay.ab-keypad-open #abCalibrationSheet .ar-calibration-row{
+ display:grid!important;
+ grid-template-columns:minmax(105px,.8fr) minmax(164px,1.2fr)!important;
+ gap:8px!important;align-items:start!important;
+ width:100%!important;min-width:0!important;
+}
+#overlay.ab-keypad-open #abCalibrationSheet .ar-calibration-values{
+ display:flex!important;flex-direction:column!important;
+ gap:8px!important;min-width:0!important;margin:0!important;
+}
+#overlay.ab-keypad-open #abCalibrationSheet .ar-calibration-values label{
+ font-size:12px!important;line-height:1.4!important;
+ margin:0!important;white-space:normal!important;
+}
+#overlay.ab-keypad-open #abCalibrationSheet #aractual{
+ width:100%!important;min-width:0!important;max-width:100%!important;
+ box-sizing:border-box!important;height:38px!important;
+ font-size:20px!important;line-height:1.2!important;
+ margin:0!important;padding:4px 7px!important;
+ background:white!important;border:1px solid #cad3cb!important;
+ border-radius:8px!important;text-align:center!important;
+}
+#overlay.ab-keypad-open #abCalibrationSheet .ar-calibration-actions{
+ display:flex!important;flex-direction:column!important;gap:6px!important;
+ min-width:0!important;margin:0!important;
+}
+#overlay.ab-keypad-open #abCalibrationSheet .ar-calibration-actions button{
+ width:100%!important;min-height:36px!important;height:36px!important;
+ margin:0!important;padding:4px!important;
+ font-size:12px!important;line-height:1.2!important;
+ border-radius:8px!important;white-space:nowrap!important;
+}
+#overlay.ab-keypad-open #abCalibrationSheet #arNumericPad{
+ display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+ gap:4px!important;margin:0!important;padding:0!important;
+ width:100%!important;min-width:0!important;
+ direction:ltr!important;align-content:start!important;
+}
+#overlay.ab-keypad-open #abCalibrationSheet #arNumericPad button{
+ min-height:34px!important;height:34px!important;
+ padding:3px 1px!important;margin:0!important;
+ border-radius:7px!important;
+ font-size:17px!important;line-height:1.2!important;
+}
+#overlay.ab-keypad-open #abCalibrationSheet #arNumericPad button:nth-last-child(2){
+ font-size:11px!important;
+}
+#overlay.ab-keypad-open #abCalibrationSheet #arNumericPad button:last-child{
+ grid-column:span 2!important;font-size:12px!important;
+}
+@media(max-height:420px){
+ #overlay.ab-keypad-open #abCalibrationSheet{
+  width:min(580px,calc(100vw - 14px))!important;
+  max-height:calc(100dvh - 12px)!important;
+  bottom:6px!important;
+ }
+ #overlay.ab-keypad-open #abCalibrationSheet #arNumericPad button{
+  min-height:29px!important;height:29px!important;
+ }
+ #overlay.ab-keypad-open #abCalibrationSheet .ar-calibration-actions button{
+  min-height:31px!important;height:31px!important;
+ }
+}
