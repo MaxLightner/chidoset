@@ -431,9 +431,18 @@ export class LiveMiniMap{
   const minZ=Math.min(...lim.map(v=>v.z-Math.max(v.w,v.d)*.7))-.75;
   const maxZ=Math.max(...lim.map(v=>v.z+Math.max(v.w,v.d)*.7))+.75;
   const baseX=(minX+maxX)/2,baseZ=(minZ+maxZ)/2;
-  const span=Math.max(4.5,maxX-minX,(maxZ-minZ)*320/250)/this.zoom;
-  const width=this.viewportLock?.width??span,height=this.viewportLock?.height??span*250/320;
-  // Resizing walls changes the room geometry, not the user camera/zoom.
+  // Match the world viewBox aspect to the ACTUAL available SVG drawing surface.
+  // The old hardcoded 320:250 ratio letterboxed the full-screen editor on tablets.
+  const svgW=this.svg.clientWidth||320,svgH=this.svg.clientHeight||250;
+  const aspect=Math.max(.2,Math.min(8,svgW/Math.max(1,svgH)));
+  const span=Math.max(4.5,maxX-minX,(maxZ-minZ)*aspect)/this.zoom;
+  const width=this.viewportLock?.width??span,height=width/aspect;
+  // Preserve a zoomed/panned view when rotating the tablet without introducing
+  // empty bands above/below the plan.
+  if(this.viewportLock&&Math.abs(this.viewportLock.height-height)>.0001){
+   const centerZ=this.viewportLock.top+this.viewportLock.height/2;
+   this.viewportLock={...this.viewportLock,height,top:centerZ-height/2};
+  }
   const left=this.viewportLock?.left??baseX+this.panX-width/2;
   const top=this.viewportLock?.top??baseZ+this.panZ-height/2;
   this.viewport={width,height,left,top};
