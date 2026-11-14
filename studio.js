@@ -13,7 +13,7 @@ import {MeasureTool} from './measure-tool.js?v=0.18.20';
 import {bindXRExit} from './xr-lifecycle.js?v=0.14.0';
 import {endXRSession} from './xr-end.js';
 import {requestARSession,xrError} from './xr.js?v=0.18.12';
-import {WideViewRenderer,WIDE_VIEW_FOV} from './wide-view.js?v=0.18.9';
+import {WideViewRenderer,WIDE_VIEW_FOV} from './wide-view.js?v=0.18.21';
 import {SpatialState,CATALOG,pairAngle,wrappedAngle} from './spatial.js?v=0.16.16';
 import {FloorScanner,floorCandidates} from './surfaces.js?v=0.5.4';
 import {recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.15.0';
