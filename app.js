@@ -410,10 +410,14 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
     arStarting=false;pendingARSession=null;
     if(homeExitRequested)queueMicrotask(finishChidoHomeExit);
     else queueMicrotask(()=>{
-     // Keep the same WebGL context, models and textures. Rebuilding here stalls real phones.
+     // Tablet lock/unlock can terminate WebXR. Avoid the obsolete AR launch page.
+     // Preserve the current scene and return to the layouts page.
      if(location.hash!=='#studio')return;
-     $('#overlay').hidden=true;$('#startAR').hidden=false;$('#startAR').disabled=false;$('#startAR').textContent='شروع دوباره AR ↗';
-     $('#launchLoading').hidden=true;$('#viewport').classList.toggle('show-preview',previewEnabled);persistDraft();
+     persistDraft();
+     history.replaceState(null,'',location.pathname+location.search+'#spaces');
+     void render({reuseCatalog:true}).catch(error=>{
+      console.error('Layouts navigation after XR ended failed',error);
+     });
     });
    };
   studio.onPhotoTap=()=>{};
@@ -827,14 +831,17 @@ function syncQuickMaterialButtons(mesh){
  if(lastQuickMaterialKey===key)return;
  lastQuickMaterialKey=key;
  const icons={fabric:'▧',wood:'▥',metal:'⬡',glass:'◇'};
+ const roleLabels={fabric:'پارچه',wood:'چوب',metal:'فلز',glass:'شیشه'};
  host.replaceChildren();
  for(const slot of slots){
   const button=document.createElement('button');
   button.type='button';button.dataset.materialSlot=String(slot.id);
-  button.title=slot.name;button.setAttribute('aria-label','متریال '+(slot.id+1)+' · '+slot.name);
+  const roleLabel=roleLabels[slot.role]||slot.name||'متریال';
+  button.title=roleLabel+' · '+slot.name;
+  button.setAttribute('aria-label',roleLabel+' · '+slot.name);
   button.setAttribute('aria-pressed',String(activeQuickMaterialSlot===slot.id));
   const symbol=document.createElement('span');symbol.textContent=icons[slot.role]||'◩';symbol.setAttribute('aria-hidden','true');
-  const small=document.createElement('small');small.textContent='متریال '+(slot.id+1);
+  const small=document.createElement('small');small.textContent=roleLabel;
   button.append(symbol,small);
   button.onclick=()=>{
    activeQuickMaterialSlot=activeQuickMaterialSlot===slot.id?null:slot.id;
@@ -1428,4 +1435,9 @@ $('#rotateAR').onclick=()=>{if(studio?.selected)studio.rotate();};$('#deleteAR')
 async function updateCount(){try{$('#galleryCount').textContent=fa((await photos()).length);}catch{$('#galleryCount').textContent='—';}}
 async function showModes(){$('#modeSheet').showModal();await support();$('#modeSupport').textContent=supported?'AR در مرورگر شما در دسترس است؛ مجوز دوربین هنگام شروع پرسیده می‌شود.':'AR در این دستگاه در دسترس نیست؛ مدل ساده را امتحان کنید.';$('#chooseAR').disabled=!supported;}
 $('#closeMode').onclick=()=>$('#modeSheet').close();$('#chooseSimple').onclick=()=>{$('#modeSheet').close();location.hash='studio';};$('#chooseAR').onclick=()=>{$('#modeSheet').close();location.hash='studio';toast('برای ورود به دوربین، «شروع AR» را بزنید.');};
+// A discarded/suspended tablet tab can reload with a stale #studio URL.
+// On a new page load, route to layouts, not to a pre-AR permission page.
+if(location.hash==='#studio'||location.hash==='#entry'){
+ history.replaceState(null,'',location.pathname+location.search+'#spaces');
+}
 window.addEventListener('hashchange',()=>{void render();window.scrollTo(0,0);});render();updateCount();
