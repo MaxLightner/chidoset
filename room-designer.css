@@ -588,3 +588,35 @@
  color:#34383a!important;font-size:13px!important;font-weight:500!important;
 }
 #overlay.cad-active #arMiniMap .room-number-pad:not([hidden]){z-index:500!important;pointer-events:auto!important}
+
+/* 0.18.15: the compact plan button must sit ABOVE both AR toolbars, never behind them. */
+#overlay:not(.cad-active) #arMiniMap:not(.expanded){
+ display:flex!important;visibility:visible!important;
+ position:fixed!important;z-index:85!important;
+ left:50%!important;right:auto!important;top:auto!important;
+ bottom:calc(env(safe-area-inset-bottom,0px) + 90px)!important;
+ transform:translateX(-50%)!important;
+ width:64px!important;min-width:64px!important;
+ max-width:64px!important;height:58px!important;min-height:58px!important;
+ padding:5px!important;align-items:center!important;justify-content:center!important;
+ overflow:visible!important;pointer-events:auto!important;touch-action:manipulation!important
+}
+#overlay:not(.cad-active) #arMiniMap:not(.expanded) [data-map-expand]{
+ display:grid!important;place-items:center!important;position:relative!important;
+ z-index:86!important;width:52px!important;height:48px!important;
+ min-height:48px!important;pointer-events:auto!important;touch-action:manipulation!important;
+ font-size:27px!important;cursor:pointer!important
+}
+#overlay.cad-active{pointer-events:auto!important}
+#overlay.cad-active #arSurface,
+#overlay.cad-active .wide-view-canvas,
+#overlay.cad-active .ar-top,
+#overlay.cad-active .ar-dock,
+#overlay.cad-active .ar-bottom,
+#overlay.cad-active #objectQuick{pointer-events:none!important}
+#overlay.cad-active #arMiniMap{pointer-events:auto!important}
+#overlay.cad-active #arMiniMap .room-design-toolbar,
+#overlay.cad-active #arMiniMap .room-design-toolbar button,
+#overlay.cad-active #arMiniMap .room-design-toolbar select,
+#overlay.cad-active #arMiniMap .map-title button{pointer-events:auto!important;touch-action:manipulation!important}
+#overlay.cad-active #arMiniMap>svg{pointer-events:auto!important;touch-action:none!important}
