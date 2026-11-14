@@ -589,23 +589,41 @@
 }
 #overlay.cad-active #arMiniMap .room-number-pad:not([hidden]){z-index:500!important;pointer-events:auto!important}
 
-/* 0.18.15: the compact plan button must sit ABOVE both AR toolbars, never behind them. */
+/* 0.18.18: restore the REAL 2D miniature at the bottom right, like the working map. */
 #overlay:not(.cad-active) #arMiniMap:not(.expanded):not([hidden]){
  display:flex!important;visibility:visible!important;
- position:fixed!important;z-index:85!important;
- left:50%!important;right:auto!important;top:auto!important;
- bottom:calc(env(safe-area-inset-bottom,0px) + 90px)!important;
- transform:translateX(-50%)!important;
- width:64px!important;min-width:64px!important;
- max-width:64px!important;height:58px!important;min-height:58px!important;
- padding:5px!important;align-items:center!important;justify-content:center!important;
- overflow:visible!important;pointer-events:auto!important;touch-action:manipulation!important
+ flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;
+ position:fixed!important;z-index:85!important;top:auto!important;
+ left:auto!important;right:calc(9px + env(safe-area-inset-right,0px))!important;
+ bottom:calc(88px + env(safe-area-inset-bottom,0px))!important;
+ transform:none!important;
+ width:166px!important;min-width:166px!important;max-width:166px!important;
+ height:155px!important;min-height:155px!important;max-height:155px!important;
+ padding:6px!important;gap:3px!important;overflow:hidden!important;
+ pointer-events:auto!important;touch-action:manipulation!important;
+ background:#f8f2e9f2!important;border:1px solid #bfb4a6!important;border-radius:13px!important;
+ box-shadow:0 5px 20px #17242135!important
+}
+#overlay:not(.cad-active) #arMiniMap:not(.expanded):not([hidden]) .map-title{
+ display:flex!important;align-items:center!important;justify-content:flex-end!important;
+ width:100%!important;min-height:28px!important;height:28px!important;max-height:28px!important;
+ padding:0!important;position:relative!important;z-index:2!important;
 }
 #overlay:not(.cad-active) #arMiniMap:not(.expanded):not([hidden]) [data-map-expand]{
  display:grid!important;place-items:center!important;position:relative!important;
- z-index:86!important;width:52px!important;height:48px!important;
- min-height:48px!important;pointer-events:auto!important;touch-action:manipulation!important;
- font-size:27px!important;cursor:pointer!important
+ width:37px!important;height:27px!important;min-height:27px!important;
+ padding:0!important;z-index:86!important;pointer-events:auto!important;
+ font-size:20px!important;cursor:pointer!important
+}
+#overlay:not(.cad-active) #arMiniMap:not(.expanded):not([hidden]) #arMiniSvg{
+ display:block!important;visibility:visible!important;opacity:1!important;
+ position:relative!important;flex:1 1 auto!important;
+ width:100%!important;height:110px!important;min-height:110px!important;max-height:110px!important;
+ aspect-ratio:320 / 250!important;border-radius:8px!important;
+ background:#f4efe7!important;pointer-events:auto!important;touch-action:manipulation!important;
+}
+#overlay:not(.cad-active) #arMiniMap:not(.expanded):not([hidden]) .map-meta{
+ display:none!important;
 }
 #overlay.cad-active{pointer-events:auto!important}
 #overlay.cad-active #arSurface,
@@ -621,4 +639,20 @@
 #overlay.cad-active #arMiniMap .map-title button{pointer-events:auto!important;touch-action:manipulation!important}
 #overlay.cad-active #arMiniMap>svg{pointer-events:auto!important;touch-action:none!important}
 
+#overlay #arMiniMap[hidden]{display:none!important;pointer-events:none!important}
+
+/* Render actual plan surface in full-screen CAD. Thumbnail SVGs are separate controls. */
+#overlay.cad-active #arMiniMap #arMiniSvg{
+ display:block!important;visibility:visible!important;opacity:1!important;
+ position:relative!important;z-index:1!important;
+ flex:1 1 0px!important;width:100%!important;height:auto!important;
+ min-height:120px!important;max-height:none!important;aspect-ratio:auto!important;
+ pointer-events:auto!important;touch-action:none!important;background:#eee9e0!important;
+}
+#overlay.cad-active #arMiniMap .room-design-toolbar{
+ max-height:min(40dvh,310px)!important;flex:0 1 auto!important;
+}
+#overlay.cad-active #arMiniMap .map-meta{
+ max-height:min(18dvh,110px)!important;overflow-y:auto!important;
+}
 #overlay #arMiniMap[hidden]{display:none!important;pointer-events:none!important}
