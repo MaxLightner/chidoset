@@ -416,3 +416,23 @@
 }
 #overlay .ar-minimap.expanded .room-templates-panel button:disabled{opacity:.6;cursor:not-allowed;}
 #overlay .ar-minimap.expanded .room-templates-panel small{font-size:12px;color:#62766c;line-height:1.8;}
+
+/* Plan controls and numeric entry: tightly grouped, native keyboard-free. */
+#overlay .ar-minimap.expanded .room-design-toolbar .room-design-row-main{
+ grid-template-columns:minmax(80px,1fr) minmax(80px,1fr) minmax(70px,.48fr) 34px!important;
+ gap:3px!important;justify-content:start!important
+}
+#overlay .ar-minimap.expanded .room-design-row-main [data-plan-create]{font-size:13px!important;padding:3px!important;min-width:0!important}
+#overlay .ar-minimap.expanded .room-design-toolbar .room-design-row-mode{
+ display:flex!important;gap:4px!important;overflow:visible!important;height:auto!important;min-height:35px!important
+}
+#overlay .room-design-row-mode button{flex:1;min-width:0;border-radius:8px;padding:5px!important;font-size:13px!important;min-height:32px!important}
+#overlay .room-design-row-mode button.active{background:#b6d7c6!important}
+#overlay .room-design-toolbar [data-room-width],#overlay .room-design-toolbar [data-room-depth]{cursor:pointer;background:#fff!important;min-width:45px!important}
+#overlay .room-number-pad{position:absolute;z-index:80;inset:auto 10px 8px auto;width:min(260px,calc(100% - 20px));max-height:85%;overflow:auto;background:#f8f7f1;border:1px solid #a9bdb1;border-radius:12px;box-shadow:0 8px 30px #0004;padding:10px;pointer-events:auto}
+#overlay .room-number-pad[hidden]{display:none!important}
+#overlay .room-number-pad strong{font-size:13px;display:block}
+#overlay .room-number-preview{font-size:23px;direction:ltr;text-align:center;background:white;border-radius:8px;margin:6px 0;padding:4px}
+#overlay .room-number-buttons{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;direction:ltr}
+#overlay .room-number-buttons button{min-height:38px!important;padding:5px!important;font-size:17px!important;border-radius:8px}
+#overlay .room-number-buttons button:last-child{grid-column:span 2;background:#dcece3}
