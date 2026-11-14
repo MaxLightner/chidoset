@@ -1575,3 +1575,33 @@ html:fullscreen{padding:0!important}html:fullscreen body{max-width:none;border-r
   min-height:31px!important;height:31px!important;
  }
 }
+
+
+/* Tablet material strip: show the actual material type below its icon. */
+#overlay .object-quick,
+#overlay[data-ui-orientation="portrait"] .object-quick,
+#overlay[data-ui-orientation="landscape"] .object-quick{
+ width:86px!important;
+ min-width:86px!important;
+ max-width:86px!important;
+ box-sizing:border-box!important;
+}
+#overlay .object-quick .quick-material-buttons button{
+ min-height:55px!important;
+ gap:3px!important;
+ padding:5px 3px!important;
+}
+#overlay .object-quick .quick-material-buttons button>span{
+ font-size:20px!important;
+ line-height:1!important;
+}
+#overlay .object-quick .quick-material-buttons button>small{
+ display:block!important;
+ font-size:13px!important;
+ line-height:1.25!important;
+ font-weight:600!important;
+ white-space:nowrap!important;
+ max-width:100%!important;
+ overflow:hidden!important;
+ text-overflow:ellipsis!important;
+}
