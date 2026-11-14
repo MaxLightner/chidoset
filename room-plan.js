@@ -144,6 +144,12 @@ export function constrainFurnitureToRoom(plan,parts,target,margin=.10){
 // remain walls to floor-standing furniture, even if their glass is transparent.
 export function roomWallCollisionFootprints(plan,{thickness=.24}={}){
  if(!plan||!Number.isFinite(plan.w)||!Number.isFinite(plan.d))return [];
+ if(plan.structureMode==='floor')return [];
+ if(plan.structureMode==='walls')return (plan.wallSegments||[]).map((w,i)=>{
+  const dx=w.x2-w.x1,dz=w.z2-w.z1;
+  return {x:(w.x1+w.x2)/2,z:(w.z1+w.z2)/2,angle:Math.atan2(dz,dx),
+   hx:Math.hypot(dx,dz)/2,hz:thickness/2,wall:'free-'+i,kind:'wall',height:3,visible:false};
+ });
  const colliders=[],hidden=new Set(plan.hiddenWalls||[]);
  const walls=[
   ['north',plan.w,-plan.d/2,0],
