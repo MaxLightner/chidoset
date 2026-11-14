@@ -30,8 +30,8 @@ export class MeasureTool{
   this.group.visible=this.active;
   this.pointA.visible=!!this.a;this.pointB.visible=!!this.b;this.line.visible=!!this.b;
   for(const child of [...this.ticks.children]){this.ticks.remove(child);child.geometry.dispose();child.material.dispose();}
-  // Keep the instruction readable; halve only the completed numeric distance label.
-  this.label.scale.copy(this.labelBaseScale).multiplyScalar(this.b?.5:1);
+  // Keep the numeric distance EXACTLY the same on-screen size as the second-point instruction.
+  this.label.scale.copy(this.labelBaseScale);
   if(!this.a){this.label.visible=false;return;}
   this.pointA.position.copy(this.a);this.pointA.position.y=.03;
   if(!this.b){this.label.visible=true;this.label.position.copy(this.a).add(new THREE.Vector3(0,.21,0));if(this.label.userData.measure!=='نقطه دوم را لمس کن'){this.label.userData.measure='نقطه دوم را لمس کن';this.label.userData.updateText?.('نقطه دوم را لمس کن');}return;}
