@@ -166,6 +166,8 @@ export class ArchitectureLayer {
    uv.needsUpdate=true;
   }
   if(!owner)mesh.layers.enable(2); // visible in normal scene and in the wall-only GTAO mask
+  mesh.castShadow=!!this.data.designedRoom&&!owner;
+  mesh.receiveShadow=!!this.data.designedRoom;
   group.add(mesh);return mesh;
  }
  makeGeminiWindow(parent,wall,opening){
@@ -360,23 +362,8 @@ export class ArchitectureLayer {
    }
    cove.dispose();plaster.dispose();
    // Use the single scene-level IBL/Hemisphere. No room-only ambient or ceiling fill.
-   // Each actual glazed opening is a daylight source. Directions point from
-   // outdoors through the opening into the room, rather than from the ceiling.
-   const glazed=this.data.windows.filter(o=>o.kind==='window');
-   for(const window of glazed.slice(0,4)){
-    const wall=this.data.walls.find(w=>w.id===window.hostId);if(!wall)continue;
-    const length=wallLength(wall);if(length<.1)continue;
-    const dx=(wall.x2-wall.x1)/length,dz=(wall.z2-wall.z1)/length;
-    const x=wall.x1+dx*window.along,z=wall.z1+dz*window.along;
-    const inward={'north':[0,1],'south':[0,-1],'west':[1,0],'east':[-1,0]}[window.wall]||[0,1];
-    const baseIntensity=Math.min(6.5,4.0+window.width*.65);
-    const sun=new THREE.DirectionalLight(0xeef6ff,baseIntensity*(this.data.roomLook?.daylight||1));
-    sun.userData.roomWindowLight=true;sun.userData.roomBaseIntensity=baseIntensity;
-    const atY=Math.min(height-.2,window.sill+window.height*.62);
-    sun.position.set(x-inward[0]*1.3,atY+.65,z-inward[1]*1.3);
-    sun.target.position.set(x+inward[0]*Math.min(2.4,width*.5),1.0,z+inward[1]*Math.min(2.4,depth*.5));
-    sun.castShadow=false;this.group.add(sun,sun.target);
-   }
+   // Direct sun is owned by EnvironmentEffects and is fixed to the first room window.
+   // Additional window lights would overexpose upholstery and bypass architectural occlusion.
   }
   if(this.data.tvSettings){setGeminiTVChannel(this.data.tvSettings.channel||'nature');setGeminiTVOn(this.data.tvSettings.on!==false);}
   const frameMat=new THREE.MeshStandardMaterial({color:0x8d9799,roughness:.54,metalness:.32});
