@@ -195,6 +195,33 @@ function positionCalibrationSheetForKeyboard(){
 }
 window.visualViewport?.addEventListener('resize',positionCalibrationSheetForKeyboard);
 window.visualViewport?.addEventListener('scroll',positionCalibrationSheetForKeyboard);
+function showCalibrationKeypad(){
+ const input=$('#aractual');input.blur();input.dataset.replaceNext='true';
+ $('#overlay').classList.add('ab-keypad-open');
+ positionCalibrationSheetForKeyboard();
+}
+function closeCalibrationKeypad(){
+ $('#overlay').classList.remove('ab-keypad-open');
+ $('#aractual').blur();
+ $('#abCalibrationSheet').hidden=true;
+ studio?.setRoomCalibrationGuides(false);
+}
+document.querySelectorAll('#arNumericPad [data-calkey]').forEach(button=>{
+ button.addEventListener('click',()=>{
+  const input=$('#aractual'),key=button.dataset.calkey;
+  if(key==='ثبت و بستن'){
+   if(!Number.isFinite(Number(input.value))||Number(input.value)<10||Number(input.value)>2000){toast('طول باید بین ۱۰ تا ۲۰۰۰ سانتی‌متر باشد.');return;}
+   $('#arcalibrate').click();closeCalibrationKeypad();return;
+  }
+  if(key==='پاک کردن'){input.value='';input.dataset.replaceNext='false';return;}
+  if(key==='⌫'){input.value=input.value.slice(0,-1);input.dataset.replaceNext='false';return;}
+  if(input.dataset.replaceNext==='true'){input.value='';input.dataset.replaceNext='false';}
+  if(key==='.'&&input.value.includes('.'))return;
+  if(input.value.length<8)input.value+=key;
+ });
+});
+$('#aractual').addEventListener('click',showCalibrationKeypad);
+
 function snapshotItems(){savedItems=studio?studio.items.map(m=>({id:m.userData.id,name:m.userData.product.name,price:m.userData.price,color:'#'+m.material.color.getHexString()})):savedItems;}
 function uploadControl(){return `<label class="upload">بارگذاری تصویر +<input id="upload" type="file" accept="image/png,image/jpeg,image/webp" multiple></label>`;}
 async function uploadFiles(e){const files=[...e.target.files];if(files.length>20){toast('هر بار حداکثر ۲۰ تصویر بارگذاری کن.');return;}let count=0;for(const f of files){if(!['image/png','image/jpeg','image/webp'].includes(f.type)||f.size>15*1024*1024){toast('فقط PNG، JPEG و WebP تا ۱۵ مگابایت پذیرفته می‌شود.');continue;}try{const img=await createImageBitmap(f);img.close();await savePhoto(f,'تصویر بارگذاری‌شده');count++;}catch{toast('تصویر خوانده یا ذخیره نشد؛ فضای مرورگر را بررسی کن.');}}if(count){toast(`${fa(count)} تصویر به گالری اضافه شد.`);await render();}e.target.value='';}
@@ -370,7 +397,7 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
   studio.onWideViewReset=resetWideViewControls;
   studio.onRenderQualityChange=({level,fps,auto})=>{
    const label=$('#renderQualityStatus');if(!label)return;
-   const stages=['کیفیت کامل','GTAO نمونه‌گیری سبک‌تر','GTAO سبک‌تر و Bloom خاموش','تفکیک‌پذیری پس‌پردازش ۸۲٪'];
+   const stages=['کیفیت کامل','بلوم سبک','بلوم غیرفعال','رزولوشن افکت کاهش یافت'];
    label.textContent=(Number.isFinite(fps)&&fps>0?Math.round(fps).toLocaleString('fa-IR')+' FPS · ':'')+(stages[level]||stages[0])+(auto?' · خودکار':' · دستی');
   };
   studio.onWideViewProjection=projection=>{
@@ -742,9 +769,9 @@ function showArSheet(mode){
  }
  $('#arToolSheet').hidden=false;
 }
-$('#abLengthButton').onclick=()=>{$('#abCalibrationSheet').hidden=false;studio?.setRoomCalibrationGuides(true);$('#aractual').value=studio?.measurement().actualCm||Math.round(studio?.measurement().correctedCm||100);positionCalibrationSheetForKeyboard();};
-$('#abCalibrationClose').onclick=()=>{$('#abCalibrationSheet').hidden=true;studio?.setRoomCalibrationGuides(false);};
-$('#arCalibrationTool').onclick=()=>{closeArSheet();$('#arArchitectureActions').hidden=true;$('#abCalibrationSheet').hidden=!$('#abCalibrationSheet').hidden;studio?.setRoomCalibrationGuides(!$('#abCalibrationSheet').hidden);};
+$('#abLengthButton').onclick=()=>{$('#abCalibrationSheet').hidden=false;studio?.setRoomCalibrationGuides(true);$('#aractual').value=studio?.measurement().actualCm||Math.round(studio?.measurement().correctedCm||100);showCalibrationKeypad();};
+$('#abCalibrationClose').onclick=closeCalibrationKeypad;
+$('#arCalibrationTool').onclick=()=>{closeArSheet();$('#arArchitectureActions').hidden=true;if(!$('#abCalibrationSheet').hidden){closeCalibrationKeypad();return;}$('#abCalibrationSheet').hidden=false;studio?.setRoomCalibrationGuides(true);$('#aractual').value=studio?.measurement().actualCm||Math.round(studio?.measurement().correctedCm||100);showCalibrationKeypad();};
 function syncQuickMaterialButtons(mesh){
  const host=$('#quickMaterialButtons'),panel=$('#arMaterialRail');
  if(!host)return;
@@ -1073,7 +1100,7 @@ function applyWideMode(){
  const outcome=studio?.setWideView(mode,{natural:$('#wideNatural').checked})||
   {ok:false,reason:'جلسه AR فعال نیست.'};
  if(!outcome.ok){select.value=studio?.wideMode||'ar';toast(outcome.reason);return;}
- if(studio?.wideView?.active)studio.wideView.setAmbientOcclusion($('#wideAoEnabled').checked);
+ if(studio?.wideView?.active)void 0;
  if(mode==='ar')$('#wideViewHint').textContent='تصویر دوربین واقعی · ردیابی AR';
  else showWideProjection({horizontal:outcome.hfov,requestedHorizontal:outcome.requestedHfov,limited:outcome.limited});
 }
@@ -1099,10 +1126,7 @@ for(const [id,key] of [['roomDaylightIntensity','daylight'],['roomIblIntensity',
 $('#autoRenderQuality').onchange=()=>{
  studio?.wideView?.setAutoQuality($('#autoRenderQuality').checked);
 };
-$('#wideAoEnabled').onchange=()=>{
- if(studio?.wideView?.active)studio.wideView.setAmbientOcclusion($('#wideAoEnabled').checked);
- toast($('#wideAoEnabled').checked?'GTAO فعال است؛ Bloom و تون‌مپینگ تغییری نکرد.':'فقط GTAO غیرفعال شد؛ Bloom، Reinhard و سایر تنظیمات ثابت‌اند.');
-};
+
 let debugEnabled=false;
 function refreshDebugPanel(){
  const panel=$('#arDebugPanel');if(!panel||panel.hidden||!studio)return;
