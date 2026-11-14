@@ -19,6 +19,34 @@ export class LiveMiniMap{
   panel.querySelector('[data-map-left]').onclick=()=>{const studio=getStudio();if(studio?.selected)studio.rotate(studio.selected.rotation.y*180/Math.PI-45);};
   panel.querySelector('[data-map-right]').onclick=()=>{const studio=getStudio();if(studio?.selected)studio.rotate(studio.selected.rotation.y*180/Math.PI+45);};
   this.angleInput.oninput=()=>{const studio=getStudio();if(!studio?.selected)return;const next=Number(this.angleInput.value);if(Number.isFinite(next))studio.rotate(next);};
+  panel.querySelectorAll('[data-room-mode]').forEach(button=>button.onclick=()=>{
+   const studio=this.getStudio();if(!studio)return;
+   const current=studio.roomPlan||defaultRoomPlan();
+   const next={...current,structureMode:button.dataset.roomMode};
+   if(studio.setRoomPlan(next)){this.syncRoomFields();this.render();}
+  });
+  this.numberPad=panel.querySelector('#roomNumberPad');
+  this.numberTarget=null;this.numberReplace=true;
+  for(const input of panel.querySelectorAll('[data-room-width],[data-room-depth]')){
+   input.addEventListener('click',()=>this.openNumberPad(input));
+   input.addEventListener('focus',()=>this.openNumberPad(input));
+  }
+  this.numberPad?.querySelectorAll('[data-room-num]').forEach(button=>button.addEventListener('click',()=>{
+   if(!this.numberTarget)return;
+   const input=this.numberTarget,key=button.dataset.roomNum;
+   if(key==='ثبت'){
+    const value=Number(input.value);
+    if(!Number.isFinite(value)||value<3.5||value>14){this.options.onToast?.('ابعاد بین ۳٫۵ تا ۱۴ متر باشد.');return;}
+    this.numberPad.hidden=true;this.numberTarget=null;this.applyDimensions();return;
+   }
+   if(key==='پاک'){input.value='';this.numberReplace=false;}
+   else if(key==='⌫'){input.value=input.value.slice(0,-1);this.numberReplace=false;}
+   else{
+    if(this.numberReplace){input.value='';this.numberReplace=false;}
+    if(key!=='.'||!input.value.includes('.'))input.value+=key;
+   }
+   this.numberPad.querySelector('.room-number-preview').textContent=input.value||'۰';
+  }));
   panel.querySelector('[data-plan-create]').onclick=()=>this.applyDimensions();
   const toolSelect=panel.querySelector('[data-plan-tool-select]');
   if(toolSelect)toolSelect.onchange=()=>{this.tool=toolSelect.value;this.selectedArch=null;this.selectedWall=null;this.updateTools();};
@@ -56,6 +84,7 @@ export class LiveMiniMap{
  syncRoomFields(){
   const s=this.getStudio(),p=s?.roomPlan;
   if(p){
+   this.panel.querySelectorAll('[data-room-mode]').forEach(b=>b.classList.toggle('active',b.dataset.roomMode===(p.structureMode||'room')));
    this.panel.querySelector('[data-room-width]').value=num(p.w);
    this.panel.querySelector('[data-room-depth]').value=num(p.d);
   }
@@ -67,6 +96,13 @@ export class LiveMiniMap{
    if(models.some(item=>String(item.index)===previous))select.value=previous;
   }
  }
+ openNumberPad(input){
+  if(!this.numberPad)return;
+  this.numberTarget=input;this.numberReplace=true;
+  this.numberPad.hidden=false;
+  this.numberPad.querySelector('.room-number-preview').textContent=input.value;
+  input.blur();
+ }
  setExpanded(value){
   this.expanded=!!value;
   this.panel.classList.toggle('expanded',this.expanded);
@@ -75,6 +111,7 @@ export class LiveMiniMap{
   const wasExpanded=this.pointers.size>=0&&this._previousExpanded===true;
   this._previousExpanded=this.expanded;
   this.pointers.clear();this.gesture=null;
+  if(!this.expanded&&this.numberPad)this.numberPad.hidden=true;
   if(this.expanded){this.syncRoomFields();this.updateTools();this.fit();}
   else{this.render();if(wasExpanded&&this.options.onClose)this.options.onClose();}
  }
@@ -361,12 +398,12 @@ export class LiveMiniMap{
     {side:'west',d:'M'+x+' '+z+'V'+(z+plan.d*100)},
     {side:'east',d:'M'+(x+plan.w*100)+' '+z+'V'+(z+plan.d*100)}
    ];
-   const perimeter=wallPaths.map(({side,d})=>{
+   const perimeter=(plan.structureMode==='floor'?[]:wallPaths).map(({side,d})=>{
     const removed=plan.hiddenWalls?.includes(side),selected=this.selectedWall===side;
     return '<path d="'+d+'" fill="none" stroke="'+(selected?'#24886b':removed?'#a8b2a9':'#697477')+
      '" stroke-width="'+(selected?30:removed?9:23)+'" '+(removed?'stroke-dasharray="19 15" ':'')+'pointer-events="none"/>';
    }).join('');
-   architecture='<rect x="'+x+'" y="'+z+'" width="'+plan.w*100+'" height="'+plan.d*100+'" fill="#f6f3ed"/>'+perimeter+
+   architecture='<rect x="'+x+'" y="'+z+'" width="'+plan.w*100+'" height="'+plan.d*100+'" fill="'+(plan.structureMode==='walls'?'none':'#f6f3ed')+'"/>'+perimeter+
     '<path d="M'+x+' '+(z-45)+'h'+plan.w*100+'" stroke="#778a83" stroke-width="1.5"/>'+
     '<text x="0" y="'+(z-60)+'" font-size="19" fill="#495b55" text-anchor="middle">'+num(plan.w)+' m</text>'+
     '<text x="'+(x-48)+'" y="0" font-size="19" fill="#495b55" text-anchor="middle" transform="rotate(-90 '+(x-48)+' 0)">'+num(plan.d)+' m</text>';
