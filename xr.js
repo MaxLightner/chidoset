@@ -2,12 +2,11 @@ export function xrError(error,stage){
  const failure=new Error(error?.message||String(error),{cause:error});
  failure.name=error?.name||'Error';failure.xrStage=stage;return failure;
 }
-export async function requestARSession(xr,root,basic=false,effects={}){
+export async function requestARSession(xr,root,basic=false){
  if(!xr)throw xrError(new Error('navigator.xr is unavailable'),'availability');
  try{return await xr.requestSession('immersive-ar',{
   requiredFeatures:['hit-test','dom-overlay'],
-  optionalFeatures:['anchors','plane-detection','camera-access',...(effects.light?['light-estimation']:[]),...(effects.depth?['depth-sensing']:[])],
-  ...(effects.depth?{depthSensing:{usagePreference:['gpu-optimized'],dataFormatPreference:['float32','luminance-alpha']}}:{}),domOverlay:{root}
+  optionalFeatures:['anchors','plane-detection','camera-access'],domOverlay:{root}
  });}catch(error){throw xrError(error,'request-session');}
 }
 export function explainXR(error){
