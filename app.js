@@ -19,7 +19,7 @@ import {readDraft,saveDraft,clearDraft,listCustomLayouts,saveCustomLayout,overwr
 import {ASSET_CATEGORIES,RUG_SIZE_PRESETS,isLamp,isSofa,isTable,isWallArt,variantsFor,categoryForIndex,SHEEN_CHAIR_SAMPLE} from './asset-metadata.js?v=0.16.16';
 import {savedPlanSvg} from './saved-plan.js?v=0.16.16';
 import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-materials.js?v=0.18.9';
-import {LiveMiniMap} from './minimap.js?v=0.18.16';
+import {LiveMiniMap} from './minimap.js?v=0.18.18';
 import {defaultRoomPlan} from './room-plan.js?v=0.18.13';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
 import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList} from './cloud-product-registry.js';
