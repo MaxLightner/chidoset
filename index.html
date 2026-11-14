@@ -169,8 +169,8 @@ if (['chidoset.ir', 'www.chidoset.ir'].includes(location.hostname) && location.p
   <p>نقطه A کل چیدمان را جابه‌جا می‌کند؛ نقطه B راستا را تنظیم می‌کند. دو نقطه را روی طول معلوم قرار بده.</p>
   <p id="arMeasurement" class="measurement"></p>
   <label for="aractual">طول واقعی A—B (سانتی‌متر)</label>
-  <div class="input-row"><input id="aractual" type="number" inputmode="decimal" min="10" max="2000" step="0.1" placeholder="مثلاً ۱۰۰">
-   <button id="arcalibrate" class="primary">اعمال مقیاس</button><button id="arresetScale">۱:۱</button></div>
+  <div class="input-row"><input id="aractual" type="text" inputmode="none" autocomplete="off" readonly dir="ltr" aria-label="طول واقعی A-B در سانتی‌متر" placeholder="مثلاً ۱۰۰">
+   <button id="arcalibrate" class="primary">اعمال مقیاس</button><button id="arresetScale">۱:۱</button></div><div id="arNumericPad" class="ar-numeric-pad" role="group" aria-label="صفحه کلید عددی مقیاس"><button type="button" data-calkey="1">1</button><button type="button" data-calkey="2">2</button><button type="button" data-calkey="3">3</button><button type="button" data-calkey="4">4</button><button type="button" data-calkey="5">5</button><button type="button" data-calkey="6">6</button><button type="button" data-calkey="7">7</button><button type="button" data-calkey="8">8</button><button type="button" data-calkey="9">9</button><button type="button" data-calkey="⌫">⌫</button><button type="button" data-calkey="0">0</button><button type="button" data-calkey=".">.</button><button type="button" data-calkey="پاک کردن">پاک کردن</button><button type="button" data-calkey="ثبت و بستن" class="primary">ثبت و بستن</button></div>
  </section>
  <div id="arArchitectureActions" class="ar-architecture-actions" hidden>
    <span id="arArchitectureHint">ابزار معماری</span><button id="arArchitectureUndo">بازگشت یک نقطه</button><button id="arArchitectureCancel" hidden>لغو</button><button class="primary" id="arArchitectureConfirm" hidden>تأیید دیوار</button><button class="primary" id="arArchitectureFinish">اتمام</button>
@@ -178,15 +178,14 @@ if (['chidoset.ir', 'www.chidoset.ir'].includes(location.hostname) && location.p
   <div id="arSettingsBin" hidden></div><div id="measureHint" hidden role="status"><span id="measureReadout">نقطه اول را روی کف لمس کن</span> <button id="measureClear">پاک کردن</button></div><div class="ar-bottom compact"><div id="arBottomActions" class="ar-bottom-actions" hidden><button id="arBottomSave">▣ ذخیره رسمی</button><button id="arBottomOpen">▤ چیدمان‌های رسمی</button><button id="arColorwayTool">رنگ‌بندی</button><button id="arShareSession">نمایش زنده ↗</button></div><button id="confirmFloor" class="primary" disabled>تثبیت این کف</button><div id="arEditControls" hidden><div id="arSelection"></div><div class="tools"><div id="selectedARTools"><button id="rotateAR">↻ ۴۵°</button><button id="colorAR">رنگ</button><button id="deleteAR">حذف</button></div><select id="arProduct" aria-label="نوع قطعه AR"><option value="0">کاناپه ۲۱۰</option><option value="1">تک‌نفره ۹۰</option><option value="2">میز ۱۱۰</option></select><button id="addAR">افزودن +</button></div></div><details id="arSettings" hidden><summary>تنظیمات AR</summary>
  <label class="xr-option"><input id="lightEnabled" type="checkbox" checked> نور محیط (در صورت پشتیبانی)</label>
  <label class="xr-option"><input id="depthEnabled" type="checkbox" checked> اکلوژن عمق واقعی (در صورت پشتیبانی)</label>
- <label class="xr-option"><input id="wideAoEnabled" type="checkbox" checked> GTAO در رندر مجازی · برای مقایسه کیفیت</label>
  <label class="xr-option"><input id="autoRenderQuality" type="checkbox" checked> کاهش تدریجی افکت‌های سنگین زیر ۲۰ FPS</label>
- <small id="renderQualityStatus" role="status">کیفیت کامل · GTAO دیوارها فعال</small>
+ <small id="renderQualityStatus" role="status">کیفیت کامل · نورپردازی یکسان</small>
  <div id="roomLookSettings" class="room-look-settings" hidden>
   <strong>تنظیمات واقعی نور و متریال اتاق</strong>
-  <label>قدرت نور پنجره‌ها <output id="roomDaylightValue">۱٫۰۰×</output>
+  <label>شدت نور روز <output id="roomDaylightValue">۱٫۰۰×</output>
    <input type="range" id="roomDaylightIntensity" min=".45" max="2.1" step=".05" value="1"></label>
-  <label>شدت بازتاب HDRI <output id="roomIblValue">۰٫۵۵</output>
-   <input type="range" id="roomIblIntensity" min="0" max="1.5" step=".05" value=".55"></label>
+  <label>شدت بازتاب HDRI <output id="roomIblValue">۰٫۴۲</output>
+   <input type="range" id="roomIblIntensity" min="0" max="1.5" step=".05" value=".42"></label>
   <label>میکروبرجستگی گچ <output id="roomPlasterValue">۱٫۰۰×</output>
    <input type="range" id="roomPlasterDetail" min="0" max="2" step=".05" value="1"></label>
  </div>
