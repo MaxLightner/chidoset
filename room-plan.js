@@ -62,6 +62,13 @@ export function normalizeRoomPlan(raw){
   if(!canPlaceRoomElement(plan,el,plan.elements).valid)return null;
   plan.elements.push(el);
  }
+ const goodPoint=p=>p&&Number.isFinite(Number(p.x))&&Number.isFinite(Number(p.z))&&Math.abs(Number(p.x))<=w/2+.01&&Math.abs(Number(p.z))<=d/2+.01;
+ if(Array.isArray(raw.floorPolygon)&&raw.floorPolygon.length>=3&&raw.floorPolygon.length<=40&&raw.floorPolygon.every(goodPoint)){
+  plan.floorPolygon=raw.floorPolygon.map(p=>({x:cm(p.x),z:cm(p.z)}));
+ }
+ if(Array.isArray(raw.wallSegments)&&raw.wallSegments.length<=40){
+  plan.wallSegments=raw.wallSegments.filter(v=>v&&goodPoint({x:v.x1,z:v.z1})&&goodPoint({x:v.x2,z:v.z2})&&Math.hypot(v.x2-v.x1,v.z2-v.z1)>.1).map((v,i)=>({id:'free-wall-'+i,x1:cm(v.x1),z1:cm(v.z1),x2:cm(v.x2),z2:cm(v.z2)}));
+ }
  return plan;
 }
 export function sizedRoomPlan(plan,w,d){
@@ -76,13 +83,22 @@ export function sizedRoomPlan(plan,w,d){
 }
 export function roomPlanToArchitecture(plan,previous={}){
  const x=plan.w/2,z=plan.d/2;
- const floor=plan.structureMode==='walls'?[]:[{x:-x,z:-z},{x:x,z:-z},{x:x,z:z},{x:-x,z:z}];
+ const floor=plan.structureMode==='walls'?[]:
+  plan.structureMode==='floor'&&plan.floorPolygon?.length>=3?plan.floorPolygon.map(p=>({...p})):
+  [{x:-x,z:-z},{x:x,z:-z},{x:x,z:z},{x:-x,z:z}];
  const walls=[
   {id:'room-north',x1:-x,z1:-z,x2:x,z2:-z},
   {id:'room-south',x1:-x,z1:z,x2:x,z2:z},
   {id:'room-west',x1:-x,z1:-z,x2:-x,z2:z},
   {id:'room-east',x1:x,z1:-z,x2:x,z2:z}
- ].filter(w=>plan.structureMode!=='floor'&&!plan.hiddenWalls?.includes(w.id.slice(5))).map(w=>({...w,height:3.0,thickness:.24}));
+ ].filter(w=>plan.structureMode==='room'&&!plan.hiddenWalls?.includes(w.id.slice(5))).map(w=>({...w,height:3.0,thickness:.24}));
+ if(plan.structureMode==='walls'&&Array.isArray(plan.wallSegments)){
+  for(let i=0;i<plan.wallSegments.length;i++){
+   const segment=plan.wallSegments[i];
+   if(walls.length>=40)break;
+   walls.push({...segment,id:'free-wall-'+i,height:3,thickness:.24});
+  }
+ }
  const windows=[],features=[];
  for(const el of plan.elements){
   const s=ROOM_SPECS[el.type];
