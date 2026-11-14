@@ -87,7 +87,7 @@ export function finishMaterial(id){
  if(finish.kind==='carpet'){
   material.onBeforeCompile=shader=>{
    shader.fragmentShader=shader.fragmentShader.replace('#include <opaque_fragment>',
-    'outgoingLight *= 1.0 - 0.12 * pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 2.0);\\n#include <opaque_fragment>');
+    'outgoingLight *= 1.0 - 0.12 * pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 2.0);\n#include <opaque_fragment>');
   };
   material.customProgramCacheKey=()=> 'chido-carpet-dark-grazing-v1';
  }
