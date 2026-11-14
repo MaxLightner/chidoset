@@ -1443,3 +1443,13 @@ html:fullscreen{padding:0!important}html:fullscreen body{max-width:none;border-r
 #overlay [class*="seller-demo"],#overlay [class*="demo-seller"]{font-size:13px!important;line-height:1.5!important}
 /* Keep calibration, product and customer UI readable on tablets. */
 #overlay .ar-sheet-head strong,#overlay .sheet-tip{font-size:max(13px,1em)}
+
+/* The number pad remains over all AR tools and does not trigger a soft keyboard. */
+#overlay #roomPropertyKeypad{position:fixed!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;z-index:1000!important;width:min(300px,calc(100vw - 28px));max-height:calc(100dvh - 20px);overflow:auto;background:#faf8f2;padding:12px;border-radius:14px;box-shadow:0 10px 50px #0007;pointer-events:auto}
+#overlay #roomPropertyKeypad strong{font-size:14px}
+#overlay #roomPropertyKeypad .value{font-size:24px;text-align:center;background:white;border-radius:8px;margin:6px 0;padding:5px}
+#overlay #roomPropertyKeypad .keys{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;direction:ltr}
+#overlay #roomPropertyKeypad button{min-height:40px;padding:5px;font-size:17px;border-radius:8px}
+#overlay #roomPropertyKeypad button[data-room-cancel]{width:100%;font-size:13px;margin-top:6px}
+#overlay #roomPropertyKeypad .keys button:last-child{grid-column:span 2}
+#overlay #arToolSheet [data-window-edit]{cursor:pointer;background:#fff}
