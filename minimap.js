@@ -8,7 +8,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const len=(p,q)=>Math.hypot(p.x-q.x,p.y-q.y);
 export class LiveMiniMap{
  constructor(panel,getStudio,options={}){
-  this.panel=panel;this.getStudio=getStudio;this.options=options;this.svg=panel.querySelector('svg');
+  this.panel=panel;this.getStudio=getStudio;this.options=options;this.svg=panel.querySelector('#arMiniSvg');
   this.expanded=false;this.tool='select';this.selectedArch=null;this.selectedWall=null;
   this.zoom=1;this.panX=0;this.panZ=0;this.viewport=null;this.viewportLock=null;
   this.pointers=new Map();this.gesture=null;
