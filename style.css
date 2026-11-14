@@ -1453,3 +1453,30 @@ html:fullscreen{padding:0!important}html:fullscreen body{max-width:none;border-r
 #overlay #roomPropertyKeypad button[data-room-cancel]{width:100%;font-size:13px;margin-top:6px}
 #overlay #roomPropertyKeypad .keys button:last-child{grid-column:span 2}
 #overlay #arToolSheet [data-window-edit]{cursor:pointer;background:#fff}
+
+/* Chido 0.18.13: in-camera scanning help, no full-page onboarding. */
+#app .ar-launch-stage .launch-minimal{
+ position:absolute!important;inset:auto 50% 110px auto!important;
+ transform:translateX(50%)!important;width:min(260px,calc(100vw - 26px))!important;
+ max-height:none!important;display:flex!important;flex-direction:column!important;
+ align-items:center!important;gap:3px!important;padding:9px 12px!important;
+ background:#f3f1ebbd!important;border:1px solid #ffffffaa!important;border-radius:14px!important;
+ color:#42584d!important;box-shadow:0 8px 20px #0002!important;backdrop-filter:blur(9px);
+}
+#app .ar-launch-stage .launch-minimal span{font-size:14px!important;font-weight:700!important}
+#app .ar-launch-stage .launch-minimal small{font-size:13px!important;text-align:center!important}
+#overlay .scan-readiness{
+ top:max(66px,calc(env(safe-area-inset-top) + 52px))!important;
+ width:min(370px,calc(100vw - 26px))!important;max-width:370px!important;
+ padding:10px 12px!important;background:#f6f7f0b8!important;
+ border:1px solid #fff9!important;box-shadow:0 4px 18px #0002!important;
+ backdrop-filter:blur(11px);border-radius:15px!important
+}
+#overlay .scan-direction-guide{display:flex;align-items:center;justify-content:space-between;gap:7px;text-align:center}
+#overlay .scan-direction-guide>div{display:grid;justify-items:center;gap:3px;flex:1}
+#overlay .scan-direction-guide strong{font-size:14px!important;line-height:1.4!important;color:#2c5341}
+#overlay .scan-direction-guide small{font-size:13px!important;color:#576d61}
+#overlay .scan-direction-guide .scan-arrow{font-size:34px;font-weight:700;line-height:1;color:#357e63;display:inline-flex;align-items:center;justify-content:center;width:35px}
+#overlay .scan-readiness-row{font-size:12px!important;margin-top:5px;opacity:.8}
+#overlay .scan-readiness progress{height:4px!important;margin-top:6px!important}
+#overlay .scan-readiness>small{display:none!important}
