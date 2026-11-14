@@ -472,7 +472,7 @@ export class LiveMiniMap{
    const segments=plan.structureMode==='walls'?(plan.wallSegments||[]).map(w=>
      '<path d="M'+w.x1*100+' '+w.z1*100+'L'+w.x2*100+' '+w.z2*100+'" fill="none" stroke="#697477" stroke-width="20"/>'
    ).join(''):'';
-   architecture=(polygon||'<rect x="'+x+'" y="'+z+'" width="'+plan.w*100+'" height="'+plan.d*100+'" fill="'+(plan.structureMode==='walls'?'none':'url(#chido-plan-checker)')+'"/>')+perimeter+segments+
+   architecture=(polygon||'<rect x="'+x+'" y="'+z+'" width="'+plan.w*100+'" height="'+plan.d*100+'" fill="'+(plan.structureMode==='walls'?'none':'url(#chido-plan-grid)')+'"/>')+perimeter+segments+
     '<path d="M'+x+' '+(z-45)+'h'+plan.w*100+'" stroke="#778a83" stroke-width="1.5"/>'+
     '<text x="0" y="'+(z-60)+'" font-size="19" fill="#495b55" text-anchor="middle">'+num(plan.w)+' m</text>'+
     '<text x="'+(x-48)+'" y="0" font-size="19" fill="#495b55" text-anchor="middle" transform="rotate(-90 '+(x-48)+' 0)">'+num(plan.d)+' m</text>';
