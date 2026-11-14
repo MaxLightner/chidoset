@@ -13,7 +13,7 @@ export class MeasureTool{
   this.pointB=new THREE.Mesh(new THREE.SphereGeometry(.026,10,8),this.material);
   this.group.add(this.pointA,this.pointB);
   this.ticks=new THREE.Group();this.group.add(this.ticks);
-  this.label=makeLabel('شروع اندازه‌گیری');this.group.add(this.label);this.label.renderOrder=19;
+  this.label=makeLabel('شروع اندازه‌گیری');this.labelBaseScale=this.label.scale.clone();this.group.add(this.label);this.label.renderOrder=19;
   this.update();
  }
  setActive(value){this.active=!!value;this.update();}
@@ -30,6 +30,8 @@ export class MeasureTool{
   this.group.visible=this.active;
   this.pointA.visible=!!this.a;this.pointB.visible=!!this.b;this.line.visible=!!this.b;
   for(const child of [...this.ticks.children]){this.ticks.remove(child);child.geometry.dispose();child.material.dispose();}
+  // Keep the instruction readable; halve only the completed numeric distance label.
+  this.label.scale.copy(this.labelBaseScale).multiplyScalar(this.b?.5:1);
   if(!this.a){this.label.visible=false;return;}
   this.pointA.position.copy(this.a);this.pointA.position.y=.03;
   if(!this.b){this.label.visible=true;this.label.position.copy(this.a).add(new THREE.Vector3(0,.21,0));if(this.label.userData.measure!=='نقطه دوم را لمس کن'){this.label.userData.measure='نقطه دوم را لمس کن';this.label.userData.updateText?.('نقطه دوم را لمس کن');}return;}
