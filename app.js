@@ -1100,7 +1100,6 @@ function applyWideMode(){
  const outcome=studio?.setWideView(mode,{natural:$('#wideNatural').checked})||
   {ok:false,reason:'جلسه AR فعال نیست.'};
  if(!outcome.ok){select.value=studio?.wideMode||'ar';toast(outcome.reason);return;}
- if(studio?.wideView?.active)void 0;
  if(mode==='ar')$('#wideViewHint').textContent='تصویر دوربین واقعی · ردیابی AR';
  else showWideProjection({horizontal:outcome.hfov,requestedHorizontal:outcome.requestedHfov,limited:outcome.limited});
 }
