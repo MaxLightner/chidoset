@@ -168,6 +168,7 @@ void main(){
   if(!next)return false;
   this.roomPlan=next;
   this.architecture?.applyRoomLookSettings(next.roomLook);
+  this.effects?.setRoomSun(next,this.root);
   if(this.scene){this.scene.environmentIntensity=next.roomLook.ibl;(this.scene.userData??={}).roomIblIntensity=next.roomLook.ibl;}
   this.changed();return true;
  }
@@ -546,7 +547,7 @@ void main(){
  }
 
  remove(){const m=this.selected;if(!m)return;this.items=this.items.filter(x=>x!==m);for(const child of this.items)if(child.userData.attachment?.id===m.userData.id){child.userData.attachment=null;this.keepOnFloor(child);}this.root.remove(m);this.disposeObject(m);this.select(this.items[0]||null);}
- clear(){if(this.roomGeometryTimer!==null)clearTimeout(this.roomGeometryTimer);this.roomGeometryTimer=null;this.roomGeometryDirty=false;this.roomPendingPlacement=false;this.roomPlan=null;for(const m of this.items){this.root.remove(m);this.disposeObject(m);}this.items=[];this.selected=null;this.serial=0;this.architecture?.restore({floor:[],walls:[],windows:[]});this.changed();}
+ clear(){if(this.roomGeometryTimer!==null)clearTimeout(this.roomGeometryTimer);this.roomGeometryTimer=null;this.roomGeometryDirty=false;this.roomPendingPlacement=false;this.roomPlan=null;this.effects?.setRoomSun(null,null);for(const m of this.items){this.root.remove(m);this.disposeObject(m);}this.items=[];this.selected=null;this.serial=0;this.architecture?.restore({floor:[],walls:[],windows:[]});this.changed();}
  disposeObject(object){disposeRoleMaterials(object.getObjectByName('imported-visual'));const imported=!!object.userData.imported;object.userData.disposed=true;object.traverse(o=>{o.geometry?.dispose();if(o.material){const materials=Array.isArray(o.material)?o.material:[o.material];for(const material of materials){if(!imported)material.map?.dispose();material.dispose();}}});}
  rotate(degrees){if(!this.selected)return;const mesh=this.selected;const desired=degrees===undefined?mesh.rotation.y+Math.PI/4:degrees*Math.PI/180;
   mesh.rotation.y=this.safeObjectRotation(mesh,desired);
