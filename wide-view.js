@@ -107,7 +107,7 @@ export class WideViewRenderer{
  updatePose(pose){return this.active&&copyTrackedView(this.camera,pose);}
  ensureGeminiQuality(){
   if(this.geminiQuality||this.geminiQualityPromise||this.geminiQualityFailed)return;
-  this.geminiQualityPromise=import('./gemini-postfx.js?v=0.18.7').then(({createGeminiPostFX})=>{
+  this.geminiQualityPromise=import('./gemini-postfx.js?v=0.18.9').then(({createGeminiPostFX})=>{
    if(this.disposed)return;
    this.geminiQuality=createGeminiPostFX(this.renderer,this.scene,this.camera,this.width,this.height);
    this.geminiQuality.setAmbientOcclusion(this.aoEnabled);
