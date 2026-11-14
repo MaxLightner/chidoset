@@ -1014,7 +1014,7 @@ function openRoomPlanner(){
  void import('./gemini-postfx.js?v=0.18.12').catch(error=>console.warn('Gemini render warmup unavailable',error));
  closeRoomFinishPicker();
  const layer=studio.architecture;
- if(!studio.roomPlan&&(!layer?.data.floor?.length)&&!studio.setRoomPlan(defaultRoomPlan())){
+ if(!studio.roomPlan&&!studio.setRoomPlan(defaultRoomPlan())){
   toast('ساخت اتاق انجام نشد.');return;
  }
  closeChidoMenu();closeArSheet();
@@ -1024,11 +1024,14 @@ function openRoomPlanner(){
  $('#overlay').hidden=false;$('#overlay').classList.toggle('room-design-offline',offline);
  $('#arMiniMap').hidden=false;$('#roomPlaceActions').hidden=true;
  minimap.setExpanded(true);
+ $('#arMiniMap').hidden=false;
+ $('#arMiniMap').classList.add('expanded');
+ $('#overlay').classList.add('cad-active');
 }
 function closeRoomPlanner(){
  closeRoomTemplates();closeRoomFinishPicker();
  minimap.collapse();
- $('#overlay').classList.remove('room-design-offline');
+ $('#overlay').classList.remove('cad-active','room-design-offline');
  if(!studio?.session){$('#overlay').hidden=true;$('#arMiniMap').hidden=true;}
  else $('#arMiniMap').hidden=!studio?.placed;
  if(studio?.session)$('#roomPlaceActions').hidden=!studio.placed||!studio.roomPlan||!studio.roomPendingPlacement;
@@ -1336,6 +1339,8 @@ function toggleChidoMenu(){
 $('#overlay').addEventListener('beforexrselect',event=>event.preventDefault());
 $('#homeAR').onclick=toggleChidoMenu;
 $('#chidoMenuContinue').onclick=closeChidoMenu;
+$('#chidoMenuDesign').onclick=()=>{closeChidoMenu();openRoomPlanner();};
+$('#openPlanAR').onclick=()=>openRoomPlanner();
 $('#chidoMenuShare').onclick=()=>{closeChidoMenu();void beginLiveShare();};
 $('#chidoMenuSave').onclick=()=>{closeChidoMenu();if(cloudMembership?.role!=='company_admin'||!activeCloudSetId){toast('ذخیره رسمی فقط برای مدیر شرکت و داخل یک ست فعال است.');return;}if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}showArSheet('save');};
 $('#chidoMenuBlank').onclick=()=>{
