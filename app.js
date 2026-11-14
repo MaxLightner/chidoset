@@ -478,6 +478,7 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
 let arSheetMode=null;
 $('#arSettingsBin').append($('#arSettings'));
 function closeArSheet(){
+ document.querySelector('#roomPropertyKeypad')?.remove();
  const settings=$('#arSettings');if(settings.parentElement===$('#arSheetContent'))$('#arSettingsBin').append(settings);
  settings.open=false;settings.hidden=true;
  $('#arToolSheet').hidden=true;arSheetMode=null;
@@ -1340,6 +1341,7 @@ function toggleChidoMenu(){
 $('#overlay').addEventListener('beforexrselect',event=>event.preventDefault());
 $('#homeAR').onclick=toggleChidoMenu;
 $('#chidoMenuContinue').onclick=closeChidoMenu;
+$('#chidoMenuShare').onclick=()=>{closeChidoMenu();void beginLiveShare();};
 $('#chidoMenuSave').onclick=()=>{closeChidoMenu();if(cloudMembership?.role!=='company_admin'||!activeCloudSetId){toast('ذخیره رسمی فقط برای مدیر شرکت و داخل یک ست فعال است.');return;}if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}showArSheet('save');};
 $('#chidoMenuBlank').onclick=()=>{
  if(!studio?.placed){toast('ابتدا کف را تثبیت کن.');return;}
