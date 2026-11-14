@@ -507,3 +507,65 @@
   grid-template-rows:38px 36px 38px auto!important;max-height:46dvh!important;
  }
 }
+
+/* 0.18.14 regression fix: restore pointer access and visible controls in both AR and offline CAD. */
+#overlay.cad-active #arMiniMap,
+#overlay.cad-active #arMiniMap.expanded{
+ display:flex!important;visibility:visible!important;pointer-events:auto!important;
+ position:fixed!important;inset:0!important;top:0!important;bottom:0!important;
+ width:100vw!important;height:100dvh!important;max-height:none!important;
+ z-index:200!important;overflow:hidden!important;transform:none!important;
+ background:#f8f7f3!important;
+}
+#overlay.cad-active #arMiniMap .map-title{flex:0 0 auto!important;z-index:3!important;position:relative!important;pointer-events:auto!important}
+#overlay.cad-active #arMiniMap .map-title button{pointer-events:auto!important;position:relative!important;z-index:4!important}
+#overlay.cad-active #arMiniMap .room-design-toolbar{
+ display:grid!important;position:relative!important;z-index:2!important;
+ flex:0 0 auto!important;grid-template-columns:minmax(0,1fr)!important;
+ grid-template-rows:40px 38px 40px minmax(0,auto)!important;
+ width:100%!important;height:auto!important;min-height:0!important;
+ max-height:min(55dvh,430px)!important;overflow-x:hidden!important;overflow-y:auto!important;
+ align-content:start!important;gap:6px!important;padding:7px!important;pointer-events:auto!important;
+}
+#overlay.cad-active #arMiniMap .room-design-toolbar .room-design-row{
+ width:100%!important;max-width:100%!important;display:grid!important;
+ pointer-events:auto!important;position:relative!important;z-index:auto!important;
+}
+#overlay.cad-active #arMiniMap .room-design-toolbar .room-design-row-main,
+#overlay.cad-active #arMiniMap .room-design-toolbar .room-design-row-mode,
+#overlay.cad-active #arMiniMap .room-design-toolbar .room-design-row-actions{
+ height:40px!important;min-height:38px!important;max-height:40px!important;
+ overflow:visible!important;
+}
+#overlay.cad-active #arMiniMap .room-design-toolbar .room-design-row-architecture{
+ display:grid!important;grid-template-columns:repeat(4,minmax(85px,1fr))!important;
+ height:auto!important;min-height:0!important;max-height:none!important;
+ grid-auto-rows:92px!important;gap:6px!important;overflow:visible!important;
+ pointer-events:auto!important;
+}
+#overlay.cad-active #arMiniMap .room-design-row-architecture button,
+#overlay.cad-active.floor-ready #arMiniMap .room-design-row-architecture button{
+ position:relative!important;z-index:auto!important;pointer-events:auto!important;
+ width:100%!important;height:90px!important;min-height:90px!important;max-height:90px!important;
+ padding:5px 3px!important;overflow:visible!important;
+}
+#overlay.cad-active #arMiniMap .room-design-row-architecture button svg{pointer-events:none!important}
+#overlay.cad-active #arMiniMap .room-design-row-architecture button span{pointer-events:none!important}
+#overlay.cad-active #arMiniMap .room-design-toolbar button,
+#overlay.cad-active #arMiniMap .room-design-toolbar input,
+#overlay.cad-active #arMiniMap .room-design-toolbar select{
+ pointer-events:auto!important;touch-action:manipulation!important;
+}
+#overlay.cad-active #arMiniMap>svg{
+ display:block!important;flex:1 1 0!important;min-height:100px!important;
+ width:100%!important;pointer-events:auto!important;touch-action:none!important;
+}
+#overlay.cad-active #arMiniMap .map-meta{
+ position:relative!important;z-index:3!important;flex:0 0 auto!important;
+ pointer-events:auto!important;min-height:42px!important;overflow:visible!important;
+}
+#overlay.cad-active #arMiniMap .map-meta button{pointer-events:auto!important;touch-action:manipulation!important}
+@media(max-width:580px){
+ #overlay.cad-active #arMiniMap .room-design-toolbar{max-height:60dvh!important;grid-template-rows:38px 36px 38px auto!important}
+ #overlay.cad-active #arMiniMap .room-design-row-architecture{grid-template-columns:repeat(2,minmax(85px,1fr))!important;grid-auto-rows:92px!important}
+}
