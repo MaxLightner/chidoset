@@ -1403,3 +1403,23 @@ html:fullscreen{padding:0!important}html:fullscreen body{max-width:none;border-r
  #overlay .quick-material-popover .material-original-swatch{width:69px!important;height:69px!important}
  #overlay .ar-tv-controls{top:calc(env(safe-area-inset-top,0px) + 86px)}
 }
+
+/* Tablet AB calibration: native keyboard is not requested; no overlays cover the numeric pad. */
+#overlay.ab-keypad-open .ar-bottom,
+#overlay.ab-keypad-open .ar-top,
+#overlay.ab-keypad-open #abInline,
+#overlay.ab-keypad-open .ar-architecture-actions,
+#overlay.ab-keypad-open .ar-object-quick{visibility:hidden!important;pointer-events:none!important}
+#overlay.ab-keypad-open #abCalibrationSheet{
+ position:fixed!important;z-index:500!important;left:50%!important;right:auto!important;
+ top:50%!important;bottom:auto!important;transform:translate(-50%,-50%)!important;
+ width:min(440px,calc(100vw - 24px))!important;max-height:calc(100dvh - 22px)!important;
+ overflow:auto!important;background:#fbf8f1!important;padding:16px!important;
+ box-shadow:0 12px 48px #0006!important;border-radius:16px!important;pointer-events:auto!important;
+}
+#aractual[readonly]{cursor:pointer;min-width:100px;text-align:center;user-select:none;background:white}
+.ar-numeric-pad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:10px;direction:ltr}
+.ar-numeric-pad button{min-height:40px;padding:7px;font-size:19px;border-radius:9px}
+.ar-numeric-pad button:last-child{grid-column:span 2;font-size:14px}
+.ar-numeric-pad button:nth-last-child(2){font-size:13px}
+@media(max-height:600px){#overlay.ab-keypad-open #abCalibrationSheet{top:8px!important;transform:translateX(-50%)!important}}
