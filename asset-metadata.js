@@ -1,4 +1,4 @@
-import {CATALOG} from './catalog-data.js?v=0.16.16';
+import {CATALOG} from './catalog-data.js?v=0.19.0';
 import {getCloudProduct,cloudProductList} from './cloud-product-registry.js';
 export const SHEEN_CHAIR_SAMPLE=Object.freeze({name:'صندلی شین (SheenChair)',size:Object.freeze([.85,.9,.85]),price:0});
 const categoryByIndex=index=>[0,1,3,22,23,24,32,1000].includes(index)?'seating':[2,12,13,25,26,27].includes(index)?'low-tables':[10,11].includes(index)?'dining':index===9?'workspace':index===8?'bedroom':[7,31].includes(index)?'rugs':index>=16&&index<=21?'wall-art':'decor';
@@ -19,28 +19,46 @@ export const ASSET_CATEGORIES=Object.freeze([
  {id:'rugs',label:'فرش',indexes:[7,31]},
  {id:'wall-art',label:'تابلو و دیوارکوب',indexes:[16,17,18,19,20,21]}
 ]);
-export function assetMetadata(index,size=getCloudProduct(index)?.size_m||(index===1000?SHEEN_CHAIR_SAMPLE.size:CATALOG[index]?.size)){
- if(!size)throw RangeError('Unknown asset');
- const category=getCloudProduct(index)?.metadata.category||categoryByIndex(index);
- const tables=[2,9,10,12,13,25,26,27],sofas=[0,1,3];
- const surfaces=tables.includes(index)?[{name:'tabletop',kind:'horizontal',height:size[1],width:size[0]*.84,depth:size[2]*.84}]:
- sofas.includes(index)?[{name:'sofa-seat',kind:'seat',height:.48,width:size[0]-.2,depth:.37,backAngle:80}]:[];
+const tableIndexes=[2,9,10,12,13,25,26,27],sofaIndexes=[0,1,3];
+export function assetMetadata(index,size=getCloudProduct(index)?.size_m||(index===1000?SHEEN_CHAIR_SAMPLE.size:CATALOG[index]?.size),sourceMetadata=getCloudProduct(index)?.metadata,collisionBounds=null){
+ if(!Array.isArray(size)||size.length!==3||!size.every(n=>Number.isFinite(n)&&n>0))throw RangeError('Unknown asset');
+ const product=getCloudProduct(index),dynamic=!!product,meta=sourceMetadata&&typeof sourceMetadata==='object'?sourceMetadata:{};
+ const category=meta.category||categoryByIndex(index);
+ const explicitFloor=typeof meta.collision?.floorSolid==='boolean'?meta.collision.floorSolid:null;
+ const placementOverride=meta.placement;
+ let inferredFloor;
+ if(dynamic){
+  if(explicitFloor!==null)inferredFloor=explicitFloor;
+  else if(['tabletop','wall','virtual-wall','ceiling','none'].includes(placementOverride))inferredFloor=false;
+  else if(placementOverride==='floor')inferredFloor=true;
+  else if(['seating','low-tables','dining','workspace','bedroom'].includes(category))inferredFloor=true;
+  else if(category==='rugs'||category==='wall-art')inferredFloor=false;
+  else inferredFloor=size[1]>=.8;
+ }
+ const placement=placementOverride||(dynamic?(inferredFloor?'floor':'tabletop'):
+  index>=16&&index<=21?'virtual-wall':index===5?'sofa':'floor');
+ const surfaces=tableIndexes.includes(index)?[{name:'tabletop',kind:'horizontal',height:size[1],width:size[0]*.84,depth:size[2]*.84}]:
+  sofaIndexes.includes(index)?[{name:'sofa-seat',kind:'seat',height:.48,width:size[0]-.2,depth:.37,backAngle:80}]:[];
+ const collisionSize=collisionBounds?.size||size,collisionCenter=collisionBounds?.center||[0,0,0];
+ const kind=meta.kind||meta.role||null;
  return {
-  index,category,variantGroup:sofas.includes(index)?'sofa':tables.includes(index)?'table':
-   [6,14,15,28,29].includes(index)?'lamp':index>=16&&index<=21?'art':index===31?'rug':'decor',
-  collision:{kind:'box',size:[...size]},
-  footprint2D:{shape:[7,31].includes(index)?'rug':index>=16&&index<=21?'wall-rect':'rect',width:size[0],depth:size[2]},
-  placement:index>=16&&index<=21?'virtual-wall':index===5?'sofa':'floor',
-  supportSurfaces:surfaces,
-  features:{seats:sofas.includes(index),cushions:sofas.includes(index),
-   capacity:index===10,power:[6,14,15,28,29].includes(index),material:true,
-   variants:category==='seating'||tables.includes(index)||[6,14,15,28,29].includes(index)||category==='rugs'||(index>=16&&index<=21)}
+  index,dynamic,category,kind,
+  variantGroup:kind|| (sofaIndexes.includes(index)?'sofa':tableIndexes.includes(index)?'table':
+   [6,14,15,28,29].includes(index)?'lamp':index>=16&&index<=21?'art':index===31?'rug':category),
+  collision:{kind:collisionBounds?'authored-box':'bounds',size:[...collisionSize],center:[...collisionCenter],
+   ...(inferredFloor!==undefined?{floorSolid:inferredFloor}:{})},
+  footprint2D:{shape:category==='rugs'?'rug':category==='wall-art'?'wall-rect':'rect',width:size[0],depth:size[2]},
+  placement,supportSurfaces:surfaces,
+  features:{seats:sofaIndexes.includes(index),cushions:sofaIndexes.includes(index),
+   capacity:index===10,power:[6,14,15,28,29].includes(index)||meta.features?.power===true,
+   material:true,variants:category==='seating'||tableIndexes.includes(index)||[6,14,15,28,29].includes(index)||category==='rugs'||category==='wall-art',
+   ...(meta.features||{})}
  };
 }
-export const isLamp=index=>[6,14,15,28,29].includes(index);
-export const isRug=index=>index===7||index===31;
-export const isSofa=index=>[0,1,3].includes(index);
-export const isTable=index=>[2,9,10,12,13,25,26,27].includes(index);
-export const isWallArt=index=>index>=16&&index<=21;
+export const isLamp=(index,asset=null)=>[6,14,15,28,29].includes(index)||asset?.kind==='lamp'||asset?.features?.power===true;
+export const isRug=(index,asset=null)=>index===7||index===31||asset?.category==='rugs';
+export const isSofa=(index,asset=null)=>[0,1,3].includes(index)||asset?.kind==='sofa';
+export const isTable=(index,asset=null)=>tableIndexes.includes(index)||asset?.kind==='table'||['low-tables','dining','workspace'].includes(asset?.category);
+export const isWallArt=(index,asset=null)=>index>=16&&index<=21||asset?.category==='wall-art';
 export function categoryForIndex(index){return getCloudProduct(index)?.metadata.category||ASSET_CATEGORIES.find(c=>c.indexes.includes(index))?.id||'decor';}
 export function variantsFor(index){const category=categoryForIndex(index);if(getCloudProduct(index))return cloudProductList().filter(p=>p.metadata.category===category).map(p=>p.catalog_index);if(category==='seating')return [1,0,3,24,23,22,32,1000];if(category==='low-tables')return [2,12,13,25,26,27];if(category==='dining')return index===10?[10]:[10,11];if(isLamp(index))return [6,14,15,28,29];if(isRug(index))return [7,31];if(isWallArt(index))return [16,17,18,19,20,21];return [index];}

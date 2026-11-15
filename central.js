@@ -86,8 +86,8 @@ function openEditor(kind,record=null){
  if(kind==='product'){
   title=c.id?'ویرایش محصول':'محصول جدید';const builtIn=c.id&&c.catalog_index<32;
   body=field('name','نام محصول',c.name,'text','required maxlength="160"')+field('slug','شناسه انگلیسی',c.slug,'text','required dir="ltr"')+select('category','دسته',CATEGORIES.map(id=>[id,categoryLabels[id]]),c.metadata?.category||builtInCategory(c.catalog_index))+select('active','وضعیت محصول',[['true','فعال'],['false','آرشیو']],String(c.active??true))+
-  field('width','عرض، سانتی‌متر',(c.size_m?.[0]||1)*100,'number',`required min="0.5" max="2000" step="0.01" ${builtIn?'readonly':''}`)+field('height','ارتفاع، سانتی‌متر',(c.size_m?.[1]||1)*100,'number',`required min="0.5" max="2000" step="0.01" ${builtIn?'readonly':''}`)+field('depth','عمق، سانتی‌متر',(c.size_m?.[2]||1)*100,'number',`required min="0.5" max="2000" step="0.01" ${builtIn?'readonly':''}`)+
-  (builtIn?'<p class="form-help full">هندسه و ابعاد مدل‌های پایه حفظ می‌شوند. برای هندسه جدید، محصول جداگانه اضافه کن.</p>':'<label class="full">فایل مدل GLB، حداکثر ۳۲ مگابایت<input name="modelFile" type="file" accept=".glb" '+(!c.id?'required':'')+'></label><div id="modelPreview" class="file-preview full" hidden></div>')+
+  field('width','عرض تشخیص‌داده‌شده، سانتی‌متر',(c.size_m?.[0]||1)*100,'number','required min="0.5" max="2000" step="0.01" readonly')+field('height','ارتفاع تشخیص‌داده‌شده، سانتی‌متر',(c.size_m?.[1]||1)*100,'number','required min="0.5" max="2000" step="0.01" readonly')+field('depth','عمق تشخیص‌داده‌شده، سانتی‌متر',(c.size_m?.[2]||1)*100,'number','required min="0.5" max="2000" step="0.01" readonly')+
+  (builtIn?'<p class="form-help full">ابعاد مدل پایه از مشخصات فعلی حفظ می‌شود.</p>':'<p class="form-help full">ابعاد از هندسه قابل‌نمایش GLB محاسبه می‌شود؛ مش برخورد و صفحه سایه در اندازه‌گیری دخالت ندارند. چیدو مقیاس فایل را تغییر نمی‌دهد.</p><label class="full">فایل مدل GLB، حداکثر ۳۲ مگابایت<input name="modelFile" type="file" accept=".glb" '+(!c.id?'required':'')+'></label><div id="modelPreview" class="file-preview full" hidden></div>')+
   '<label class="full">تصویر محصول، حداکثر ۲ مگابایت<input name="imageFile" type="file" accept="image/png,image/jpeg,image/webp"></label>'+`<label class="full">یادداشت محصول<textarea name="notes" maxlength="1000" rows="2">${esc(c.metadata?.notes)}</textarea></label>`;
  }
  if(kind==='set'){title=c.id?'ویرایش و انتشار ست':'ست جدید';const selected=new Set(data.set_products.filter(p=>p.set_id===c.id).map(p=>p.product_id));body=companyField(c.company_id)+field('name','نام ست',c.name,'text','required maxlength="160"')+statuses('status',['draft','published','archived'],c.status||'draft')+`<label class="full">توضیحات<textarea name="description" maxlength="1000">${esc(c.description)}</textarea></label><div class="full"><h3>محصولات این ست</h3><p class="form-help">برای انتشار، دست‌کم یک محصول فعال انتخاب کن.</p><div class="product-picker">${data.products.map(p=>`<label><input type="checkbox" name="product_ids" value="${esc(p.id)}" ${selected.has(p.id)?'checked':''}>${esc(p.name)}${p.active?'':' (آرشیو)'}</label>`).join('')}</div></div>`;}
@@ -99,7 +99,20 @@ function openEditor(kind,record=null){
   const change=()=>{branchSelect.innerHTML=data.branches.filter(b=>b.company_id===companySelect.value&&b.status==='active').map(b=>`<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');branchSelect.disabled=role.value!=='branch';branchSelect.required=role.value==='branch';};companySelect.onchange=change;role.onchange=change;change();
  }
  $('#recordForm [name=modelFile]')?.addEventListener('change',async e=>{
-  try{const file=e.target.files[0];if(!file)return;validateGlb(await file.arrayBuffer());previewCleanup?.();const module=await import('./central-preview.js');$('#modelPreview').hidden=false;previewCleanup=await module.previewModel($('#modelPreview'),file);$('#editorStatus').textContent='مدل بارگذاری شد؛ ابعاد واقعی محصول را بررسی کن.';$('#editorStatus').classList.add('success');}catch(error){$('#editorStatus').textContent=error.message;$('#editorStatus').classList.remove('success');}
+  const file=e.target.files[0];if(!file)return;
+  const form=$('#recordForm'),submit=form.querySelector('[type=submit]');submit.disabled=true;
+  $('#editorStatus').textContent='در حال خواندن ابعاد هندسه GLB…';$('#editorStatus').classList.remove('success');
+  try{
+   validateGlb(await file.arrayBuffer());previewCleanup?.();previewCleanup=null;
+   const module=await import('./central-preview.js?v=0.19.0');
+   $('#modelPreview').hidden=false;previewCleanup=await module.previewModel($('#modelPreview'),file);
+   const size=previewCleanup.size_m;
+   if(!Array.isArray(size)||size.length!==3||!size.every(n=>Number.isFinite(n)&&n>=.005&&n<=20))throw Error('ابعاد مدل از فایل GLB قابل تشخیص نیست.');
+   ['width','height','depth'].forEach((name,i)=>{form.elements[name].value=(size[i]*100).toFixed(2);});
+   $('#editorStatus').textContent='ابعاد واقعی از هندسه GLB تشخیص داده شد؛ هیچ تغییری روی مقیاس مدل اعمال نمی‌شود.';
+   $('#editorStatus').classList.add('success');
+  }catch(error){$('#editorStatus').textContent=error.message;$('#editorStatus').classList.remove('success');}
+  finally{submit.disabled=false;}
  });
 }
 async function upload(file,kind){

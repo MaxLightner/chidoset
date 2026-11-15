@@ -412,9 +412,11 @@ export class LiveMiniMap{
   if(!this.pointers.has(e.pointerId))return;
   this.pointers.delete(e.pointerId);
   try{this.svg.releasePointerCapture(e.pointerId);}catch{}
-  // TV controls are exclusively opened by tapping its 3D panel in Studio.
-  // Avoid stale one-finger drags after a two-finger twist/pinch.
-  this.gesture=null;
+  // Resolve furniture overlaps only after the final pointer is released.
+  const gesture=this.gesture;this.gesture=null;
+  if(gesture?.type==='furniture'){
+   const studio=this.getStudio();studio?.settleObjectsAfterDrag?.();studio?.changed?.();
+  }
  }
  render(){
   const studio=this.getStudio();if(!studio||!this.svg)return;

@@ -1,4 +1,4 @@
-import {libraryThumbnail,libraryHidden,libraryModel} from './asset-library.js?v=0.16.23';
+import {loadAssetLibrary,libraryThumbnail,libraryHidden,libraryModel} from './asset-library.js?v=0.19.0';
 import {LiveApprovalHost} from './live-approval-host.js?v=0.16.10';
 import {bindAROrientation} from './ar-orientation.js?v=0.16.9';
 import {liveSession} from './live-approval.js?v=0.16.10';
@@ -296,6 +296,10 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
    }
   }
  if(version!==routeVersion)return;
+ if(route==='spaces'||route==='studio'){
+  try{await loadAssetLibrary();}catch(error){console.warn('Asset library unavailable',error);}
+  if(version!==routeVersion)return;
+ }
  if(studioCache.entry&&studioCache.entry.owner!==studioOwner()){sceneMemory=null;activeCloudSetId=null;activeCloudLayout=null;activeCloudColorway=null;}
  updateAccountHeader();
  if(!cloudMembership&&route!=='welcome'){location.hash='welcome';return;}

@@ -1,5 +1,4 @@
 import * as THREE from './vendor/three.module.js';
-import {FURNITURE_SIZE_FACTOR,scaledFurnitureSize,sourceFurnitureSize} from './furniture-scale.js?v=0.18.7';
 import {copyMaterialStyles,applyRoleMaterial,applyMaterialSlot,disposeRoleMaterials} from './material-roles.js?v=0.18.7';
 import {getCloudProduct,getCloudProductInfo,registerCloudProducts,cloudProductList} from './cloud-product-registry.js';
 import {ArchitectureLayer} from './architecture.js?v=0.18.20';
@@ -7,7 +6,7 @@ import {normalizeRoomPlan,roomPlanToArchitecture,constrainFurnitureToRoom,roomWa
 import {updateGeminiTV} from './gemini-room-materials.js?v=0.18.9';
 import {createFurniture,furnitureHit} from './furniture.js?v=0.5.4';
 import {createDecor} from './decor.js?v=0.5.4';
-import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.18.5';
+import {createImportedModel,isImportedModel} from './imported-models.js?v=0.19.0';
 import {applyRugStyle} from './rug-textures.js?v=0.5.4';
 import {MeasureTool} from './measure-tool.js?v=0.18.20';
 import {bindXRExit} from './xr-lifecycle.js?v=0.14.0';
@@ -23,9 +22,9 @@ import {AnchorStabilizer,transformPoint} from './anchor-rig.js?v=0.5.4';
 import {ARDebugView} from './ar-debug.js?v=0.5.4';
 import {buildLayout} from './layout-templates.js?v=0.5.4';
 import {captureInternalAR,canCaptureCamera,InternalCaptureUnavailable} from './internal-camera-capture.js?v=0.5.4';
-import {assetMetadata,isLamp,isSofa,isTable,isWallArt,SHEEN_CHAIR_SAMPLE} from './asset-metadata.js?v=0.16.16';
+import {assetMetadata,isLamp,isSofa,isTable,isWallArt,SHEEN_CHAIR_SAMPLE} from './asset-metadata.js?v=0.19.0';
 import {installSofaCushions} from './sofa-cushions.js?v=0.5.4';
-import {isFloorSolid,footprint,footprintsOverlap,moveWithoutOverlap,rotateWithoutOverlap,moveGroupWithoutOverlap,rotateGroupWithoutOverlap,nearestFreeFootprint,settleFootprintsBySize} from './collision.js?v=0.16.16';
+import {isFloorSolid,footprint,footprintsOverlap,moveWithoutOverlap,rotateWithoutOverlap,moveGroupWithoutOverlap,rotateGroupWithoutOverlap,nearestFreeFootprint,settleFootprintsBySize} from './collision.js?v=0.19.0';
 export const palette=['#b6bca2','#d5c4ad','#b9c4c6','#ba9380'];
 const fa=n=>n.toLocaleString('fa-IR',{maximumFractionDigits:1});
 export class Studio{
@@ -234,7 +233,10 @@ void main(){
  moveRoomFurniture(id,x,z){
   if(!this.roomPlan||!Number.isFinite(x)||!Number.isFinite(z))return false;
   const mesh=this.items.find(m=>m.userData.id===id);if(!mesh)return false;
-  const safe=this.safeObjectMotion(mesh,{x,z});
+  const parts=[this.collisionShape(mesh),...this.linkedChairs(mesh).map(item=>this.collisionShape(item))];
+  const safe=constrainFurnitureToRoom(this.roomPlan,parts,{x,z})||{x:mesh.position.x,z:mesh.position.z};
+  const dx=safe.x-mesh.position.x,dz=safe.z-mesh.position.z;
+  for(const chair of this.linkedChairs(mesh)){chair.position.x+=dx;chair.position.z+=dz;}
   mesh.position.x=safe.x;mesh.position.z=safe.z;
   if([4,14,28].includes(mesh.userData.index))this.snapToSupport(mesh);else this.keepOnFloor(mesh);
   this.refreshAttachments();this.updateArtFloorHandle();this.changed();return true;
@@ -244,7 +246,7 @@ void main(){
  hitArtHandle(e,target){if(!this.artFloorHandle.visible)return false;const rect=target.getBoundingClientRect(),point=this.artFloorHandle.getWorldPosition(new THREE.Vector3()).project(this.activeCamera());if(point.z< -1||point.z>1)return false;return Math.hypot(rect.left+(point.x+1)*rect.width/2-e.clientX,rect.top+(1-point.y)*rect.height/2-e.clientY)<52;}
  rulerScreenPosition(){if(!this.model.locked||!this.tracking)return null;const p=this.rulerLabel.getWorldPosition(new THREE.Vector3()).project(this.activeCamera());if(p.z< -1||p.z>1||Math.abs(p.x)>1||Math.abs(p.y)>1)return null;const rect=document.querySelector('#arSurface')?.getBoundingClientRect();return rect?{x:rect.left+(p.x+1)*rect.width/2,y:rect.top+(1-p.y)*rect.height/2}:null;}
  planPosition(mesh){const k=this.model.correction,yaw=this.model.layoutYaw,c=Math.cos(yaw),s=Math.sin(yaw),o=this.model.layoutOffset;return {x:o.x+(mesh.position.x*c+mesh.position.z*s)*k,z:o.z+(-mesh.position.x*s+mesh.position.z*c)*k};}
- moveObjectFromPlan(id,x,z){if(!this.model.locked||!Number.isFinite(x)||!Number.isFinite(z))return false;const mesh=this.items.find(m=>m.userData.id===id);if(!mesh)return false;const k=Math.max(.001,this.model.correction),yaw=this.model.layoutYaw,c=Math.cos(yaw),s=Math.sin(yaw),dx=(x-this.model.layoutOffset.x)/k,dz=(z-this.model.layoutOffset.z)/k;const safe=this.safeObjectMotion(mesh,{x:dx*c-dz*s,z:dx*s+dz*c});mesh.position.x=safe.x;mesh.position.z=safe.z;if([4,14,28].includes(mesh.userData.index))this.snapToSupport(mesh);else this.keepOnFloor(mesh);this.refreshAttachments();this.updateArtFloorHandle();this.changed();return true;}
+ moveObjectFromPlan(id,x,z){if(!this.model.locked||!Number.isFinite(x)||!Number.isFinite(z))return false;const mesh=this.items.find(m=>m.userData.id===id);if(!mesh)return false;const k=Math.max(.001,this.model.correction),yaw=this.model.layoutYaw,c=Math.cos(yaw),s=Math.sin(yaw),dx=(x-this.model.layoutOffset.x)/k,dz=(z-this.model.layoutOffset.z)/k,desired={x:dx*c-dz*s,z:dx*s+dz*c},shift={x:desired.x-mesh.position.x,z:desired.z-mesh.position.z};for(const chair of this.linkedChairs(mesh)){chair.position.x+=shift.x;chair.position.z+=shift.z;}mesh.position.x=desired.x;mesh.position.z=desired.z;if([4,14,28].includes(mesh.userData.index))this.snapToSupport(mesh);else this.keepOnFloor(mesh);this.refreshAttachments();this.updateArtFloorHandle();this.changed();return true;}
 
  setMoveLayoutMode(value){this.moveLayoutMode=!!value;this.cancelGesture();this.onHint?.(this.moveLayoutMode?'برای حرکت کل چیدمان، نقطه‌ای از زمین را لمس کن و بکش.':'حالت جابه‌جایی چیدمان بسته شد.');return this.moveLayoutMode;}
  rotateLayout(degrees=45){this.model.layoutYaw+=degrees*Math.PI/180;this.syncSpatial();this.changed();}
@@ -274,18 +276,15 @@ void main(){
   if(index>=32&&!cloud&&!sheenChair&&!isImportedModel(index))throw Error('مدل این محصول در دسترس نیست؛ کتابخانه شرکت را دوباره دریافت کن.');
   if(!cloud&&!sheenChair)index=((index%CATALOG.length)+CATALOG.length)%CATALOG.length;
   const baseProduct=cloud?{name:cloud.name,size:cloud.size_m,price:0}:sheenChair?SHEEN_CHAIR_SAMPLE:{...CATALOG[index],name:getCloudProductInfo(index)?.name||CATALOG[index].name};
-  const sourceSize=options.size||baseProduct.size;
-  const product={...baseProduct,size:scaledFurnitureSize(sourceSize)},id=++this.serial,[w,h,d]=product.size;
+  const sourceSize=options.size||baseProduct.size||[1,1,1];
+  const product={...baseProduct,size:[...sourceSize]},id=++this.serial,[w,h,d]=product.size;
   const color=palette[index]||'#c6b7a3';
-  const mesh=isImportedModel(index)?createImportedModel(index,sourceSize,options.fabric||'dark'):index<4?createFurniture(index,sourceSize,color,options.seats):createDecor(index,sourceSize,color);
-  // Geometry and imported GLB metadata start at nominal sizes; apply the SAME
-  // factor to every object, including collision outlines, without touching room.
-  mesh.scale.multiplyScalar(FURNITURE_SIZE_FACTOR);
+  const mesh=isImportedModel(index)?createImportedModel(index,sourceSize):index<4?createFurniture(index,sourceSize,color,options.seats):createDecor(index,sourceSize,color);
   const edges=new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry),new THREE.LineBasicMaterial({color:0x9f927f,transparent:true,opacity:.15,depthWrite:false}));mesh.add(edges);
   // Do not build furniture dimension sprites: the 3D and tracked AR rooms remain visually clean.
   const label=null;
-  mesh.userData={...mesh.userData,id,index,height:h,price:product.price,product,edges,label,fabric:options.fabric||'dark',materialStyles:copyMaterialStyles(options.materialStyles),materialSlotStyles:structuredClone(options.materialSlotStyles||{}),
-  asset:assetMetadata(index,product.size),seats:options.seats||(index===0?3:1),cushionPreset:'none',
+  mesh.userData={...mesh.userData,id,index,height:h,price:product.price,product,edges,label,materialStyles:copyMaterialStyles(options.materialStyles),materialSlotStyles:structuredClone(options.materialSlotStyles||{}),
+  asset:assetMetadata(index,product.size,cloud?.metadata),seats:options.seats||(index===0?3:1),cushionPreset:'none',
   collisionBox:new THREE.Box3(new THREE.Vector3(-w/2,-h/2,-d/2),new THREE.Vector3(w/2,h/2,d/2))};
   const loadingModel=isImportedModel(index)&&!mesh.userData.modelLoaded;let loadFill=null;
   if(loadingModel){
@@ -301,7 +300,7 @@ void main(){
   }
   const defaults=[[0,h/2,-2.1],[2,h/2,-2.1],[.6,h/2,-.9],[2,h/2,-.6],[.3,h/2,-.75],[.3,h/2,-2.1],[2,h/2,-.65],[.9,h/2,-1.5],[.5,h/2,-1.8],[.5,h/2,-1.8],[.5,h/2,-1.7],[.5,h/2,-1.2]];
   mesh.position.fromArray(defaults[index]||[0,h/2,-1.65]);if(position)mesh.position.copy(position);
-  mesh.position.y=isWallArt(index)?(position?.y>1?position.y:1.55):h/2;
+  mesh.position.y=isWallArt(index,mesh.userData.asset)?(position?.y>1?position.y:1.55):h/2;
   if(isSofa(index))installSofaCushions(mesh,options.cushionPreset||'none');
   this.root.add(mesh);this.items.push(mesh);this.enableFurnitureSun(mesh);
   if(!position&&index===4){
@@ -312,7 +311,7 @@ void main(){
    const sofa=this.items.find(m=>m!==mesh&&(m.userData.index===0||m.userData.index===1));
    if(sofa)mesh.userData.attachment={id:sofa.userData.id,offset:[0,.56+h/2-sofa.userData.height/2,.20]};
   }
-  this.refreshAttachments();if(isLamp(index)){this.initializeLamp(mesh,options.lampOn===true);if([14,28].includes(index)&&position)this.snapToSupport(mesh);}
+  this.refreshAttachments();if(isLamp(index,mesh.userData.asset)){this.initializeLamp(mesh,options.lampOn===true);if([14,28].includes(index)&&position)this.snapToSupport(mesh);}
   if([14,28].includes(index)&&!position){
    const table=this.items.find(m=>m!==mesh&&m.visible&&isTable(m.userData.index));
    if(table){mesh.position.x=table.position.x;mesh.position.z=table.position.z;}
@@ -326,7 +325,25 @@ void main(){
      mesh.userData.loadFill=null;mesh.userData.loadIndeterminate=false;mesh.material.opacity=0;
      mesh.userData.edges.material.color.set(mesh===this.selected?'#d3a66e':'#8d7e6d');mesh.userData.edges.material.opacity=mesh===this.selected?.48:.13;
     };
-    mesh.userData.onModelReady=()=>{finishLoading();if(mesh.userData.tint)this.tintItem(mesh,mesh.userData.tint);this.enableShadowCasting(mesh);if([22,23,24].includes(index))this.setSofaFabric(mesh.userData.fabric,mesh,{preserveRoles:true});if(isLamp(index))this.initializeLamp(mesh,mesh.userData.lampOn);this.restoreMaterialStyles(mesh);this.restoreMaterialSlots(mesh);this.changed();};
+    mesh.userData.onModelReady=()=>{
+     const bounds=mesh.userData.modelBounds;
+     if(bounds?.size&&!bounds.estimated){
+      product.size=[...bounds.size];mesh.userData.height=bounds.size[1];
+      mesh.userData.asset=assetMetadata(index,product.size,cloud?.metadata,mesh.userData.authoredCollisionBounds);
+      mesh.userData.collisionBox.setFromCenterAndSize(new THREE.Vector3(),new THREE.Vector3(...product.size));
+      mesh.userData.edges.geometry.dispose();mesh.userData.edges.geometry=new THREE.EdgesGeometry(mesh.geometry);
+      if(mesh.userData.selectionHalo){
+       const haloBox=new THREE.BoxGeometry(product.size[0]+.08,Math.max(.04,product.size[1])+.09,product.size[2]+.08);
+       mesh.userData.selectionHalo.geometry.dispose();mesh.userData.selectionHalo.geometry=new THREE.EdgesGeometry(haloBox);haloBox.dispose();
+      }
+      if(!isWallArt(index,mesh.userData.asset))mesh.position.y=mesh.userData.height/2;
+      if(mesh.userData.modelFeatures?.hasLight){mesh.userData.asset.kind=mesh.userData.asset.kind||'lamp';mesh.userData.asset.features.power=true;}
+      this.refreshAttachments();if(!this.gesture&&!this.points.size)this.settleObjectsAfterDrag();
+     }
+     finishLoading();if(mesh.userData.tint)this.tintItem(mesh,mesh.userData.tint);this.enableShadowCasting(mesh);
+     if(isLamp(index,mesh.userData.asset))this.initializeLamp(mesh,mesh.userData.lampOn);
+     this.restoreMaterialStyles(mesh);this.restoreMaterialSlots(mesh);this.changed();
+    };
     mesh.userData.onModelError=error=>{const fill=mesh.getObjectByName('chido-model-load-fill');if(fill){fill.material.color.set('#cf654b');fill.material.opacity=.24;}mesh.material.color.set('#cf654b');mesh.material.opacity=.035;mesh.userData.edges.material.color.set('#cf654b');mesh.userData.edges.material.opacity=.78;this.onHint?.('بارگذاری '+product.name+' ناموفق بود: '+(error?.message||'خطای دریافت فایل'));};
     if(mesh.userData.modelLoaded)mesh.userData.onModelReady();
    }
@@ -366,7 +383,7 @@ void main(){
    m.userData.edges.material.color.set(highlighted?'#d3a66e':'#8d7e6d');
    m.userData.edges.material.opacity=highlighted?.48:0;
    m.userData.edges.visible=highlighted&&!this.photoMode;
-   if(m.material?.emissive&&!isLamp(m.userData.index)){
+   if(m.material?.emissive&&!isLamp(m.userData.index,m.userData.asset)){
     m.material.emissive.set(highlighted?'#b79363':'#000000');
     m.material.emissiveIntensity=highlighted?.17:0;
    }
@@ -392,11 +409,11 @@ void main(){
   if(!this.selected||this.items.length>=24)return null;
   const source=this.selected,p=source.position.clone().add(new THREE.Vector3(Math.max(.43,source.userData.product.size[0]*.28),0,.18));
   if(isFloorSolid(source.userData.index)){
-   const spot=nearestFreeFootprint(footprint(source.userData.product.size,p.x,p.z,source.rotation.y),this.collisionObstacles(),2.4);
+   const spot=nearestFreeFootprint(this.collisionShape(source,p.x,p.z,source.rotation.y),this.collisionObstacles(),2.4);
    if(!spot){this.onHint?.('فضای کافی برای کپی کنار مبلمان نیست.');return null;}
    p.x=spot.x;p.z=spot.z;
   }
-  const copy=this.add(source.userData.index,p,{size:sourceFurnitureSize(source.userData.product.size,FURNITURE_SIZE_FACTOR),seats:source.userData.seats,fabric:source.userData.fabric,materialStyles:source.userData.materialStyles,materialSlotStyles:source.userData.materialSlotStyles});
+  const copy=this.add(source.userData.index,p,{size:source.userData.product.size,seats:source.userData.seats,materialStyles:source.userData.materialStyles,materialSlotStyles:source.userData.materialSlotStyles});
   copy.rotation.y=source.rotation.y;copy.material.color.copy(source.material.color);if(source.userData.tint)this.tintItem(copy,source.userData.tint);
   if(source.userData.rugStyle)applyRugStyle(copy,source.userData.rugStyle);
   copy.userData.capacity=source.userData.capacity;copy.userData.tableId=source.userData.tableId;
@@ -408,8 +425,8 @@ void main(){
  replaceSelected(index,options={}){
   const old=this.selected;if(!old)return null;
   const p=old.position.clone(),id=old.userData.id,angle=old.rotation.y,color=old.material.color.clone();
-  const nextSize=scaledFurnitureSize(options.size||getCloudProduct(index)?.size_m||(index===1000?SHEEN_CHAIR_SAMPLE.size:CATALOG[index].size));
-  if(isFloorSolid(index)){
+  const nextSize=options.size||getCloudProduct(index)?.size_m||(index===1000?SHEEN_CHAIR_SAMPLE.size:CATALOG[index].size);
+  if(isFloorSolid(index,assetMetadata(index,nextSize,getCloudProduct(index)?.metadata),nextSize)){
    const ignored=this.items.filter(m=>old.userData.index===10&&m.userData.tableId===id);
    const blocked=this.collisionObstacles(old,ignored).some(other=>footprintsOverlap(footprint(nextSize,p.x,p.z,angle),other));
    if(blocked){this.onHint?.('برای تغییر ابعاد یا مدل، ابتدا فضای بیشتری باز کن.');return null;}
@@ -432,11 +449,11 @@ void main(){
   const width={2:1.05,4:1.35,6:1.85,8:2.35}[count];
   const chairs=[];
   for(let i=0;i<count/2;i++)for(const side of [-1,1]){
-   const offset=new THREE.Vector3((i-(count/2-1)/2)*.55*FURNITURE_SIZE_FACTOR,0,side*.78*FURNITURE_SIZE_FACTOR).applyAxisAngle(new THREE.Vector3(0,1,0),angle);
+   const offset=new THREE.Vector3((i-(count/2-1)/2)*.55,0,side*.78).applyAxisAngle(new THREE.Vector3(0,1,0),angle);
    chairs.push({x:center.x+offset.x,z:center.z+offset.z,angle:angle+(side===1?Math.PI:0)});
   }
-  const fixed=this.collisionObstacles(table,oldChairs),tableShape=footprint(scaledFurnitureSize([width,.75,.86]),center.x,center.z,angle);
-  const chairShapes=chairs.map(c=>footprint(scaledFurnitureSize(CATALOG[11].size),c.x,c.z,c.angle));
+  const fixed=this.collisionObstacles(table,oldChairs),tableShape=footprint([width,.75,.86],center.x,center.z,angle);
+  const chairShapes=chairs.map(c=>footprint(CATALOG[11].size,c.x,c.z,c.angle));
   if(fixed.some(item=>footprintsOverlap(tableShape,item))||
      chairShapes.some((shape,i)=>fixed.some(item=>footprintsOverlap(shape,item))||
       footprintsOverlap(shape,tableShape)||
@@ -492,7 +509,7 @@ void main(){
  initializeLamp(mesh,on){
   mesh.userData.lampOn=!!on;
   mesh.traverse(o=>{
-   if(o.isPointLight){o.visible=!!on;o.intensity=on?2.2:0;o.distance=3.8;}
+   if(o.isLight){o.userData.chidoNativeIntensity??=o.intensity;o.visible=!!on;o.intensity=on?o.userData.chidoNativeIntensity:0;if(o.isPointLight)o.distance=3.8;}
    if(o.name==='lamp-visible-glow'&&o.material)o.material.opacity=on?.46:0;
    if(isImportedModel(mesh.userData.index)&&o.isMesh&&o!==mesh){
     for(const material of Array.isArray(o.material)?o.material:[o.material]){
@@ -517,7 +534,7 @@ void main(){
   this.initializeLamp(this.selected,value);this.changed();return true;
  }
  addAtMarker(index){
-  const h=(getCloudProduct(index)?.size_m||(index===1000?SHEEN_CHAIR_SAMPLE.size:CATALOG[index].size))[1];
+  const h=(getCloudProduct(index)?.size_m||(index===1000?SHEEN_CHAIR_SAMPLE.size:CATALOG[index].size)||[1,1,1])[1];
   const p=this.placementPoint?new THREE.Vector3(this.placementPoint.x,h/2,this.placementPoint.z):undefined;
   const previous=this.selected,item=this.add(index,p);
   if(!this.tryPlaceNew(item,previous,2.3))return null;
@@ -569,8 +586,7 @@ void main(){
   const applied=await applyRoleMaterial(visual,role,clean);
   if(!applied||mesh.userData.disposed)return false;
   mesh.userData.materialStyles??={};if(clean)mesh.userData.materialStyles[role]=clean;else delete mesh.userData.materialStyles[role];
-  if(role==='fabric'&&!clean&&[22,23,24].includes(mesh.userData.index))this.setSofaFabric(mesh.userData.fabric,mesh,{preserveRoles:true});
-  this.changed();return true;
+    this.changed();return true;
  }
  async setMaterialSlotStyle(index,style,mesh=this.selected){
   if(!mesh||!this.items.includes(mesh)||mesh.userData.disposed||!Number.isInteger(index)||index<0||index>63)return false;
@@ -586,25 +602,18 @@ void main(){
  restoreMaterialSlots(mesh){for(const [index,style] of Object.entries(mesh.userData.materialSlotStyles||{}))
   void this.setMaterialSlotStyle(Number(index),style,mesh).catch(error=>this.onHint?.(error.message||'متریال اسلات بارگذاری نشد.'));}
 
- setSofaFabric(id,mesh=this.selected,{preserveRoles=false}={}){
-  if(![22,23,24].includes(mesh?.userData.index))return false;
-  mesh.userData.fabric=id;
-  if(!preserveRoles){if(mesh.userData.materialStyles)delete mesh.userData.materialStyles.fabric;const visual=mesh.getObjectByName('imported-visual');if(visual?.userData.roleMaterialOverrides)delete visual.userData.roleMaterialOverrides.fabric;}
-  const visual=mesh.getObjectByName('imported-visual');if(visual)void applySofaFabric(visual,id,mesh.userData.index).then(applied=>{if(applied&&!mesh.userData.disposed){if(mesh.userData.tint)this.tintItem(mesh,mesh.userData.tint);this.changed();}}).catch(error=>console.warn('Fabric apply failed',error));
-  this.changed();return true;
- }
- setWhiteFloor(visible){this.whiteFloor.visible=!!visible;this.changed();return this.whiteFloor.visible;}
+  setWhiteFloor(visible){this.whiteFloor.visible=!!visible;this.changed();return this.whiteFloor.visible;}
  calibrate(cm){this.model.calibrate(Number(cm)/100);this.measureTool.setCorrection(this.model.correction);this.syncSpatial();this.changed();return this.measurement();}
  resetCalibration(){this.model.resetCalibration();this.measureTool.setCorrection(this.model.correction);this.syncSpatial();this.changed();}
  setHeight(){throw Error('ارتفاع کف فقط از شناسایی واقعی تعیین می‌شود.');}
  measurement(){return {measuredCm:this.model.length*100,correctedCm:this.model.length/this.model.correction*100,scale:this.model.correction,actualCm:this.model.actualLength===null?null:this.model.actualLength*100,heightCm:this.model.heightOffset*100};}
- exportState(){return {furnitureScaleFactor:FURNITURE_SIZE_FACTOR,roomPlan:this.roomPlan?structuredClone(this.roomPlan):null,cloudProducts:cloudProductList().filter(p=>this.items.some(m=>m.userData.index===p.catalog_index)),spatial:this.model.snapshot(),whiteFloor:!!this.whiteFloor?.visible,architecture:this.architecture?.snapshot()||{floor:[],walls:[],windows:[]},items:this.items.map(m=>({index:m.userData.index,id:m.userData.id,
+ exportState(){return {roomPlan:this.roomPlan?structuredClone(this.roomPlan):null,cloudProducts:cloudProductList().filter(p=>this.items.some(m=>m.userData.index===p.catalog_index)),spatial:this.model.snapshot(),whiteFloor:!!this.whiteFloor?.visible,architecture:this.architecture?.snapshot()||{floor:[],walls:[],windows:[]},items:this.items.map(m=>({index:m.userData.index,id:m.userData.id,
  position:m.position.toArray(),rotation:m.rotation.y,color:'#'+m.material.color.getHexString(),tint:m.userData.tint||null,
  attachment:m.userData.attachment||null,size:[...m.userData.product.size],capacity:m.userData.capacity||null,
  seats:m.userData.seats||null,tableId:m.userData.tableId||null,hidden:!!m.userData.hidden,
  rugStyle:m.userData.rugStyle||null,artImage:m.userData.artImage||null,lampOn:!!m.userData.lampOn,
- cushionPreset:m.userData.cushionPreset||'none',fabric:m.userData.fabric||null,materialStyles:copyMaterialStyles(m.userData.materialStyles),materialSlotStyles:structuredClone(m.userData.materialSlotStyles||{})}))};}
- restoreState(state){registerCloudProducts(state.cloudProducts);this.model.restore(state.spatial);this.roomPlan=normalizeRoomPlan(state.roomPlan)||null;this.effects?.setRoomSun(this.roomPlan,this.root);this.roomPendingPlacement=!!this.roomPlan;this.architecture?.restore(state.architecture||{floor:[],walls:[],windows:[]});if(this.whiteFloor)this.whiteFloor.visible=!!state.whiteFloor&&!this.architecture?.data.floor.length;for(const x of state.items){const mesh=this.add(x.index,x.position?new THREE.Vector3(...x.position):undefined,{size:[22,23,24].includes(x.index)?undefined:sourceFurnitureSize(x.size||CATALOG[x.index]?.size||[1,1,1],state.furnitureScaleFactor||1),seats:x.seats,silentSelect:true,cushionPreset:x.cushionPreset,lampOn:x.lampOn,fabric:x.fabric,materialStyles:x.materialStyles,materialSlotStyles:x.materialSlotStyles});mesh.userData.id=x.id;mesh.position.fromArray(x.position);if(!isWallArt(x.index)&&isFloorSolid(x.index))mesh.position.y=mesh.userData.height/2;mesh.rotation.y=x.rotation;mesh.material.color.set(x.color);if(x.tint)this.tintItem(mesh,x.tint);mesh.userData.attachment=x.attachment||null;mesh.userData.capacity=x.capacity||null;mesh.userData.seats=x.seats||mesh.userData.seats;mesh.userData.tableId=x.tableId||null;mesh.userData.hidden=!!x.hidden;mesh.visible=!x.hidden;if(x.rugStyle)applyRugStyle(mesh,x.rugStyle);if(x.artImage)this.setWallArtImage(x.artImage,mesh);if(isLamp(mesh.userData.index))this.initializeLamp(mesh,x.lampOn===true);}this.serial=Math.max(0,...state.items.map(x=>x.id));this.measureTool.setCorrection(this.model.correction);this.refreshAttachments();this.syncSpatial();this.select(this.items[0]||null);}
+ cushionPreset:m.userData.cushionPreset||'none',materialStyles:copyMaterialStyles(m.userData.materialStyles),materialSlotStyles:structuredClone(m.userData.materialSlotStyles||{})}))};}
+ restoreState(state){registerCloudProducts(state.cloudProducts);this.model.restore(state.spatial);this.roomPlan=normalizeRoomPlan(state.roomPlan)||null;this.effects?.setRoomSun(this.roomPlan,this.root);this.roomPendingPlacement=!!this.roomPlan;this.architecture?.restore(state.architecture||{floor:[],walls:[],windows:[]});if(this.whiteFloor)this.whiteFloor.visible=!!state.whiteFloor&&!this.architecture?.data.floor.length;for(const x of state.items){const mesh=this.add(x.index,x.position?new THREE.Vector3(...x.position):undefined,{size:x.size||CATALOG[x.index]?.size||[1,1,1],seats:x.seats,silentSelect:true,cushionPreset:x.cushionPreset,lampOn:x.lampOn,materialStyles:x.materialStyles,materialSlotStyles:x.materialSlotStyles});mesh.userData.id=x.id;mesh.position.fromArray(x.position);if(!isWallArt(x.index,mesh.userData.asset)&&isFloorSolid(x.index,mesh.userData.asset,mesh.userData.product.size))mesh.position.y=mesh.userData.height/2;mesh.rotation.y=x.rotation;mesh.material.color.set(x.color);if(x.tint)this.tintItem(mesh,x.tint);mesh.userData.attachment=x.attachment||null;mesh.userData.capacity=x.capacity||null;mesh.userData.seats=x.seats||mesh.userData.seats;mesh.userData.tableId=x.tableId||null;mesh.userData.hidden=!!x.hidden;mesh.visible=!x.hidden;if(x.rugStyle)applyRugStyle(mesh,x.rugStyle);if(x.artImage)this.setWallArtImage(x.artImage,mesh);if(isLamp(mesh.userData.index,mesh.userData.asset))this.initializeLamp(mesh,x.lampOn===true);}this.serial=Math.max(0,...state.items.map(x=>x.id));this.measureTool.setCorrection(this.model.correction);this.refreshAttachments();this.syncSpatial();this.select(this.items[0]||null);}
  attachInput(target,opts){target.addEventListener('pointerdown',e=>this.down(e,target),opts);target.addEventListener('pointermove',e=>this.drag(e,target),opts);target.addEventListener('pointerup',e=>this.up(e,target),opts);target.addEventListener('pointercancel',()=>this.cancelGesture(),opts);target.addEventListener('lostpointercapture',e=>{if(this.points.has(e.pointerId))this.up(e,target);},opts);}
 
  exportLiveState(){
@@ -636,20 +645,18 @@ void main(){
    let mesh=current.get(item.id);
    if(!mesh){
     try{
-     mesh=this.add(item.index,new THREE.Vector3(...item.position),{size:[22,23,24].includes(item.index)?undefined:sourceFurnitureSize(item.size||CATALOG[item.index]?.size||[1,1,1],state.furnitureScaleFactor||1),seats:item.seats,silentSelect:true,cushionPreset:item.cushionPreset,lampOn:item.lampOn,fabric:item.fabric,materialStyles:item.materialStyles});
+     mesh=this.add(item.index,new THREE.Vector3(...item.position),{size:item.size||CATALOG[item.index]?.size||[1,1,1],seats:item.seats,silentSelect:true,cushionPreset:item.cushionPreset,lampOn:item.lampOn,materialStyles:item.materialStyles});
     }catch(error){this.onHint?.(error.message||'مدل جدید در دسترس نیست.');continue;}
     mesh.userData.id=item.id;
     current.set(item.id,mesh);
    }else{
     const oldStyles=copyMaterialStyles(mesh.userData.materialStyles),nextStyles=copyMaterialStyles(item.materialStyles);
-    const oldFabric=mesh.userData.fabric;
     // An in-flight model load reads the latest styles from userData when ready.
     if(!mesh.userData.modelLoaded&&mesh.userData.imported)mesh.userData.materialStyles=nextStyles;
     else for(const role of new Set([...Object.keys(oldStyles),...Object.keys(nextStyles)])){
      if(oldStyles[role]?.source===nextStyles[role]?.source)continue;
      void this.setMaterialStyle(role,nextStyles[role]||null,mesh).catch(error=>this.onHint?.(error.message||'تکسچر دریافت نشد.'));
     }
-    if(item.fabric&&oldFabric!==item.fabric)this.setSofaFabric(item.fabric,mesh,{preserveRoles:!!nextStyles.fabric});
    }
    mesh.position.fromArray(item.position);
    if(Number.isFinite(item.rotation))mesh.rotation.y=item.rotation;
@@ -663,7 +670,7 @@ void main(){
    mesh.userData.hidden=!!item.hidden;mesh.visible=!item.hidden;
    if(item.rugStyle&&item.rugStyle!==mesh.userData.rugStyle)applyRugStyle(mesh,item.rugStyle);
    if(item.artImage&&item.artImage!==mesh.userData.artImage)this.setWallArtImage(item.artImage,mesh);
-   if(isLamp(mesh.userData.index)&&!!item.lampOn!==!!mesh.userData.lampOn)this.initializeLamp(mesh,!!item.lampOn);
+   if(isLamp(mesh.userData.index,mesh.userData.asset)&&!!item.lampOn!==!!mesh.userData.lampOn)this.initializeLamp(mesh,!!item.lampOn);
   }
   this.items.sort((a,b)=>state.items.findIndex(item=>item.id===a.userData.id)-state.items.findIndex(item=>item.id===b.userData.id));
   this.serial=Math.max(0,...this.items.map(mesh=>mesh.userData.id));
@@ -731,12 +738,15 @@ void main(){
  pointOnFloor(e,target){this.setRay(e,target);return this.ray.ray.intersectPlane(this.model.plane,new THREE.Vector3());}
  floorLocal(point){return this.floorFrame.worldToLocal(point.clone());}
  rootLocal(point){return this.root.worldToLocal(point.clone());}
- keepOnFloor(mesh){if(mesh&&!mesh.userData.attachment&&!isWallArt(mesh.userData.index))mesh.position.y=mesh.userData.height/2;}
+ keepOnFloor(mesh){if(mesh&&!mesh.userData.attachment&&!isWallArt(mesh.userData.index,mesh.userData.asset))mesh.position.y=mesh.userData.height/2;}
   collisionShape(mesh,x=mesh.position.x,z=mesh.position.z,angle=mesh.rotation.y,size=mesh.userData.product.size){
-   return footprint(mesh.userData.authoredCollisionSize?.map(v=>v*mesh.scale.x)||size,x,z,angle);
+   const bounds=mesh.userData.authoredCollisionBounds||mesh.userData.modelBounds;
+   const dimensions=bounds?.size||size,center=bounds?.center||[0,0,0],c=Math.cos(angle),s=Math.sin(angle);
+   const offsetX=center[0]*c+center[2]*s,offsetZ=-center[0]*s+center[2]*c;
+   return footprint(dimensions,x+offsetX,z+offsetZ,angle);
   }
   collisionObstacles(excluded=null,ignored=[]){
-   const furniture=this.items.filter(m=>m!==excluded&&!ignored.includes(m)&&m.visible&&isFloorSolid(m.userData.index))
+   const furniture=this.items.filter(m=>m!==excluded&&!ignored.includes(m)&&m.visible&&isFloorSolid(m.userData.index,m.userData.asset,m.userData.product.size))
     .map(m=>this.collisionShape(m));
    return this.roomPlan?furniture.concat(roomWallCollisionFootprints(this.roomPlan)):furniture;
   }
@@ -748,8 +758,8 @@ void main(){
    setDragOcclusion(disabled){
     this.originalAo??=new WeakMap();
     for(const item of this.items)item.traverse(obj=>{
-     if(obj.name==='chido-contact-shadow'){this.dragShadowMemory??=new WeakMap();if(disabled){if(!this.dragShadowMemory.has(obj))this.dragShadowMemory.set(obj,obj.visible);obj.visible=false;}else if(this.dragShadowMemory.has(obj)){obj.visible=this.dragShadowMemory.get(obj);this.dragShadowMemory.delete(obj);}return;}
-     if(!obj.isMesh||item.userData.index!==22)return;
+     if(obj.userData.chidoBakedShadow||obj.name==='chido-contact-shadow'){this.dragShadowMemory??=new WeakMap();if(disabled){if(!this.dragShadowMemory.has(obj))this.dragShadowMemory.set(obj,obj.visible);obj.visible=false;}else if(this.dragShadowMemory.has(obj)){obj.visible=this.dragShadowMemory.get(obj);this.dragShadowMemory.delete(obj);}return;}
+     if(!obj.isMesh)return;
      for(const mat of Array.isArray(obj.material)?obj.material:[obj.material]){
       if(!mat?.aoMap)continue;
       if(disabled){if(!this.originalAo.has(mat))this.originalAo.set(mat,mat.aoMapIntensity);mat.aoMapIntensity=0;}
@@ -758,16 +768,18 @@ void main(){
     });
    }
    settleObjectsAfterDrag(){
-    const solids=this.items.filter(item=>item.visible&&isFloorSolid(item.userData.index));
-    if(solids.length<2)return;
+    const solids=this.items.filter(item=>item.visible&&isFloorSolid(item.userData.index,item.userData.asset,item.userData.product.size));
+    if(!solids.length&&!this.roomPlan)return;
     const ids=new Set(solids.map(item=>item.userData.id));
-    const positions=settleFootprintsBySize(solids.map(item=>({...this.collisionShape(item),id:item.userData.id,groupId:ids.has(item.userData.tableId)?item.userData.tableId:item.userData.id})));
-    const byId=new Map(positions.map(item=>[item.id,item]));
-    for(const item of solids){const p=byId.get(item.userData.id);if(p){item.position.x=p.x;item.position.z=p.z;}}
-    this.refreshAttachments();
+    const shapes=solids.map(item=>({...this.collisionShape(item),id:item.userData.id,groupId:ids.has(item.userData.tableId)?item.userData.tableId:item.userData.id}));
+    const fixed=this.roomPlan?roomWallCollisionFootprints(this.roomPlan):[];
+    const positions=settleFootprintsBySize(shapes,48,fixed),byId=new Map(positions.map(item=>[item.id,item]));
+    const original=new Map(shapes.map(shape=>[shape.id,shape]));
+    for(const item of solids){const p=byId.get(item.userData.id),before=original.get(item.userData.id);if(p&&before){item.position.x+=p.x-before.x;item.position.z+=p.z-before.z;}}
+    this.refreshAttachments();this.updateArtFloorHandle();
    }
 safeObjectMotion(mesh,desired){
-    if(!isFloorSolid(mesh.userData.index))return desired;
+    if(!isFloorSolid(mesh.userData.index,mesh.userData.asset,mesh.userData.product.size))return desired;
     const linked=this.linkedChairs(mesh),parts=[this.collisionShape(mesh),...linked.map(m=>this.collisionShape(m))];
     const fixed=this.collisionObstacles(mesh,linked);
     const inside=this.roomPlan?constrainFurnitureToRoom(this.roomPlan,parts,desired):desired;
@@ -805,7 +817,7 @@ safeObjectMotion(mesh,desired){
     return safe;
    }
    tryPlaceNew(mesh,previous=null,maxRadius=2.3){
-   if(!mesh||!isFloorSolid(mesh.userData.index))return !!mesh;
+   if(!mesh||!isFloorSolid(mesh.userData.index,mesh.userData.asset,mesh.userData.product.size))return !!mesh;
    let found=null;
    if(this.roomPlan){
     const moving=this.collisionShape(mesh),blockers=this.collisionObstacles(mesh);
@@ -893,8 +905,11 @@ safeObjectMotion(mesh,desired){
     const step=this.session ? .28 : .65,factor=dist>step?step/dist:1;
     const desired={x:mesh.position.x+dx*factor,z:mesh.position.z+dz*factor};
     if(this.roomPlan){
-     const safe=this.safeObjectMotion(mesh,desired);
-     mesh.position.x=safe.x;mesh.position.z=safe.z;
+     const parts=[this.collisionShape(mesh),...this.linkedChairs(mesh).map(chair=>this.collisionShape(chair))];
+     const bounded=constrainFurnitureToRoom(this.roomPlan,parts,desired)||{x:mesh.position.x,z:mesh.position.z};
+     const dxMove=bounded.x-mesh.position.x,dzMove=bounded.z-mesh.position.z;
+     for(const chair of this.linkedChairs(mesh)){chair.position.x+=dxMove;chair.position.z+=dzMove;}
+     mesh.position.x=bounded.x;mesh.position.z=bounded.z;
     }else{
      const dxMove=desired.x-mesh.position.x,dzMove=desired.z-mesh.position.z;
      for(const chair of this.linkedChairs(mesh)){chair.position.x+=dxMove;chair.position.z+=dzMove;}
@@ -1089,7 +1104,7 @@ safeObjectMotion(mesh,desired){
    if(!this.roomPlan&&this.selected?.userData.edges){
     this.selected.userData.edges.material.opacity=.38+.10*Math.sin(time*.0035);
     if(this.selected.userData.selectionHalo)this.selected.userData.selectionHalo.material.opacity=.36+.14*Math.sin(time*.0028);
-    if(this.selected.material?.emissive&&!isLamp(this.selected.userData.index))this.selected.material.emissiveIntensity=.13+.07*Math.sin(time*.0026);
+    if(this.selected.material?.emissive&&!isLamp(this.selected.userData.index,this.selected.userData.asset))this.selected.material.emissiveIntensity=.13+.07*Math.sin(time*.0026);
    }
    if(time-this.lastSelectionUI>65){this.onSelectionScreen?.(this.selectionScreenPosition());this.onABPosition?.(this.rulerScreenPosition());this.lastSelectionUI=time;}
   }

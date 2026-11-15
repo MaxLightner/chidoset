@@ -6,7 +6,18 @@ export const FLOOR_SOLIDS = Object.freeze([0, 1, 2, 3, 6, 8, 9, 10, 11, 12, 13, 
 const EPS = 1e-9;
 const CLEARANCE = 0.012; // 1.2 cm of breathing room between solid footprints.
 
-export function isFloorSolid(index) { return FLOOR_SOLIDS.includes(index); }
+export function isFloorSolid(index,asset=null,size=null){
+ if(typeof asset?.collision?.floorSolid==='boolean')return asset.collision.floorSolid;
+ if(asset?.dynamic){
+  const placement=asset.placement,category=asset.category;
+  if(['tabletop','wall','virtual-wall','ceiling','none'].includes(placement))return false;
+  if(placement==='floor')return true;
+  if(['seating','low-tables','dining','workspace','bedroom'].includes(category))return true;
+  if(category==='rugs'||category==='wall-art')return false;
+  return Number(size?.[1]??asset.collision?.size?.[1]??0)>=.8;
+ }
+ return FLOOR_SOLIDS.includes(index);
+}
 export function footprint(size, x, z, angle = 0) {
   return { x, z, angle, hx: size[0] / 2, hz: size[2] / 2 };
 }
@@ -186,27 +197,38 @@ export function nearestFreeFootprint(candidate, obstacles, maxRadius = 1.8) {
   return null;
 }
 
-/** At release, separate overlapping floor rectangles, moving smaller ones more. */
-export function settleFootprintsBySize(source,maxIterations=48){
+function overlapVector(a,b){
+ let depth=Infinity,nx=0,nz=0;
+ for(const [ax,az] of [...axes(a),...axes(b)]){
+  const separation=(b.x-a.x)*ax+(b.z-a.z)*az;
+  const d=projectionRadius(a,ax,az)+projectionRadius(b,ax,az)+CLEARANCE-Math.abs(separation);
+  if(d<=0)return null;
+  if(d<depth){depth=d;const dir=Math.abs(separation)>EPS?Math.sign(separation):String(a.id)<String(b.id)?1:-1;nx=ax*dir;nz=az*dir;}
+ }
+ return Number.isFinite(depth)?{depth,nx,nz}:null;
+}
+
+/** At release, separate overlaps; smaller groups move further. Fixed room walls never move. */
+export function settleFootprintsBySize(source,maxIterations=48,fixedObstacles=[]){
  const items=source.map(x=>({...x})),groups=new Map();
  for(const x of items){x.groupId=x.groupId??x.id;const g=groups.get(x.groupId)||{area:0,items:[]};g.area+=Math.max(.0001,4*x.hx*x.hz);g.items.push(x);groups.set(x.groupId,g);}
  const translate=(id,dx,dz)=>{for(const x of groups.get(id).items){x.x+=dx;x.z+=dz;}};
+ const fixed=fixedObstacles.map(x=>({...x}));
  for(let k=0;k<maxIterations;k++){
   let most=0;
+  for(const group of groups.values())for(const item of group.items)for(const blocker of fixed){
+   const hit=overlapVector(item,blocker);if(!hit)continue;
+   most=Math.max(most,hit.depth);
+   const step=hit.depth+.0005;
+   translate(item.groupId,-hit.nx*step,-hit.nz*step);
+  }
   for(let i=0;i<items.length;i++)for(let j=i+1;j<items.length;j++){
    const a=items[i],b=items[j];if(a.groupId===b.groupId)continue;
-   let depth=Infinity,nx=0,nz=0;
-   for(const [ax,az] of [...axes(a),...axes(b)]){
-    const separation=(b.x-a.x)*ax+(b.z-a.z)*az;
-    const d=projectionRadius(a,ax,az)+projectionRadius(b,ax,az)+CLEARANCE-Math.abs(separation);
-    if(d<=0){depth=-1;break;}
-    if(d<depth){depth=d;const dir=Math.abs(separation)>EPS?Math.sign(separation):String(a.id)<String(b.id)?1:-1;nx=ax*dir;nz=az*dir;}
-   }
-   if(depth<=0||!Number.isFinite(depth))continue;
-   most=Math.max(most,depth);
-   const areaA=groups.get(a.groupId).area,areaB=groups.get(b.groupId).area,step=depth+.0005;
-   translate(a.groupId,-nx*step*areaB/(areaA+areaB),-nz*step*areaB/(areaA+areaB));
-   translate(b.groupId,nx*step*areaA/(areaA+areaB),nz*step*areaA/(areaA+areaB));
+   const hit=overlapVector(a,b);if(!hit)continue;
+   most=Math.max(most,hit.depth);
+   const areaA=groups.get(a.groupId).area,areaB=groups.get(b.groupId).area,step=hit.depth+.0005;
+   translate(a.groupId,-hit.nx*step*areaB/(areaA+areaB),-hit.nz*step*areaB/(areaA+areaB));
+   translate(b.groupId,hit.nx*step*areaA/(areaA+areaB),hit.nz*step*areaA/(areaA+areaB));
   }
   if(most<.0001)break;
  }
