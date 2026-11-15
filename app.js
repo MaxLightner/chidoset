@@ -1,4 +1,4 @@
-import {libraryThumbnail,libraryHidden,libraryModel} from './asset-library.js?v=0.16.23';
+import {libraryThumbnail,libraryHidden,libraryModel,publicLibraryCatalogIndexes} from './asset-library.js?v=0.18.23';
 import {LiveApprovalHost} from './live-approval-host.js?v=0.16.10';
 import {bindAROrientation} from './ar-orientation.js?v=0.16.9';
 import {liveSession} from './live-approval.js?v=0.16.10';
@@ -485,7 +485,7 @@ function closeArSheet(){
  studio?.setPlacementEnabled(false);
 }
 // A preset set is an initial layout, never a permission boundary for the catalog.
-function publishedCatalogIndexes(){return new Set([1000,...[...cloudSets.flatMap(set=>set.products),...demoLibrary].map(product=>product.catalog_index)]);}
+function publishedCatalogIndexes(){return new Set([1000,...publicLibraryCatalogIndexes(),...[...cloudSets.flatMap(set=>set.products),...demoLibrary].map(product=>product.catalog_index)]);}
 function getActiveCloudSet(){return cloudSets.find(item=>item.id===activeCloudSetId)||null;}
 function updateCloudControls(){
  const hasSet=!!activeCloudSetId,manager=cloudMembership?.role==='company_admin';

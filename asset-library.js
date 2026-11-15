@@ -19,6 +19,11 @@ export function loadAssetLibrary(){
  if(!pending)pending=fetch(new URL('./assets/library/index.json',import.meta.url),{cache:'no-cache',signal:AbortSignal.timeout(6000)}).then(r=>{if(!r.ok)throw Error('Library unavailable');return r.json();}).then(acceptAssetLibrary).catch(()=>{pending=null;return 0;});
  return pending;
 }
+// Only public, published repository models are available in the temporary demo.
+// Company-specific/private assets remain controlled by signed cloud membership.
+export const publicLibraryCatalogIndexes=()=>[...items.values()]
+ .filter(item=>item.kind==='model'&&item.status==='published'&&Number.isInteger(item.catalog_index))
+ .map(item=>item.catalog_index);
 export const libraryModel=index=>[...items.values()].find(i=>i.kind==='model'&&i.catalog_index===index);
 export const libraryThumbnail=index=>{const i=libraryModel(index);return i&&i.status!=='deleted'?assetPath(i.files.thumbnail):null;};
 export const libraryHidden=index=>['archived','deleted'].includes(libraryModel(index)?.status);
