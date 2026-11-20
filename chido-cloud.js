@@ -2,7 +2,7 @@ import {authStorage} from './auth-storage.js';
 import {configureTelemetry} from './telemetry.js';
 import { createClient } from './vendor/supabase-js-2.119.0.mjs';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, CHIDO_API_URL } from './backend-config.js';
-import {registerCloudProducts,getCloudProduct} from './cloud-product-registry.js';
+import {registerCloudProducts,getCloudProduct} from './cloud-product-registry.js?v=0.19.0';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
@@ -430,12 +430,12 @@ void supabase.auth.getSession().then(({data})=>telemetrySession(data.session));
 // Legacy catalog assets remain on GitHub until explicitly migrated by the Studio.
 export async function loadUnifiedCatalogV3() {
   const { registerCloudProducts, registerCloudMaterials, registerSyncManifest } =
-    await import('./cloud-product-registry.js');
+    await import('./cloud-product-registry.js?v=0.19.0');
   const [p,m,f] = await Promise.all([
     supabase.from('products').select('id,product_code,catalog_index,name,category,set_name,size_m,status,active,asset_path,thumbnail_path,metadata,reference_image_path,live_glb_path,live_thumb_path,glb_hash,companies(code,name)')
       .eq('status','live').eq('active',true),
     supabase.from('asset_sync_manifest').select('storage_path,file_hash,file_mtime,synced_at'),
-    supabase.from('material_families').select('code,name,kind,scope,normal_path,roughness_path,tile_cm,roughness_factor,normal_scale,content_hash,material_swatches(code,name,hex_color,albedo_path,thumb_path,file_hash,active)')
+    supabase.from('material_families').select('code,name,kind,scope,normal_path,roughness_path,tile_cm,roughness_factor,normal_scale,content_hash,material_swatches(code,name,hex_color,albedo_path,thumb_path,legacy_albedo_path,legacy_thumb_path,legacy_source,file_hash,active)')
       .eq('active',true)
   ]);
   if(p.error) throw p.error;
@@ -456,7 +456,7 @@ export async function loadUnifiedCatalogV3() {
     if(error){console.warn('CHIDO signed asset batch unavailable',error);continue;}
     for(const item of data||[])if(item.signedUrl)signed.set(item.path,item.signedUrl);
   }
-  const resolve=path=>path?.startsWith('assets/chido/')?path:(signed.get(path)||'');
+  const resolve=path=>/^assets\/(chido|library)\//.test(path||'')?path:(signed.get(path)||'');
   const rows=products.map(row=>({
     ...row,
     asset_url:resolve(row.live_glb_path), 
@@ -467,7 +467,7 @@ export async function loadUnifiedCatalogV3() {
   registerCloudMaterials(families.map(family=>({
     ...family,normal_url:resolve(family.normal_path),roughness_url:resolve(family.roughness_path),
     material_swatches:(family.material_swatches||[]).map(sw=>({
-      ...sw,albedo_url:resolve(sw.albedo_path),thumb_url:resolve(sw.thumb_path)||resolve(sw.albedo_path)
+      ...sw,albedo_url:resolve(sw.albedo_path)||resolve(sw.legacy_albedo_path),thumb_url:resolve(sw.thumb_path)||resolve(sw.legacy_thumb_path)||resolve(sw.albedo_path)||resolve(sw.legacy_albedo_path)
     }))
   })));
   registerCloudProducts(rows,{unified:true});
