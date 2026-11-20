@@ -22,7 +22,7 @@ import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-
 import {LiveMiniMap} from './minimap.js?v=0.18.21';
 import {defaultRoomPlan} from './room-plan.js?v=0.18.13';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
-import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList,isLegacyCatalogLive} from './cloud-product-registry.js?v=0.19.0';
+import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList,isLegacyCatalogLive} from './cloud-product-registry.js';
 import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,loadDemoLibrary,loadUnifiedCatalogV3,saveOfficialLayout,saveOfficialColorway,createLiveSession,findActiveLiveSession,getLiveShareLink,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.19.0';
 const studioCache=new StudioCache();
 const studioOwner=()=>cloudMembership?cloudMembership.company_id+':'+cloudMembership.user.id:'';
