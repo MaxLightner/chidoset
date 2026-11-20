@@ -2,8 +2,8 @@ import {libraryThumbnail,libraryHidden,libraryModel,publicLibraryCatalogIndexes}
 import {LiveApprovalHost} from './live-approval-host.js?v=0.16.10';
 import {bindAROrientation} from './ar-orientation.js?v=0.16.9';
 import {liveSession} from './live-approval.js?v=0.16.10';
-import {mountMaterialPanel,materialSlotDescriptors,renderMaterialSlotThumbnails} from './material-panel.js?v=0.18.7';
-import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.18.5';
+import {mountMaterialPanel,materialSlotDescriptors,renderMaterialSlotThumbnails} from './material-panel.js?v=0.19.0';
+import {instanceMaterialMap,applyInstanceMaterialMap} from './material-roles.js?v=0.19.0';
 import {rememberAccount,accountName} from './auth-storage.js';
 import {readRecovery,saveRecovery,clearRecovery,filterPublishedScene} from './app-recovery.js';
 import {runtimeHealth,recordRuntime,recordRuntimeError} from './runtime-health.js?v=0.16.1';
@@ -22,8 +22,8 @@ import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-
 import {LiveMiniMap} from './minimap.js?v=0.18.21';
 import {defaultRoomPlan} from './room-plan.js?v=0.18.13';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
-import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList} from './cloud-product-registry.js';
-import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,loadDemoLibrary,saveOfficialLayout,saveOfficialColorway,createLiveSession,findActiveLiveSession,getLiveShareLink,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.16.10';
+import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList,isLegacyCatalogLive} from './cloud-product-registry.js';
+import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,loadDemoLibrary,loadUnifiedCatalogV3,saveOfficialLayout,saveOfficialColorway,createLiveSession,findActiveLiveSession,getLiveShareLink,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.19.0';
 const studioCache=new StudioCache();
 const studioOwner=()=>cloudMembership?cloudMembership.company_id+':'+cloudMembership.user.id:'';
 const $=s=>document.querySelector(s),app=$('#app'),fa=n=>n.toLocaleString('fa-IR');
@@ -114,7 +114,7 @@ function heading(step,title,sub,back){return `<div class="page-heading"><div><sp
 async function full(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(!document.documentElement.requestFullscreen){toast('مرورگر شما تمام‌صفحه را پشتیبانی نمی‌کند.');return;}try{await document.documentElement.requestFullscreen();}catch{toast('ورود به تمام‌صفحه ممکن نشد؛ می‌توانی ادامه بدهی.');}}
 $('#fullscreen').onclick=full;document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'خروج از تمام‌صفحه ↙':'تمام‌صفحه ⛶');
 async function support(){try{supported=!!(isSecureContext&&navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar'));}catch{supported=false;}return supported;}
-async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.18.21');Scene=m.Studio;palette=m.palette;}}
+async function loadScene(){if(!Scene){const m=await import('./scene.js?v=0.19.0');Scene=m.Studio;palette=m.palette;}}
 let draftTimer=null;
 function currentSceneRecord(){
  if(!studio)return null;
@@ -331,6 +331,8 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
  if(route==='spaces'){
   const rooms=[['living','پذیرایی','برای کنار هم بودن'],['dining','ناهارخوری','دور یک میز، کنار هم'],['dining','آشپزخانه','میز غذاخوری و دورهمی'],['bedroom','اتاق خواب','گوشه‌ای برای آرامش'],['office','فضای کار','جایی برای ایده‌های تازه']];
   try{cloudSets=await loadCompanySets(cloudMembership.company_id);demoLibrary=await loadDemoLibrary(cloudMembership);}catch(error){console.warn('Chido company catalog unavailable',error);cloudSets=[];demoLibrary=[];toast('دریافت کتابخانه مدل‌ها انجام نشد.');}
+  // The unified catalog adds published products independently of legacy official sets.
+  try{await loadUnifiedCatalogV3();}catch(error){console.warn('Unified CHIDO catalog unavailable; legacy assets remain active',error);}
   if(version!==routeVersion)return;
   if(activeCloudSetId&&!cloudSets.some(item=>item.id===activeCloudSetId))activeCloudSetId=null;
   const activeSet=cloudSets.find(item=>item.id===activeCloudSetId)||null;
@@ -485,7 +487,7 @@ function closeArSheet(){
  studio?.setPlacementEnabled(false);
 }
 // A preset set is an initial layout, never a permission boundary for the catalog.
-function publishedCatalogIndexes(){return new Set([1000,...publicLibraryCatalogIndexes(),...[...cloudSets.flatMap(set=>set.products),...demoLibrary].map(product=>product.catalog_index)]);}
+function publishedCatalogIndexes(){return new Set([1000,...publicLibraryCatalogIndexes().filter(index=>isLegacyCatalogLive(index)),...cloudProductList().map(p=>p.catalog_index),...[...cloudSets.flatMap(set=>set.products),...demoLibrary].filter(p=>isLegacyCatalogLive(p.catalog_index)).map(product=>product.catalog_index)]);}
 function getActiveCloudSet(){return cloudSets.find(item=>item.id===activeCloudSetId)||null;}
 function updateCloudControls(){
  const hasSet=!!activeCloudSetId,manager=cloudMembership?.role==='company_admin';
@@ -603,6 +605,7 @@ async function refreshCloudSets(){
  if(!cloudMembership)return;
  cloudSets=await loadCompanySets(cloudMembership.company_id);
  demoLibrary=await loadDemoLibrary(cloudMembership);
+ try{await loadUnifiedCatalogV3();}catch(error){console.warn('Unified catalog refresh failed',error);}
  const set=getActiveCloudSet();if(set){activeCloudLayout=set.layouts.find(x=>x.id===activeCloudLayout?.id)||activeCloudLayout;activeCloudColorway=set.colorways.find(x=>x.id===activeCloudColorway?.id)||activeCloudColorway;}
 }
 function showArSheet(mode){

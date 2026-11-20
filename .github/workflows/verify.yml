@@ -16,7 +16,7 @@ jobs:
           node-version: '22'
       - name: JavaScript syntax
         run: npm run check
-      - name: Regression tests
-        run: npm test
       - name: Cloudflare production package
         run: npm run build:cloudflare
+      - name: Regression tests
+        run: npm test
