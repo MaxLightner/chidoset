@@ -54,3 +54,35 @@ export async function loadModelBytes(url,onProgress=()=>{}){
  })();
  return bytes;
 }
+
+
+// Persistent, versioned swatch texture cache. Signed token is intentionally not part of identity.
+const TEXTURE_CACHE_NAME='chido-textures-v2', MAX_TEXTURES=160;
+export function textureCacheKey(url,hash=''){
+  const u=new URL(url,globalThis.location?.href||'https://chidoset.ir/');
+  const version=hash||u.searchParams.get('v')||'';
+  const identity=u.origin+u.pathname+(version?'?v='+encodeURIComponent(version):'');
+  return new URL('__chido-tex-cache__/'+encodeURIComponent(identity),
+    globalThis.location?.origin||'https://chidoset.ir').href;
+}
+export async function loadTextureBlob(url,hash=''){
+  if(!url)throw Error('Missing cloud swatch URL');
+  const u=new URL(url,globalThis.location?.href||'https://chidoset.ir/');
+  if(hash)u.searchParams.set('v',hash);
+  let cache=null,key='';
+  try{if(globalThis.caches){cache=await caches.open(TEXTURE_CACHE_NAME);key=textureCacheKey(url,hash);}}
+  catch(error){console.warn('CHIDO texture cache unavailable',error);}
+  if(cache){try{const hit=await cache.match(key);if(hit)return hit.blob();}catch(error){console.warn('Texture cache read failed',error);}}
+  const response=await fetch(u.href,{mode:'cors',cache:'force-cache'});
+  if(!response.ok)throw Error('Texture download failed ('+response.status+')');
+  const type=response.headers.get('content-type')||'';
+  if(type&&!type.startsWith('image/')&&!type.startsWith('application/octet-stream'))
+    throw Error('Invalid texture response');
+  const clone=cache?response.clone():null,blob=await response.blob();
+  if(cache&&clone)void(async()=>{try{
+    await cache.put(key,clone);
+    const keys=await cache.keys();
+    for(const item of keys.slice(0,Math.max(0,keys.length-MAX_TEXTURES)))await cache.delete(item);
+  }catch(error){console.warn('Texture cache write failed',error);}})();
+  return blob;
+}
