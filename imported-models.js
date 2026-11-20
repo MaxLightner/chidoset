@@ -1,6 +1,6 @@
 import * as THREE from './vendor/three.module.js';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
-import {getCloudProduct} from './cloud-product-registry.js?v=0.19.0';
+import {getCloudProduct} from './cloud-product-registry.js';
 import {materialRole,installColorAO} from './material-roles.js?v=0.19.0';
 import {loadModelBytes} from './model-asset-cache.js?v=0.19.0';
 
