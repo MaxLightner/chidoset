@@ -2,7 +2,7 @@ import {authStorage} from './auth-storage.js';
 import {configureTelemetry} from './telemetry.js';
 import { createClient } from './vendor/supabase-js-2.119.0.mjs';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, CHIDO_API_URL } from './backend-config.js';
-import {registerCloudProducts,getCloudProduct} from './cloud-product-registry.js?v=0.19.0';
+import {registerCloudProducts,getCloudProduct} from './cloud-product-registry.js';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
@@ -430,7 +430,7 @@ void supabase.auth.getSession().then(({data})=>telemetrySession(data.session));
 // Legacy catalog assets remain on GitHub until explicitly migrated by the Studio.
 export async function loadUnifiedCatalogV3() {
   const { registerCloudProducts, registerCloudMaterials, registerSyncManifest } =
-    await import('./cloud-product-registry.js?v=0.19.0');
+    await import('./cloud-product-registry.js');
   const membership = await getMembership();
   const [p,m,f,l] = await Promise.all([
     supabase.from('products').select('id,product_code,catalog_index,name,category,set_name,size_m,status,active,asset_path,thumbnail_path,metadata,reference_image_path,live_glb_path,live_thumb_path,glb_hash,companies(code,name)')
