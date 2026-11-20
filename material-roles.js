@@ -70,7 +70,16 @@ function targets(visual,role){
   }if(!result.includes(m))result.push(m);
  }return result;
 }
+function managedMaterialSource(source){
+ if(typeof source!=='string'||source.startsWith('cloud:'))return source;
+ for(const family of listCloudMaterialFamilies()) {
+  const found=family.swatches.find(sw=>sw.legacySource===source&&sw.albedoUrl);
+  if(found)return 'cloud:'+found.code;
+ }
+ return source;
+}
 function textureFor(source,role){
+ source=managedMaterialSource(source);
  const key=source+':'+role,shared=!source.startsWith('data:');
  if(shared&&presetTextures.has(key))return presetTextures.get(key);
  const texture=new THREE.Texture();texture.flipY=false;texture.colorSpace=THREE.SRGBColorSpace;
@@ -92,6 +101,7 @@ function textureFor(source,role){
 }
 const familyPbrCache=new Map();
 async function familyPbrForSource(source){
+ source=managedMaterialSource(source);
  if(!source?.startsWith('cloud:'))return null;
  const sw=getCloudMaterialSwatch(source.slice(6)),family=sw&&getCloudMaterialFamily(sw.familyCode);
  if(!family)return null;
