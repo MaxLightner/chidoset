@@ -117,7 +117,7 @@ async function familyPbrForSource(source){
  };
  const [normal,roughness]=await Promise.all([load(family.normalUrl),load(family.roughnessUrl)]);
  return {normal,roughness,normalScale:Math.max(0,Math.min(2,Number(family.normalScale)||.65)),
-  roughnessStrength:Math.max(0,Math.min(1,Number(family.roughnessFactor)||.85))};
+  roughnessStrength:Math.max(0,Math.min(1,Number(family.roughnessFactor)||.85)),tileScale:70/(Number(family.tileCm)||70)};
 }
 // The GPU may retain the material's old shader uniforms even when onBeforeCompile
 // is reassigned. Update the SAME uniform object on every material swatch change.
@@ -125,7 +125,7 @@ export function installBakedRoleTexture(material,texture,pbr=null){
  let state=bakedRoleStates.get(material);
  if(!state){
   state={uniform:{value:texture},texture:null,
-   normalMap:{value:null},roughnessMap:{value:null},normalStrength:{value:0},roughnessStrength:{value:0}};
+   normalMap:{value:null},roughnessMap:{value:null},normalStrength:{value:0},roughnessStrength:{value:0},tileScale:{value:1}};
   bakedRoleStates.set(material,state);
   const baseCompile=material.onBeforeCompile,baseCacheKey=material.customProgramCacheKey.bind(material);
   material.onBeforeCompile=shader=>{
@@ -135,13 +135,14 @@ export function installBakedRoleTexture(material,texture,pbr=null){
    shader.uniforms.chidoFamilyRoughness=state.roughnessMap;
    shader.uniforms.chidoFamilyNormalStrength=state.normalStrength;
    shader.uniforms.chidoFamilyRoughnessStrength=state.roughnessStrength;
+   shader.uniforms.chidoTileScale=state.tileScale;
    shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\\nattribute vec2 chidoTileUv; varying vec2 vChidoTileUv;')
     .replace('#include <uv_vertex>','#include <uv_vertex>\\nvChidoTileUv=chidoTileUv;');
    shader.fragmentShader=shader.fragmentShader
-    .replace('#include <common>','#include <common>\\nuniform sampler2D chidoRoleMap; uniform sampler2D chidoFamilyNormal; uniform sampler2D chidoFamilyRoughness; uniform float chidoFamilyNormalStrength; uniform float chidoFamilyRoughnessStrength; varying vec2 vChidoTileUv;')
-    .replace('#include <map_fragment>','#include <map_fragment>\\ndiffuseColor *= texture2D(chidoRoleMap,vChidoTileUv);')
-    .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\\nif(chidoFamilyRoughnessStrength>0.0){roughnessFactor*=mix(1.0,texture2D(chidoFamilyRoughness,vChidoTileUv).g,chidoFamilyRoughnessStrength);}')
-    .replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\\nif(chidoFamilyNormalStrength>0.0){vec3 chidoN=texture2D(chidoFamilyNormal,vChidoTileUv).xyz*2.0-1.0; vec3 chidoDx=dFdx(vViewPosition),chidoDy=dFdy(vViewPosition); vec2 chidoUx=dFdx(vChidoTileUv),chidoUy=dFdy(vChidoTileUv); vec3 chidoT=normalize(chidoDy*chidoUx.y-chidoDx*chidoUy.y); vec3 chidoB=normalize(-chidoDy*chidoUx.x+chidoDx*chidoUy.x); normal=normalize(normal+chidoFamilyNormalStrength*(chidoN.x*chidoT+chidoN.y*chidoB));}');
+    .replace('#include <common>','#include <common>\\nuniform sampler2D chidoRoleMap; uniform sampler2D chidoFamilyNormal; uniform sampler2D chidoFamilyRoughness; uniform float chidoFamilyNormalStrength; uniform float chidoFamilyRoughnessStrength; uniform float chidoTileScale; varying vec2 vChidoTileUv;')
+    .replace('#include <map_fragment>','#include <map_fragment>\\ndiffuseColor *= texture2D(chidoRoleMap,vChidoTileUv*chidoTileScale);')
+    .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\\nif(chidoFamilyRoughnessStrength>0.0){roughnessFactor*=mix(1.0,texture2D(chidoFamilyRoughness,vChidoTileUv*chidoTileScale).g,chidoFamilyRoughnessStrength);}')
+    .replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\\nif(chidoFamilyNormalStrength>0.0){vec3 chidoN=texture2D(chidoFamilyNormal,vChidoTileUv*chidoTileScale).xyz*2.0-1.0; vec3 chidoDx=dFdx(vViewPosition),chidoDy=dFdy(vViewPosition); vec2 chidoUx=dFdx(vChidoTileUv),chidoUy=dFdy(vChidoTileUv); vec3 chidoT=normalize(chidoDy*chidoUx.y-chidoDx*chidoUy.y); vec3 chidoB=normalize(-chidoDy*chidoUx.x+chidoDx*chidoUy.x); normal=normalize(normal+chidoFamilyNormalStrength*(chidoN.x*chidoT+chidoN.y*chidoB));}');
   };
   material.customProgramCacheKey=()=>baseCacheKey()+'-chido-dual-uv4';
   material.needsUpdate=true;
@@ -151,6 +152,7 @@ export function installBakedRoleTexture(material,texture,pbr=null){
  state.normalMap.value=pbr?.normal||null;state.roughnessMap.value=pbr?.roughness||null;
  state.normalStrength.value=pbr?.normal?pbr.normalScale:0;
  state.roughnessStrength.value=pbr?.roughness?pbr.roughnessStrength:0;
+ state.tileScale.value=pbr?.tileScale||1;
  material.userData.chidoRoleTexture=texture;
  if(old&&old!==texture)old.dispose();
  return state.uniform;
@@ -158,7 +160,7 @@ export function installBakedRoleTexture(material,texture,pbr=null){
 function clearBakedRoleTexture(material){
  const state=bakedRoleStates.get(material);
  if(state){
-  state.uniform.value=null;state.normalMap.value=null;state.roughnessMap.value=null;state.normalStrength.value=0;state.roughnessStrength.value=0;state.texture?.dispose();
+  state.uniform.value=null;state.normalMap.value=null;state.roughnessMap.value=null;state.normalStrength.value=0;state.roughnessStrength.value=0;state.tileScale.value=1;state.texture?.dispose();
   bakedRoleStates.delete(material);
  }
  delete material.userData.chidoRoleTexture;
