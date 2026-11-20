@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.js';
 import {FURNITURE_SIZE_FACTOR,scaledFurnitureSize,sourceFurnitureSize} from './furniture-scale.js?v=0.18.7';
 import {copyMaterialStyles,applyRoleMaterial,applyMaterialSlot,disposeRoleMaterials} from './material-roles.js?v=0.19.0';
-import {getCloudProduct,getCloudProductInfo,registerCloudProducts,cloudProductList} from './cloud-product-registry.js?v=0.19.0';
+import {getCloudProduct,getCloudProductInfo,registerCloudProducts,cloudProductList} from './cloud-product-registry.js';
 import {ArchitectureLayer} from './architecture.js?v=0.18.20';
 import {normalizeRoomPlan,roomPlanToArchitecture,constrainFurnitureToRoom,roomWallCollisionFootprints} from './room-plan.js?v=0.18.13';
 import {updateGeminiTV} from './gemini-room-materials.js?v=0.18.9';
