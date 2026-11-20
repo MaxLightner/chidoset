@@ -22,8 +22,8 @@ import {FLOOR_FINISHES,WALL_FINISHES,finishPreviewDataUrl} from './architecture-
 import {LiveMiniMap} from './minimap.js?v=0.18.21';
 import {defaultRoomPlan} from './room-plan.js?v=0.18.13';
 import {CUSHION_PRESETS} from './sofa-cushions.js?v=0.5.4';
-import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList} from './cloud-product-registry.js';
-import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,loadDemoLibrary,saveOfficialLayout,saveOfficialColorway,createLiveSession,findActiveLiveSession,getLiveShareLink,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.16.10';
+import {getCloudProduct,getCloudProductInfo,cloudProductList,cloudProductInfoList,isLegacyCatalogLive} from './cloud-product-registry.js';
+import {supabase,activateBranch,signIn,signInShowroom,getMembership,loadCompanySets,loadDemoLibrary,loadUnifiedCatalogV3,saveOfficialLayout,saveOfficialColorway,createLiveSession,findActiveLiveSession,getLiveShareLink,publishLiveScene,publishLiveCamera,stopLiveSession,updateDeviceHeartbeat,logActivity,getCompanyDashboard,requestOfficialLayout,archiveOfficialLayout,archiveOfficialColorway} from './chido-cloud.js?v=0.16.10';
 const studioCache=new StudioCache();
 const studioOwner=()=>cloudMembership?cloudMembership.company_id+':'+cloudMembership.user.id:'';
 const $=s=>document.querySelector(s),app=$('#app'),fa=n=>n.toLocaleString('fa-IR');
@@ -331,6 +331,8 @@ async function render({reuseCatalog=false}={}){const version=++routeVersion;let 
  if(route==='spaces'){
   const rooms=[['living','پذیرایی','برای کنار هم بودن'],['dining','ناهارخوری','دور یک میز، کنار هم'],['dining','آشپزخانه','میز غذاخوری و دورهمی'],['bedroom','اتاق خواب','گوشه‌ای برای آرامش'],['office','فضای کار','جایی برای ایده‌های تازه']];
   try{cloudSets=await loadCompanySets(cloudMembership.company_id);demoLibrary=await loadDemoLibrary(cloudMembership);}catch(error){console.warn('Chido company catalog unavailable',error);cloudSets=[];demoLibrary=[];toast('دریافت کتابخانه مدل‌ها انجام نشد.');}
+  // The unified catalog adds published products independently of legacy official sets.
+  try{await loadUnifiedCatalogV3();}catch(error){console.warn('Unified CHIDO catalog unavailable; legacy assets remain active',error);}
   if(version!==routeVersion)return;
   if(activeCloudSetId&&!cloudSets.some(item=>item.id===activeCloudSetId))activeCloudSetId=null;
   const activeSet=cloudSets.find(item=>item.id===activeCloudSetId)||null;
@@ -485,7 +487,7 @@ function closeArSheet(){
  studio?.setPlacementEnabled(false);
 }
 // A preset set is an initial layout, never a permission boundary for the catalog.
-function publishedCatalogIndexes(){return new Set([1000,...publicLibraryCatalogIndexes(),...[...cloudSets.flatMap(set=>set.products),...demoLibrary].map(product=>product.catalog_index)]);}
+function publishedCatalogIndexes(){return new Set([1000,...publicLibraryCatalogIndexes().filter(index=>isLegacyCatalogLive(index)),...cloudProductList().map(p=>p.catalog_index),...[...cloudSets.flatMap(set=>set.products),...demoLibrary].filter(p=>isLegacyCatalogLive(p.catalog_index)).map(product=>product.catalog_index)]);}
 function getActiveCloudSet(){return cloudSets.find(item=>item.id===activeCloudSetId)||null;}
 function updateCloudControls(){
  const hasSet=!!activeCloudSetId,manager=cloudMembership?.role==='company_admin';
@@ -603,6 +605,7 @@ async function refreshCloudSets(){
  if(!cloudMembership)return;
  cloudSets=await loadCompanySets(cloudMembership.company_id);
  demoLibrary=await loadDemoLibrary(cloudMembership);
+ try{await loadUnifiedCatalogV3();}catch(error){console.warn('Unified catalog refresh failed',error);}
  const set=getActiveCloudSet();if(set){activeCloudLayout=set.layouts.find(x=>x.id===activeCloudLayout?.id)||activeCloudLayout;activeCloudColorway=set.colorways.find(x=>x.id===activeCloudColorway?.id)||activeCloudColorway;}
 }
 function showArSheet(mode){
