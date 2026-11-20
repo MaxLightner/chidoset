@@ -1,6 +1,6 @@
 import {librarySwatch,librarySwatchThumbnail} from './asset-library.js?v=0.16.23';
 import * as THREE from './vendor/three.module.js';
-import {getCloudMaterialSwatch,getCloudMaterialFamily,listCloudMaterialFamilies} from './cloud-product-registry.js?v=0.19.0';
+import {getCloudMaterialSwatch,getCloudMaterialFamily,listCloudMaterialFamilies} from './cloud-product-registry.js';
 import {loadTextureBlob} from './model-asset-cache.js?v=0.19.0';
 export const MATERIAL_ROLES=['fabric','wood','metal','glass','gold'];
 const SUPPORTED_ROLES=[...MATERIAL_ROLES,'detail'];
