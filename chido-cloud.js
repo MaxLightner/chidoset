@@ -431,17 +431,22 @@ void supabase.auth.getSession().then(({data})=>telemetrySession(data.session));
 export async function loadUnifiedCatalogV3() {
   const { registerCloudProducts, registerCloudMaterials, registerSyncManifest } =
     await import('./cloud-product-registry.js?v=0.19.0');
-  const [p,m,f] = await Promise.all([
+  const membership = await getMembership();
+  const [p,m,f,l] = await Promise.all([
     supabase.from('products').select('id,product_code,catalog_index,name,category,set_name,size_m,status,active,asset_path,thumbnail_path,metadata,reference_image_path,live_glb_path,live_thumb_path,glb_hash,companies(code,name)')
       .eq('status','live').eq('active',true),
     supabase.from('asset_sync_manifest').select('storage_path,file_hash,file_mtime,synced_at'),
-    supabase.from('material_families').select('code,name,kind,scope,normal_path,roughness_path,tile_cm,roughness_factor,normal_scale,content_hash,material_swatches(code,name,hex_color,albedo_path,thumb_path,legacy_albedo_path,legacy_thumb_path,legacy_source,file_hash,active)')
-      .eq('active',true)
+    supabase.from('material_families').select('id,code,name,kind,scope,normal_path,roughness_path,tile_cm,roughness_factor,normal_scale,content_hash,material_swatches(code,name,hex_color,albedo_path,thumb_path,legacy_albedo_path,legacy_thumb_path,legacy_source,file_hash,active)')
+      .eq('active',true),
+    supabase.from('company_materials').select('family_id').eq('company_id',membership?.company_id||'00000000-0000-0000-0000-000000000000')
   ]);
   if(p.error) throw p.error;
   if(m.error) console.warn('CHIDO sync manifest unavailable',m.error);
   if(f.error) console.warn('CHIDO material catalog unavailable',f.error);
-  const products=p.data||[], families=f.data||[];
+  if(l.error) console.warn('CHIDO material access links unavailable',l.error);
+  const products=p.data||[];
+  const allowedFamilies=new Set((l.data||[]).map(link=>link.family_id));
+  const families=(f.data||[]).filter(family=>family.scope!=='shared'||allowedFamilies.has(family.id));
   const paths=[...new Set([
     ...products.flatMap(x=>[x.live_glb_path,x.live_thumb_path]),
     ...families.flatMap(x=>[
