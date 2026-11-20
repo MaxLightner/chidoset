@@ -1,13 +1,13 @@
 import * as THREE from './vendor/three.module.js';
 import {FURNITURE_SIZE_FACTOR,scaledFurnitureSize,sourceFurnitureSize} from './furniture-scale.js?v=0.18.7';
-import {copyMaterialStyles,applyRoleMaterial,applyMaterialSlot,disposeRoleMaterials} from './material-roles.js?v=0.18.7';
-import {getCloudProduct,getCloudProductInfo,registerCloudProducts,cloudProductList} from './cloud-product-registry.js';
+import {copyMaterialStyles,applyRoleMaterial,applyMaterialSlot,disposeRoleMaterials} from './material-roles.js?v=0.19.0';
+import {getCloudProduct,getCloudProductInfo,registerCloudProducts,cloudProductList} from './cloud-product-registry.js?v=0.19.0';
 import {ArchitectureLayer} from './architecture.js?v=0.18.20';
 import {normalizeRoomPlan,roomPlanToArchitecture,constrainFurnitureToRoom,roomWallCollisionFootprints} from './room-plan.js?v=0.18.13';
 import {updateGeminiTV} from './gemini-room-materials.js?v=0.18.9';
 import {createFurniture,furnitureHit} from './furniture.js?v=0.5.4';
 import {createDecor} from './decor.js?v=0.5.4';
-import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.18.5';
+import {createImportedModel,isImportedModel,isImportedNoShadow,applySofaFabric} from './imported-models.js?v=0.19.0';
 import {applyRugStyle} from './rug-textures.js?v=0.5.4';
 import {MeasureTool} from './measure-tool.js?v=0.18.20';
 import {bindXRExit} from './xr-lifecycle.js?v=0.14.0';
