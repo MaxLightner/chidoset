@@ -1,5 +1,5 @@
 // Unified legacy + v3 product and material registry. Product identity is database catalog_index/product_code.
-import { ASSET_BASE_URL } from './backend-config.js';
+import { ASSET_BASE_URL, SUPABASE_URL } from './backend-config.js';
 
 const products = new Map();
 const productsByCode = new Map();
@@ -22,6 +22,8 @@ export const listCloudMaterialFamilies = kind => [...materialFamilies.values()].
 export const getAssetSyncHash = storagePath => syncManifest.get(storagePath)?.file_hash || '';
 export const isUnifiedCatalogLoaded = () => unifiedCatalogLoaded;
 export const isLegacyCatalogLive = index => index < 22 || index > 32 || !unifiedCatalogLoaded || liveLegacyIndexes.has(index);
+const privateHost = new URL(SUPABASE_URL).host;
+const trustedModelUrl = value => {try{const u=new URL(value);return u.protocol==='https:' && ((u.host===privateHost && u.pathname.startsWith('/storage/v1/object/sign/chido-assets/models/')) || (ASSET_BASE_URL && u.href.startsWith(ASSET_BASE_URL+'/models/')));}catch{return false;}};
 
 export function resolveStorageUrl(pathOrUrl, hash='') {
   if(typeof pathOrUrl !== 'string' || !pathOrUrl) return '';
@@ -67,6 +69,9 @@ export function registerCloudProducts(records=[],{unified=false}={}) {
     const index=Number(p.catalog_index);
     if(!Number.isInteger(index)||index<0||typeof p.name!=='string')continue;
     const category=categories.includes(p.category)?p.category:categories.includes(p.metadata?.category)?p.metadata.category:'decor';
+    const prior=products.get(index);
+    const sourceSignedAt=Number(p.signed_at);
+    if(prior&&Number.isFinite(sourceSignedAt)&&Number(prior.signed_at)>sourceSignedAt)continue;
     const thumbPath=p.live_thumb_path||p.thumbnail_path||'';
     const thumbnail=resolveStorageUrl(p.thumbnail_url||thumbPath,getAssetSyncHash(thumbPath));
     const status=p.status||(p.active===false?'archived':'live');
@@ -77,11 +82,11 @@ export function registerCloudProducts(records=[],{unified=false}={}) {
     if(p.status==='archived'||p.active===false){products.delete(index);if(p.product_code)productsByCode.delete(p.product_code);continue;}
     const raw=p.asset_url||'';
     const assetUrl=resolveStorageUrl(raw,p.glb_hash||getAssetSyncHash(p.live_glb_path||p.asset_path)||'');
-    if(!assetUrl)continue;
+    if(!assetUrl || !trustedModelUrl(assetUrl))continue;
     const size=Array.isArray(p.size_m)&&p.size_m.length===3&&p.size_m.every(n=>Number.isFinite(Number(n))&&Number(n)>.004&&Number(n)<=20)?p.size_m.map(Number):[2,.85,.9];
     const entry={catalog_index:index,product_code:p.product_code||null,name:p.name.slice(0,160),size_m:size,
       asset_url:assetUrl,asset_path:p.live_glb_path||p.asset_path||'',glb_hash:p.glb_hash||'',
-      thumbnail_url:thumbnail,metadata:{category},signed_at:Date.now()};
+      thumbnail_url:thumbnail,metadata:{category},signed_at:Number.isFinite(sourceSignedAt)&&sourceSignedAt>0&&sourceSignedAt<=Date.now()+60000?sourceSignedAt:Date.now()};
     products.set(index,entry);if(p.product_code)productsByCode.set(p.product_code,entry);
   }
 }
