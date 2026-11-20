@@ -1,7 +1,7 @@
 import {librarySwatch,librarySwatchThumbnail} from './asset-library.js?v=0.16.23';
 import * as THREE from './vendor/three.module.js';
-import {getCloudMaterialSwatch,listCloudMaterialFamilies} from './cloud-product-registry.js';
-import {loadTextureBlob} from './model-asset-cache.js';
+import {getCloudMaterialSwatch,listCloudMaterialFamilies} from './cloud-product-registry.js?v=0.19.0';
+import {loadTextureBlob} from './model-asset-cache.js?v=0.19.0';
 export const MATERIAL_ROLES=['fabric','wood','metal','glass','gold'];
 const SUPPORTED_ROLES=[...MATERIAL_ROLES,'detail'];
 export const ROLE_LABELS={fabric:'پارچه',wood:'چوب',metal:'فلز',glass:'شیشه',gold:'طلاکاری'};
@@ -23,7 +23,8 @@ export function materialPresets(role){
   const cloud=listCloudMaterialFamilies(role).flatMap(f=>f.swatches
     .filter(sw=>!!sw.albedoUrl)
     .map(sw=>({source:'cloud:'+sw.code,label:f.name+' · '+sw.name,url:sw.thumbUrl||sw.albedoUrl})));
-  const fallback=baseMaterialPresets(role).map(p=>{const [kind,id]=p.source.split(':');return {...p,url:librarySwatchThumbnail(kind,id)||p.url};});
+  const overridden=new Set(listCloudMaterialFamilies(role).flatMap(f=>f.swatches.map(sw=>sw.legacySource).filter(Boolean)));
+  const fallback=baseMaterialPresets(role).filter(p=>!overridden.has(p.source)).map(p=>{const [kind,id]=p.source.split(':');return {...p,url:librarySwatchThumbnail(kind,id)||p.url};});
   return [...cloud,...fallback];
 }
 const validSource=value=>typeof value==='string'&&((value.startsWith('cloud:')&&!!getCloudMaterialSwatch(value.slice(6))?.albedoUrl)||fabricPresets.some(p=>p.source===value)||Object.keys(woodColors).some(id=>'wood:'+id===value)||Object.keys(surfaceColors).some(id=>'surface:'+id===value)||(/^data:image\/(jpeg|webp);base64,[a-zA-Z0-9+/=]+$/.test(value)&&value.length<=90000));
