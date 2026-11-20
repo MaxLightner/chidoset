@@ -179,7 +179,7 @@ export async function applyRoleMaterial(visual,role,style){
  }
  if(!validSource(style.source))throw Error('تصویر متریال معتبر نیست.');
  const entry=textureFor(style.source,role);request.entry=entry;
- try{await entry.ready;}catch(error){if(groups.get(role)===request)request.entry=null;throw error;}
+ let pbr=null;try{[,pbr]=await Promise.all([entry.ready,familyPbrForSource(style.source)]);}catch(error){if(groups.get(role)===request)request.entry=null;throw error;}
  if(groups.get(role)!==request||visual.userData.disposed){if(!entry.shared)entry.texture.dispose();return false;}
  for(const m of materials){if(m.userData.chido_baked_ao_v1||(m.isMeshBasicMaterial&&m.userData.chido_baked_lighting_v1)){const texture=entry.texture.clone();texture.repeat.set(1,1);texture.needsUpdate=true;installBakedRoleTexture(m,texture,pbr);continue;}m.map=entry.texture;m.color.set(0xffffff);if(role==='fabric'){m.roughness=.88;m.metalness=0;/* Keep baked model normal, AO and roughness maps. */}else if(role==='wood'){m.roughness=.55;m.metalness=0;}else if(role==='metal'){m.metalness=.9;m.roughness=.3;}if(role==='gold'){m.metalness=.92;m.roughness=.26;}m.needsUpdate=true;}
  if(request.active&&!request.active.shared)request.active.texture.dispose();request.active=entry;return true;
@@ -245,11 +245,11 @@ export async function applyMaterialSlot(visual,index,style){
  let requests=slotRequests.get(visual);
  if(!requests){requests=new Map();slotRequests.set(visual,requests);}
  const ticket={};requests.set(slot.key,ticket);
- let texture=null;
+ let texture=null,pbr=null;
  if(style){
   const entry=textureFor(style.source,slot.role);
-  await entry.ready;
-  if(requests.get(slot.key)!==ticket||visual.userData.disposed)return false;
+  [,pbr]=await Promise.all([entry.ready,familyPbrForSource(style.source)]);
+   if(requests.get(slot.key)!==ticket||visual.userData.disposed)return false;
   texture=entry.texture;
  }
  for(const {material:m,node} of slot.entries){
@@ -271,8 +271,9 @@ export async function applyMaterialSlot(visual,index,style){
   }else if(m.userData.chido_baked_ao_v1||m.userData.chido_baked_lighting_v1||node.geometry.getAttribute('chidoTileUv')){
    if(!node.geometry.getAttribute('chidoTileUv'))
     throw Error('این متریال به UV_COLOR جداگانه نیاز دارد.');
-   const copy=texture.clone();copy.repeat.setScalar(1);copy.needsUpdate=true;
-   installBakedRoleTexture(m,copy);
+   if(!m.userData.chido_baked_ao_v1&&!m.userData.chido_baked_lighting_v1){m.map=null;if(m.color)m.color.set(0xffffff);}
+    const copy=texture.clone();copy.repeat.setScalar(1);copy.needsUpdate=true;
+   installBakedRoleTexture(m,copy,pbr);
   }else{
    m.map=texture;
    if(m.color)m.color.set(0xffffff);
