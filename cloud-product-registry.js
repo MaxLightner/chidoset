@@ -8,6 +8,7 @@ const materialFamilies = new Map();
 const materialSwatches = new Map();
 const syncManifest = new Map();
 let unifiedCatalogLoaded = false;
+const liveLegacyIndexes = new Set();
 const categories = ['seating','low-tables','dining','workspace','bedroom','decor','rugs','wall-art'];
 export const getCloudProduct = key => products.get(key) || productsByCode.get(key);
 export const getCloudProductByCode = code => productsByCode.get(code);
@@ -20,7 +21,7 @@ export const getCloudMaterialSwatch = code => materialSwatches.get(code);
 export const listCloudMaterialFamilies = kind => [...materialFamilies.values()].filter(f=>!kind||f.kind===kind);
 export const getAssetSyncHash = storagePath => syncManifest.get(storagePath)?.file_hash || '';
 export const isUnifiedCatalogLoaded = () => unifiedCatalogLoaded;
-export const isLegacyCatalogLive = index => !unifiedCatalogLoaded || (catalogInfo.get(index)?.status === 'live');
+export const isLegacyCatalogLive = index => index < 22 || index > 32 || !unifiedCatalogLoaded || liveLegacyIndexes.has(index);
 
 export function resolveStorageUrl(pathOrUrl, hash='') {
   if(typeof pathOrUrl !== 'string' || !pathOrUrl) return '';
@@ -61,7 +62,7 @@ export function registerCloudMaterials(families=[]) {
 }
 
 export function registerCloudProducts(records=[],{unified=false}={}) {
-  if (unified) unifiedCatalogLoaded=true;
+  if (unified) { unifiedCatalogLoaded=true; liveLegacyIndexes.clear(); }
   for(const p of records) {
     const index=Number(p.catalog_index);
     if(!Number.isInteger(index)||index<0||typeof p.name!=='string')continue;
@@ -69,6 +70,7 @@ export function registerCloudProducts(records=[],{unified=false}={}) {
     const thumbPath=p.live_thumb_path||p.thumbnail_path||'';
     const thumbnail=resolveStorageUrl(p.thumbnail_url||thumbPath,getAssetSyncHash(thumbPath));
     const status=p.status||(p.active===false?'archived':'live');
+    if(unified && index>=22 && index<=32 && status==='live') liveLegacyIndexes.add(index);
     catalogInfo.set(index,{catalog_index:index,product_code:p.product_code||null,
       name:p.name.slice(0,160),thumbnail_url:thumbnail,metadata:{category},status});
     // Legacy bundled GLBs are still loaded by imported-models.js.
