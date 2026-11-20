@@ -27,7 +27,7 @@ export function resolveStorageUrl(pathOrUrl, hash='') {
   if(typeof pathOrUrl !== 'string' || !pathOrUrl) return '';
   let url = pathOrUrl.trim();
   if (!/^https:\/\//i.test(url)) {
-    if (url.startsWith('assets/chido/')) url = new URL(url, location.href).href;
+    if (/^assets\/(chido|library)\//.test(url)) url = new URL(url, import.meta.url).href;
     else if (ASSET_BASE_URL && !url.includes('..')) url=ASSET_BASE_URL+'/'+url.replace(/^\/+/, '');
     else return ''; // The private bucket requires a signed URL.
   }
@@ -45,10 +45,10 @@ export function registerCloudMaterials(families=[]) {
     if(!fam?.code)continue;
     const swatches=(fam.material_swatches||[]).filter(s=>s.active!==false).map(sw=>{
       const sHash=getAssetSyncHash(sw.albedo_path)||sw.file_hash||'';
-      const item={code:sw.code,familyCode:fam.code,kind:fam.kind,name:sw.name,
+      const item={code:sw.code,familyCode:fam.code,kind:fam.kind,name:sw.name,legacySource:sw.legacy_source||'',
         hexColor:sw.hex_color||'#D6CFC7',albedoPath:sw.albedo_path||'',
-        albedoUrl:resolveStorageUrl(sw.albedo_url||sw.albedo_path,sHash),
-        thumbUrl:resolveStorageUrl(sw.thumb_url||sw.albedo_url||sw.thumb_path||sw.albedo_path,sHash),
+        albedoUrl:resolveStorageUrl(sw.albedo_url||sw.albedo_path||sw.legacy_albedo_path,sHash),
+        thumbUrl:resolveStorageUrl(sw.thumb_url||sw.albedo_url||sw.thumb_path||sw.albedo_path||sw.legacy_thumb_path||sw.legacy_albedo_path,sHash),
         fileHash:sHash};
       materialSwatches.set(sw.code,item);return item;
     });
@@ -62,7 +62,7 @@ export function registerCloudMaterials(families=[]) {
 }
 
 export function registerCloudProducts(records=[],{unified=false}={}) {
-  if (unified) { unifiedCatalogLoaded=true; liveLegacyIndexes.clear(); }
+  if (unified) { unifiedCatalogLoaded=true; liveLegacyIndexes.clear(); products.clear();productsByCode.clear();catalogInfo.clear(); }
   for(const p of records) {
     const index=Number(p.catalog_index);
     if(!Number.isInteger(index)||index<0||typeof p.name!=='string')continue;
