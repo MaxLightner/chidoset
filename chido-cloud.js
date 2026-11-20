@@ -424,3 +424,52 @@ export async function archiveOfficialColorway(colorwayId) {
 function telemetrySession(session){configureTelemetry(session?{userId:session.user.id,token:session.access_token,url:SUPABASE_URL+'/functions/v1/chido-metrics',key:SUPABASE_PUBLISHABLE_KEY,client:(location.pathname.endsWith('/guest.html')?'guest':location.pathname.endsWith('/company-studio.html')?'studio':location.pathname.endsWith('/company.html')?'company':'app')}:null);}
 supabase.auth.onAuthStateChange((_event,session)=>telemetrySession(session));
 void supabase.auth.getSession().then(({data})=>telemetrySession(data.session));
+
+
+// CHIDO Unified v3: fetch only authorized records, sign private Storage objects per session.
+// Legacy catalog assets remain on GitHub until explicitly migrated by the Studio.
+export async function loadUnifiedCatalogV3() {
+  const { registerCloudProducts, registerCloudMaterials, registerSyncManifest } =
+    await import('./cloud-product-registry.js');
+  const [p,m,f] = await Promise.all([
+    supabase.from('products').select('id,product_code,catalog_index,name,category,set_name,size_m,status,active,asset_path,thumbnail_path,metadata,reference_image_path,live_glb_path,live_thumb_path,glb_hash,companies(code,name)')
+      .eq('status','live').eq('active',true),
+    supabase.from('asset_sync_manifest').select('storage_path,file_hash,file_mtime,synced_at'),
+    supabase.from('material_families').select('code,name,kind,scope,normal_path,roughness_path,tile_cm,roughness_factor,normal_scale,content_hash,material_swatches(code,name,hex_color,albedo_path,thumb_path,file_hash,active)')
+      .eq('active',true)
+  ]);
+  if(p.error) throw p.error;
+  if(m.error) console.warn('CHIDO sync manifest unavailable',m.error);
+  if(f.error) console.warn('CHIDO material catalog unavailable',f.error);
+  const products=p.data||[], families=f.data||[];
+  const paths=[...new Set([
+    ...products.flatMap(x=>[x.live_glb_path,x.live_thumb_path]),
+    ...families.flatMap(x=>[
+      x.normal_path,x.roughness_path,
+      ...(x.material_swatches||[]).flatMap(sw=>[sw.albedo_path,sw.thumb_path])
+    ])
+  ].filter(x=>typeof x==='string' && x && !x.startsWith('assets/') && !x.startsWith('storage://')))];
+  const signed=new Map();
+  for(let i=0;i<paths.length;i+=80) {
+    const block=paths.slice(i,i+80);
+    const {data,error}=await supabase.storage.from('chido-assets').createSignedUrls(block,3600);
+    if(error){console.warn('CHIDO signed asset batch unavailable',error);continue;}
+    for(const item of data||[])if(item.signedUrl)signed.set(item.path,item.signedUrl);
+  }
+  const resolve=path=>path?.startsWith('assets/chido/')?path:(signed.get(path)||'');
+  const rows=products.map(row=>({
+    ...row,
+    asset_url:resolve(row.live_glb_path), 
+    thumbnail_url:resolve(row.live_thumb_path)||resolve(row.thumbnail_path),
+    signed_at:Date.now()
+  }));
+  registerSyncManifest(m.data||[]);
+  registerCloudMaterials(families.map(family=>({
+    ...family,normal_url:resolve(family.normal_path),roughness_url:resolve(family.roughness_path),
+    material_swatches:(family.material_swatches||[]).map(sw=>({
+      ...sw,albedo_url:resolve(sw.albedo_path),thumb_url:resolve(sw.thumb_path)||resolve(sw.albedo_path)
+    }))
+  })));
+  registerCloudProducts(rows,{unified:true});
+  return {products:rows,materials:families,manifestCount:(m.data||[]).length};
+}
