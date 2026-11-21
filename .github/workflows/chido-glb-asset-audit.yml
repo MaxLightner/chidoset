@@ -1,0 +1,36 @@
+name: Verify CHIDO published GLBs
+on:
+  push:
+    paths:
+      - '.github/workflows/chido-glb-asset-audit.yml'
+      - 'assets/chido/*.glb'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect real GLB maps and helper meshes
+        shell: python
+        run: |
+          import json, pathlib, struct, re
+          src=pathlib.Path('assets/chido')
+          files={'GEN-0022':'sofaA1.glb','GEN-0023':'SofaC1.glb','GEN-0024':'sofab1.glb','GEN-0025':'desks2.glb','GEN-0026':'desks1.glb','GEN-0027':'minidesk1.glb','GEN-0028':'lamp1.glb','GEN-0029':'Lamp2.glb','GEN-0030':'decor1.glb','GEN-0031':'rug.glb','GEN-0032':'mani--maniset--tak--e3585876.glb'}
+          for code,file in files.items():
+            try:
+              b=(src/file).read_bytes()
+              assert b[:4]==b'glTF' and struct.unpack_from('<I',b,4)[0]==2
+              assert struct.unpack_from('<I',b,8)[0]==len(b)
+              n,t=struct.unpack_from('<II',b,12)
+              assert t==0x4E4F534A
+              j=json.loads(b[20:20+n].decode('utf-8').strip('\x00 '))
+              mats=j.get('materials',[])
+              nodes=j.get('nodes',[])
+              names=[str(x.get('name') or '') for x in nodes+j.get('meshes',[])+j.get('images',[])]
+              report={'code':code,'file':file,'bytes':len(b),'nodes':len(nodes),'meshes':len(j.get('meshes',[])),'materials':len(mats),'ao':any(bool(m.get('occlusionTexture')) or bool(m.get('extensions',{}).get('KHR_materials_unlit') and m.get('extras',{}).get('tripo_prep_role') and m.get('pbrMetallicRoughness',{}).get('baseColorTexture')) for m in mats),'normal':any(bool(m.get('normalTexture')) for m in mats),'roughness':any(bool(m.get('pbrMetallicRoughness',{}).get('metallicRoughnessTexture')) for m in mats),'shadows':[x for x in names if re.search(r'shadow|contact.shadow',x,re.I)],'colliders':[x for x in names if re.search(r'collis|collider|colmesh',x,re.I)],'masks':[x for x in names if re.search(r'mask|carving|stencil',x,re.I)],'extras':[n['extras'] for n in nodes if n.get('extras') and any(k in n['extras'] for k in ('tripo_prep_contact_shadow','chidoBakedShadow','tripo_prep_collision','chidoCollider'))]}
+              print('CHIDO_AUDIT '+json.dumps(report,ensure_ascii=False,separators=(',',':')),flush=True)
+            except Exception as e:
+              print('CHIDO_AUDIT '+json.dumps({'code':code,'error':str(e)}),flush=True)
