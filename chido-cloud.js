@@ -448,7 +448,7 @@ export async function loadUnifiedCatalogV3() {
   const allowedFamilies=new Set((l.data||[]).map(link=>link.family_id));
   const families=(f.data||[]).filter(family=>family.scope!=='shared'||allowedFamilies.has(family.id));
   const paths=[...new Set([
-    ...products.flatMap(x=>[x.live_glb_path,x.live_thumb_path]),
+    ...products.flatMap(x=>[x.live_glb_path||String(x.asset_path||'').replace(/^storage:\/\/chido-assets\//,''),x.live_thumb_path||String(x.thumbnail_path||'').replace(/^storage:\/\/chido-assets\//,'')]),
     ...families.flatMap(x=>[
       x.normal_path,x.roughness_path,
       ...(x.material_swatches||[]).flatMap(sw=>[sw.albedo_path,sw.thumb_path])
@@ -464,7 +464,7 @@ export async function loadUnifiedCatalogV3() {
   const resolve=path=>/^assets\/(chido|library)\//.test(path||'')?path:(signed.get(path)||'');
   const rows=products.map(row=>({
     ...row,
-    asset_url:resolve(row.live_glb_path), 
+    asset_url:resolve(row.live_glb_path||String(row.asset_path||'').replace(/^storage:\/\/chido-assets\//,'')), 
     thumbnail_url:resolve(row.live_thumb_path)||resolve(row.thumbnail_path),
     signed_at:Date.now()
   }));

@@ -90,3 +90,31 @@ test('recoloring PBR keeps model AO in the final color multiplication through sw
   disposeRoleMaterials(visual);
  }finally{THREE.TextureLoader.prototype.load=original;}
 });
+
+
+test('dual-UV PBR material role swatch preserves source AO, normal and roughness',async()=>{
+ const oldLoad=THREE.TextureLoader.prototype.load;
+ THREE.TextureLoader.prototype.load=function(url,done){const t=new THREE.Texture();queueMicrotask(()=>done(t));return t;};
+ try{
+  const oldColor=new THREE.Texture(),ao=new THREE.Texture(),normal=new THREE.Texture(),roughness=new THREE.Texture();
+  const m=new THREE.MeshStandardMaterial({name:'Fabric_Seat',map:oldColor,aoMap:ao,normalMap:normal,roughnessMap:roughness});
+  const g=new THREE.PlaneGeometry();g.setAttribute('chidoTileUv',g.getAttribute('uv').clone());
+  const visual=new THREE.Group();visual.add(new THREE.Mesh(g,m));
+  assert.equal(await applyRoleMaterial(visual,'fabric',{source:'fabric:dark'}),true);
+  const active=roleMaterials(visual)[0].material,compiled=shader();
+  assert.equal(active.map,null,'color must not be sampled through UV_BAKE');
+  assert.strictEqual(active.aoMap,ao);
+  assert.strictEqual(active.normalMap,normal);
+  assert.strictEqual(active.roughnessMap,roughness);
+  active.onBeforeCompile(compiled);
+  assert.ok(compiled.uniforms.chidoRoleMap?.value);
+  assert.match(compiled.vertexShader,/chidoTileUv/);
+  assert.match(compiled.fragmentShader,/vChidoTileUv/);
+  assert.equal(await applyRoleMaterial(visual,'fabric',null),true);
+  assert.strictEqual(active.map,oldColor);
+  assert.strictEqual(active.aoMap,ao);
+  assert.strictEqual(active.normalMap,normal);
+  assert.strictEqual(active.roughnessMap,roughness);
+  disposeRoleMaterials(visual);
+ }finally{THREE.TextureLoader.prototype.load=oldLoad;}
+});

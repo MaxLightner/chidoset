@@ -18,13 +18,14 @@ test('main imported 3-seater becomes exactly 2.3 m wide; all furniture dimension
  assert.deepEqual(sourceFurnitureSize(actual,FURNITURE_SIZE_FACTOR).map(n=>+n.toFixed(6)),original.map(n=>+n.toFixed(6)));
 });
 
-test('studio scales ALL mesh visuals and their physical footprints but not architecture or XR A/B calibration',()=>{
+test('studio preserves Blender dimensions for cloud GLBs and scales only legacy demo furniture',()=>{
  const studio=read('studio.js');
- assert.match(studio,/const product=\{\.\.\.baseProduct,size:scaledFurnitureSize\(sourceSize\)\}/);
- assert.match(studio,/mesh\.scale\.multiplyScalar\(FURNITURE_SIZE_FACTOR\)/);
+ assert.match(studio,/const product=\{\.\.\.baseProduct,size:sizeForAsset\(sourceSize,\{cloud:authoredCloud\}\)\}/);
+ assert.match(studio,/mesh\.scale\.multiplyScalar\(authoredCloud\?1:FURNITURE_SIZE_FACTOR\)/);
  assert.match(studio,/authoredCollisionSize\?\.map\(v=>v\*mesh\.scale\.x\)/);
  assert.match(studio,/furnitureScaleFactor:FURNITURE_SIZE_FACTOR/);
- assert.match(studio,/sourceFurnitureSize\(x\.size/);
+ assert.match(studio,/sourceSizeForAsset\(x\.size/);
+ assert.match(studio,/cloudAssetSizeContract:'authored-v1'/);
  assert.doesNotMatch(read('room-plan.js'),/FURNITURE_SIZE_FACTOR/);
  assert.doesNotMatch(read('spatial.js'),/FURNITURE_SIZE_FACTOR/);
 });
