@@ -8,6 +8,23 @@ function integer(v,min,max){v=Number(v);if(!Number.isInteger(v)||v<min||v>max)th
 function date(v){if(typeof v!=='string'||!Number.isFinite(Date.parse(v)))throw Error('تاریخ معتبر نیست.');return new Date(v).toISOString();}
 function slug(v){v=text(v,2,100);if(!/^[a-z0-9][a-z0-9-]+$/.test(v))throw Error('شناسه انگلیسی فقط شامل حروف کوچک، عدد و خط تیره است.');return v;}
 function asset(v,ext){if(!v)return '';v=text(v,1,260);if(!new RegExp('^storage://chido-assets/(models|images)/[a-zA-Z0-9-]+\\.('+ext+')$').test(v)&&!/^assets\/chido\/[a-zA-Z0-9/._-]+$/.test(v))throw Error('مسیر فایل معتبر نیست.');return v;}
+// Only GLB-derived envelopes can be labelled as verified. No manually typed
+// product size or helper-mesh bounds may masquerade as model measurements.
+export function validateModelBounds(value,assetPath){
+ if(value==null)return null;
+ const triple=v=>Array.isArray(v)&&v.length===3&&v.every(n=>typeof n==='number'&&Number.isFinite(n)&&Math.abs(n)<=100);
+ if(value.source!=='glb_geometry_v1'||value.unit!=='m'||value.source_asset_path!==assetPath||
+    !triple(value.size_m)||!triple(value.min_m)||!triple(value.max_m))throw Error('گزارش Bounding Box با فایل مدل مطابقت ندارد.');
+ if(!value.size_m.every(n=>n>=.005&&n<=20)||
+    !value.size_m.every((n,i)=>Math.abs((value.max_m[i]-value.min_m[i])-n)<=.002)||
+    !Number.isInteger(value.mesh_count)||value.mesh_count<1||value.mesh_count>1000000||
+    !Number.isInteger(value.excluded_helpers)||value.excluded_helpers<0||value.excluded_helpers>1000000)
+    throw Error('گزارش هندسه مدل معتبر نیست.');
+ return {source:'glb_geometry_v1',unit:'m',source_asset_path:assetPath,
+  size_m:[...value.size_m],min_m:[...value.min_m],max_m:[...value.max_m],
+  mesh_count:value.mesh_count,excluded_helpers:value.excluded_helpers};
+}
+
 export function validateWrite(action,input){
  if(!input||typeof input!=='object'||Array.isArray(input))throw Error('اطلاعات فرم معتبر نیست.');
  const out={id:id(input.id,true)};
@@ -16,7 +33,7 @@ export function validateWrite(action,input){
  case 'branch.save':return {...out,company_id:id(input.company_id),name:text(input.name),slug:slug(input.slug),status:choice(input.status,['active','suspended'])};
  case 'code.issue':{const role=choice(input.role,['company_admin','branch']);return {company_id:id(input.company_id),branch_id:role==='branch'?id(input.branch_id):null,role,days:integer(input.days,1,30)};}
  case 'subscription.save':{const starts_at=date(input.starts_at),ends_at=date(input.ends_at);if(ends_at<=starts_at)throw Error('پایان اشتراک باید بعد از شروع آن باشد.');return {...out,company_id:id(input.company_id),plan_code:slug(input.plan_code),status:choice(input.status,['trial','active','past_due','expired','cancelled']),starts_at,ends_at,billing_notes:text(input.billing_notes||'',0,1000)};}
- case 'product.save':{if(!Array.isArray(input.size_m)||input.size_m.length!==3||!input.size_m.every(n=>typeof n==='number'&&Number.isFinite(n)&&n>=.005&&n<=20))throw Error('ابعاد محصول باید سه اندازه بین نیم سانتی‌متر و ۲۰ متر باشد.');if(typeof input.active!=='boolean')throw Error('وضعیت محصول معتبر نیست.');return {...out,name:text(input.name),slug:slug(input.slug),size_m:input.size_m,asset_path:asset(input.asset_path,'glb'),thumbnail_path:asset(input.thumbnail_path,'png|jpg|jpeg|webp'),active:input.active,metadata:{category:choice(input.metadata?.category||'decor',CATEGORIES),notes:text(input.metadata?.notes||'',0,1000)}};}
+ case 'product.save':{if(!Array.isArray(input.size_m)||input.size_m.length!==3||!input.size_m.every(n=>typeof n==='number'&&Number.isFinite(n)&&n>=.005&&n<=20))throw Error('ابعاد محصول باید سه اندازه بین نیم سانتی‌متر و ۲۰ متر باشد.');if(typeof input.active!=='boolean')throw Error('وضعیت محصول معتبر نیست.');const glbPath=asset(input.asset_path,'glb'),verified=validateModelBounds(input.metadata?.model_bounds,glbPath);return {...out,name:text(input.name),slug:slug(input.slug),size_m:input.size_m,asset_path:glbPath,thumbnail_path:asset(input.thumbnail_path,'png|jpg|jpeg|webp'),active:input.active,metadata:{category:choice(input.metadata?.category||'decor',CATEGORIES),notes:text(input.metadata?.notes||'',0,1000),...(verified?{model_bounds:verified}:{})}};}
  case 'set.save':{if(!Array.isArray(input.product_ids)||input.product_ids.length>100||new Set(input.product_ids).size!==input.product_ids.length)throw Error('فهرست محصولات معتبر نیست.');return {...out,company_id:id(input.company_id),name:text(input.name),description:text(input.description||'',0,1000),status:choice(input.status,['draft','published','archived']),product_ids:input.product_ids.map(v=>id(v))};}
  case 'member.status':return {id:id(input.id),status:choice(input.status,['active','pending','suspended'])};
  case 'access.status':return {id:id(input.id),status:choice(input.status,['pending','contacted','approved','declined'])};
