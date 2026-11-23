@@ -261,8 +261,13 @@ export function createImportedModel(index,size,fabric='dark'){
   visual.rotation.y=spec.yaw;
   visual.updateMatrixWorld(true);
   let box=new THREE.Box3().setFromObject(visual);
-  // New cloud GLBs keep authored physical size, AO, shadow and collision.
-  if(!uploaded&&[28,29].includes(index)&&box.getSize(new THREE.Vector3()).y>0){
+  // Old uploaded demo files keep their historical catalogue correction.
+  // Only verified new live assets keep their authored Blender dimensions.
+  if(uploaded&&!uploaded.authoredScale){
+   const actual=box.getSize(new THREE.Vector3());
+   visual.scale.set(size[0]/Math.max(.00001,actual.x),size[1]/Math.max(.00001,actual.y),size[2]/Math.max(.00001,actual.z));
+   visual.updateMatrixWorld(true);box=new THREE.Box3().setFromObject(visual);
+  }else if(!uploaded&&[28,29].includes(index)&&box.getSize(new THREE.Vector3()).y>0){
    const uniformScale=size[1]/box.getSize(new THREE.Vector3()).y;
    visual.scale.setScalar(uniformScale);
    visual.updateMatrixWorld(true);
