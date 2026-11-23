@@ -86,7 +86,7 @@ export function registerCloudProducts(records=[],{unified=false}={}) {
     const size=Array.isArray(p.size_m)&&p.size_m.length===3&&p.size_m.every(n=>Number.isFinite(Number(n))&&Number(n)>.004&&Number(n)<=20)?p.size_m.map(Number):[2,.85,.9];
     const entry={catalog_index:index,product_code:p.product_code||null,name:p.name.slice(0,160),size_m:size,
       asset_url:assetUrl,asset_path:p.live_glb_path||p.asset_path||'',glb_hash:p.glb_hash||'',
-      thumbnail_url:thumbnail,metadata:{category},authoredScale:!!(p.live_glb_path||p.authoredScale),signed_at:Number.isFinite(sourceSignedAt)&&sourceSignedAt>0&&sourceSignedAt<=Date.now()+60000?sourceSignedAt:Date.now()};
+      thumbnail_url:thumbnail,metadata:{category},authoredScale:!!(p.live_glb_path||p.authoredScale||String(p.asset_path||'').startsWith('storage://chido-assets/models/')),signed_at:Number.isFinite(sourceSignedAt)&&sourceSignedAt>0&&sourceSignedAt<=Date.now()+60000?sourceSignedAt:Date.now()};
     products.set(index,entry);if(p.product_code)productsByCode.set(p.product_code,entry);
   }
 }
