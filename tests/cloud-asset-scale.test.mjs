@@ -22,9 +22,9 @@ test('demo scale correction remains but historical cloud saves migrate to author
 
 test('cloud loader and studio do not scale authored GLBs',()=>{
  const loader=source('imported-models.js'),studio=source('studio.js');
- assert.doesNotMatch(loader,/visual\.scale\.set\(size\[0\]/);
+ assert.match(loader,/if\(uploaded&&!uploaded\.authoredScale\)/);
  assert.match(loader,/if\(!uploaded&&\[28,29\]/);
- assert.match(studio,/mesh\.scale\.multiplyScalar\(cloud\?1:FURNITURE_SIZE_FACTOR\)/);
+ assert.match(studio,/mesh\.scale\.multiplyScalar\(authoredCloud\?1:FURNITURE_SIZE_FACTOR\)/);
  assert.match(studio,/cloudAssetSizeContract:'authored-v1'/);
  assert.match(studio,/legacyCloud:state\.cloudAssetSizeContract!=='authored-v1'/);
 });
