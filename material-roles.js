@@ -67,7 +67,7 @@ function targets(visual,role){
    if(ao)installColorAO(m,ao);
    if(Array.isArray(node.material))node.material=node.material.map(x=>x===material?m:x);else node.material=m;
    material.dispose();
-  }if(!result.includes(m))result.push(m);
+  }if(!result.some(e=>e.material===m))result.push({material:m,tiled:!!node.geometry.getAttribute('chidoTileUv')});
  }return result;
 }
 function managedMaterialSource(source){
@@ -175,7 +175,7 @@ export async function applyRoleMaterial(visual,role,style){
  if(role==='fabric')visual.userData.fabricRequest=(visual.userData.fabricRequest||0)+1;
  if(!style){
   delete visual.userData.roleMaterialOverrides[role];
-  for(const m of materials){
+  for(const {material:m} of materials){
    const original=originals.get(m);if(!original)continue;
    const ao=colorAOStates.get(m)?.texture;
    clearBakedRoleTexture(m);
@@ -193,7 +193,21 @@ export async function applyRoleMaterial(visual,role,style){
  const entry=textureFor(style.source,role);request.entry=entry;
  let pbr=null;try{[,pbr]=await Promise.all([entry.ready,familyPbrForSource(style.source)]);}catch(error){if(groups.get(role)===request)request.entry=null;throw error;}
  if(groups.get(role)!==request||visual.userData.disposed){if(!entry.shared)entry.texture.dispose();return false;}
- for(const m of materials){if(m.userData.chido_baked_ao_v1||(m.isMeshBasicMaterial&&m.userData.chido_baked_lighting_v1)){const texture=entry.texture.clone();texture.repeat.set(1,1);texture.needsUpdate=true;installBakedRoleTexture(m,texture,pbr);continue;}m.map=entry.texture;m.color.set(0xffffff);if(role==='fabric'){m.roughness=.88;m.metalness=0;/* Keep baked model normal, AO and roughness maps. */}else if(role==='wood'){m.roughness=.55;m.metalness=0;}else if(role==='metal'){m.metalness=.9;m.roughness=.3;}if(role==='gold'){m.metalness=.92;m.roughness=.26;}m.needsUpdate=true;}
+ for(const {material:m,tiled} of materials){
+   if(tiled||m.userData.chido_baked_ao_v1||(m.isMeshBasicMaterial&&m.userData.chido_baked_lighting_v1)){
+    // UV_TILE carries replaceable albedo; authored AO, model normals and
+    // roughness stay untouched on their original texture channels.
+    if(tiled&&!m.userData.chido_baked_ao_v1&&!m.userData.chido_baked_lighting_v1){m.map=null;m.color?.set(0xffffff);}
+    const texture=entry.texture.clone();texture.repeat.set(1,1);texture.needsUpdate=true;
+    installBakedRoleTexture(m,texture,pbr);m.needsUpdate=true;continue;
+   }
+   m.map=entry.texture;m.color.set(0xffffff);
+   if(role==='fabric'){m.roughness=.88;m.metalness=0;}
+   else if(role==='wood'){m.roughness=.55;m.metalness=0;}
+   else if(role==='metal'){m.metalness=.9;m.roughness=.3;}
+   if(role==='gold'){m.metalness=.92;m.roughness=.26;}
+   m.needsUpdate=true;
+  }
  if(request.active&&!request.active.shared)request.active.texture.dispose();request.active=entry;return true;
 }
 export function disposeRoleMaterials(visual){if(!visual)return;visual.userData.disposed=true;const groups=states.get(visual);if(groups)for(const item of groups.values())for(const entry of new Set([item?.active,item?.entry]))if(entry&&!entry.shared)entry.texture.dispose();groups?.clear();visual.traverse(node=>{for(const m of Array.isArray(node.material)?node.material:[node.material])if(m){clearBakedRoleTexture(m);originals.get(m)?.dispose();originals.delete(m);}});}
