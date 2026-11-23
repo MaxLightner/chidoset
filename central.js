@@ -109,7 +109,7 @@ const statuses=(name,values,current)=>select(name,'وضعیت',values.map(s=>[s,
 const companyField=current=>select('company_id','شرکت',data.companies.map(c=>[c.id,c.name]),current||selectedCompany||data.companies[0]?.id);
 const standardForm=body=>`<form id="recordForm"><div class="form-grid">${body}</div><div class="form-actions"><button class="secondary" type="button" data-close>انصراف</button><button class="primary" type="submit">ذخیره تغییرات</button></div></form>`;
 function openEditor(kind,record=null){
- previewCleanup?.();previewCleanup=null;uploadState={};editing={kind,record};const c=record||{};let body='',title='';
+ previewCleanup?.();previewCleanup=null;previewBounds=null;uploadState={};editing={kind,record};const c=record||{};let body='',title='';
  if(kind==='company'){title=c.id?'ویرایش شرکت':'شرکت جدید';body=field('name','نام شرکت',c.name,'text','required maxlength="160"')+field('slug','شناسه انگلیسی',c.slug,'text','required dir="ltr" pattern="[a-z0-9][a-z0-9-]+"')+statuses('status',['pending','active','suspended'],c.status||'active')+field('max_layouts_per_set','سقف چیدمان برای هر ست',c.max_layouts_per_set||3,'number','min="1" max="50" required')+field('max_colorways_per_set','سقف رنگ‌بندی برای هر ست',c.max_colorways_per_set||5,'number','min="1" max="50" required');}
  if(kind==='branch'){title=c.id?'ویرایش شعبه':'شعبه جدید';body=companyField(c.company_id)+field('name','نام شعبه',c.name,'text','required maxlength="160"')+field('slug','شناسه انگلیسی شعبه',c.slug,'text','required dir="ltr"')+statuses('status',['active','suspended'],c.status||'active');}
  if(kind==='code'){title='صدور کد دسترسی';body=companyField()+select('role','نوع کد',[['company_admin','دعوت مدیر شرکت'],['branch','فعال‌سازی دستگاه شعبه']],'company_admin')+select('branch_id','شعبه',data.branches.filter(b=>b.company_id===(selectedCompany||data.companies[0]?.id)&&b.status==='active').map(b=>[b.id,b.name]),'')+field('days','اعتبار کد، روز',7,'number','min="1" max="30" required')+'<p class="form-help full">کد یک‌بارمصرف است. کد مصرف‌شده را نمی‌توان دوباره مشاهده کرد؛ برای دستگاه جدید کد تازه صادر کن.</p>';}
@@ -118,7 +118,10 @@ function openEditor(kind,record=null){
   title=c.id?'ویرایش محصول':'محصول جدید';const builtIn=c.id&&c.catalog_index<32;
   body=field('name','نام محصول',c.name,'text','required maxlength="160"')+field('slug','شناسه انگلیسی',c.slug,'text','required dir="ltr"')+select('category','دسته',CATEGORIES.map(id=>[id,categoryLabels[id]]),c.metadata?.category||builtInCategory(c.catalog_index))+select('active','وضعیت محصول',[['true','فعال'],['false','آرشیو']],String(c.active??true))+
   field('width','عرض، سانتی‌متر',(c.size_m?.[0]||1)*100,'number',`required min="0.5" max="2000" step="0.01" ${builtIn?'readonly':''}`)+field('height','ارتفاع، سانتی‌متر',(c.size_m?.[1]||1)*100,'number',`required min="0.5" max="2000" step="0.01" ${builtIn?'readonly':''}`)+field('depth','عمق، سانتی‌متر',(c.size_m?.[2]||1)*100,'number',`required min="0.5" max="2000" step="0.01" ${builtIn?'readonly':''}`)+
-  (builtIn?'<p class="form-help full">هندسه و ابعاد مدل‌های پایه حفظ می‌شوند. برای هندسه جدید، محصول جداگانه اضافه کن.</p>':'<label class="full">فایل مدل GLB، حداکثر ۳۲ مگابایت<input name="modelFile" type="file" accept=".glb" '+(!c.id?'required':'')+'></label><div id="modelPreview" class="file-preview full" hidden></div>')+
+  (builtIn?'<p class="form-help full">مدل‌های پایه بدون بازنویسی فایل اصلی ممیزی می‌شوند. برای اصلاح هندسه در خط تولید نسخه جایگزین ثبت کن.</p>':'<label class="full">فایل مدل GLB، حداکثر ۳۲ مگابایت<input name="modelFile" type="file" accept=".glb" '+(!c.id?'required':'')+'></label>')+
+  '<div class="full bbox-editor"><div><strong>Bounding Box واقعی GLB</strong><div id="modelBBoxStatus">'+bboxCell(c)+'</div><p class="form-help">ابعاد سفارش و دیتابیس با هندسه واقعی تفاوت دارند. مش کالیژن و صفحه سایه در اندازه‌گیری نیستند.</p></div>'+
+  (c.asset_path?'<button type="button" id="inspectExistingModel" class="secondary">اندازه‌گیری از فایل اصلی</button>':'')+
+  '<button type="button" id="useMeasuredBounds" class="secondary" disabled>انتقال ابعاد به فیلدها</button></div><div id="modelPreview" class="file-preview full" hidden></div>'+
   '<label class="full">تصویر محصول، حداکثر ۲ مگابایت<input name="imageFile" type="file" accept="image/png,image/jpeg,image/webp"></label>'+`<label class="full">یادداشت محصول<textarea name="notes" maxlength="1000" rows="2">${esc(c.metadata?.notes)}</textarea></label>`;
  }
  if(kind==='set'){title=c.id?'ویرایش و انتشار ست':'ست جدید';const selected=new Set(data.set_products.filter(p=>p.set_id===c.id).map(p=>p.product_id));body=companyField(c.company_id)+field('name','نام ست',c.name,'text','required maxlength="160"')+statuses('status',['draft','published','archived'],c.status||'draft')+`<label class="full">توضیحات<textarea name="description" maxlength="1000">${esc(c.description)}</textarea></label><div class="full"><h3>محصولات این ست</h3><p class="form-help">برای انتشار، دست‌کم یک محصول فعال انتخاب کن.</p><div class="product-picker">${data.products.map(p=>`<label><input type="checkbox" name="product_ids" value="${esc(p.id)}" ${selected.has(p.id)?'checked':''}>${esc(p.name)}${p.active?'':' (آرشیو)'}</label>`).join('')}</div></div>`;}
@@ -129,9 +132,43 @@ function openEditor(kind,record=null){
   const role=$('#recordForm [name=role]'),branchSelect=$('#recordForm [name=branch_id]'),companySelect=$('#recordForm [name=company_id]');
   const change=()=>{branchSelect.innerHTML=data.branches.filter(b=>b.company_id===companySelect.value&&b.status==='active').map(b=>`<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');branchSelect.disabled=role.value!=='branch';branchSelect.required=role.value==='branch';};companySelect.onchange=change;role.onchange=change;change();
  }
- $('#recordForm [name=modelFile]')?.addEventListener('change',async e=>{
-  try{const file=e.target.files[0];if(!file)return;validateGlb(await file.arrayBuffer());previewCleanup?.();const module=await import('./central-preview.js');$('#modelPreview').hidden=false;previewCleanup=await module.previewModel($('#modelPreview'),file);$('#editorStatus').textContent='مدل بارگذاری شد؛ ابعاد واقعی محصول را بررسی کن.';$('#editorStatus').classList.add('success');}catch(error){$('#editorStatus').textContent=error.message;$('#editorStatus').classList.remove('success');}
- });
+ if(kind==='product'){
+  const inspect=async(file,autoSet=false)=>{
+   validateGlb(await file.arrayBuffer());
+   const module=await import('./central-preview.js');
+   const host=$('#modelPreview');host.hidden=false;previewCleanup?.();
+   previewCleanup=await module.previewModel(host,file);
+   previewBounds=previewCleanup.bounds;
+   $('#modelBBoxStatus').innerHTML='<strong dir="ltr">'+previewBounds.size_m.map(cm).join(' × ')+'</strong><small> سانتی‌متر · از هندسه GLB؛ '+fa(previewBounds.excluded_helpers)+' آبجکت کمکی از اندازه‌گیری حذف شد</small>';
+   $('#useMeasuredBounds').disabled=false;
+   if(autoSet)$('#useMeasuredBounds').click();
+   $('#editorStatus').textContent='Bounding Box اندازه‌گیری شد؛ با ذخیره محصول، گزارش آن ثبت می‌شود.';
+   $('#editorStatus').classList.add('success');
+  };
+  $('#recordForm [name=modelFile]')?.addEventListener('change',async e=>{
+   const file=e.target.files[0];previewBounds=null;$('#useMeasuredBounds').disabled=true;
+   try{if(!file)return;await inspect(file,!c.id);}
+   catch(error){$('#editorStatus').textContent=error.message;$('#editorStatus').classList.remove('success');}
+  });
+  $('#useMeasuredBounds').onclick=()=>{
+   if(!previewBounds)return;
+   for(const [name,value] of [['width',previewBounds.size_m[0]],['height',previewBounds.size_m[1]],['depth',previewBounds.size_m[2]]]){
+    const input=$('#recordForm [name='+name+']');if(input&&!input.readOnly)input.value=(value*100).toFixed(2);
+   }
+  };
+  $('#inspectExistingModel')?.addEventListener('click',async e=>{
+   const button=e.currentTarget;button.disabled=true;
+   try{
+    const url=c.model_preview_url||(/^assets\\/chido\\//.test(c.asset_path||'')?new URL(c.asset_path,import.meta.url).href:'');
+    if(!url)throw Error('لینک امن مدل فعلی موجود نیست؛ ابتدا اتصال به فایل خصوصی را بررسی کن.');
+    const response=await fetch(url,{cache:'no-store'});
+    if(!response.ok)throw Error('دریافت مدل اصلی انجام نشد.');
+    const bytes=await response.arrayBuffer();validateGlb(bytes);
+    await inspect(new File([bytes],'chido-model-inspection.glb',{type:'model/gltf-binary'}),false);
+   }catch(error){$('#editorStatus').textContent=error.message;$('#editorStatus').classList.remove('success');}
+   finally{button.disabled=false;}
+  });
+ }
 }
 async function upload(file,kind){
  if(!file?.size)return null;
@@ -149,7 +186,7 @@ async function saveForm(event){
   const fd=new FormData(form),values=Object.fromEntries(fd),c=editing.record||{};let action=editing.kind+'.save',record={...values,id:c.id||null};
   if(['branch','set','subscription'].includes(editing.kind)&&c.id)record.company_id=c.company_id;
   if(editing.kind==='code')action='code.issue';
-  if(editing.kind==='product'){record={...record,size_m:[values.width,values.height,values.depth].map(x=>Number(x)/100),active:values.active==='true',asset_path:await upload(fd.get('modelFile'),'models')||c.asset_path||'',thumbnail_path:await upload(fd.get('imageFile'),'images')||c.thumbnail_path||'',metadata:{category:values.category,notes:values.notes}};}
+  if(editing.kind==='product'){const newFile=fd.get('modelFile');if(newFile?.size&&!previewBounds)throw Error('ابتدا اندازه‌گیری GLB جدید را کامل کن.');const assetPath=await upload(newFile,'models')||c.asset_path||'';const bounds=previewBounds?{...previewBounds,source_asset_path:assetPath}:(c.metadata?.model_bounds?.source_asset_path===assetPath?c.metadata.model_bounds:null);record={...record,size_m:[values.width,values.height,values.depth].map(x=>Number(x)/100),active:values.active==='true',asset_path:assetPath,thumbnail_path:await upload(fd.get('imageFile'),'images')||c.thumbnail_path||'',metadata:{category:values.category,notes:values.notes,...(bounds?{model_bounds:bounds}:{})}};}
   if(editing.kind==='set')record.product_ids=fd.getAll('product_ids');
   if(editing.kind==='access-request')action='access.status';if(editing.kind==='layout-request')action='layout-request.status';
   record=validateWrite(action,record);const result=await writeCentral(action,record);await load();
@@ -157,7 +194,7 @@ async function saveForm(event){
   else{closeEditor();$('#workspaceStatus').textContent='تغییرات ذخیره شد.';$('#workspaceStatus').classList.add('success');}
  }catch(error){$('#editorStatus').textContent=error.message;}finally{button.disabled=false;$('#closeEditor').disabled=false;}
 }
-function closeEditor(){previewCleanup?.();previewCleanup=null;$('#editor').close();$('#editorBody').innerHTML='';uploadState={};editing=null;}
+function closeEditor(){previewCleanup?.();previewCleanup=null;previewBounds=null;$('#editor').close();$('#editorBody').innerHTML='';uploadState={};editing=null;}
 $('#closeEditor').onclick=closeEditor;$('#editor').addEventListener('cancel',event=>{if($('#closeEditor').disabled)event.preventDefault();else{previewCleanup?.();previewCleanup=null;}});
 $('#editor').addEventListener('submit',e=>{if(e.target.id==='recordForm')void saveForm(e);});
 $('#editor').addEventListener('click',async e=>{if(e.target.closest('[data-close]'))closeEditor();if(e.target.id==='copyCode'){try{await navigator.clipboard.writeText($('#issuedCode').textContent);$('#editorStatus').textContent='کد کپی شد.';$('#editorStatus').classList.add('success');}catch{$('#editorStatus').textContent='متن کد را انتخاب و کپی کن.';}}});
@@ -166,6 +203,7 @@ $('#content').addEventListener('click',async event=>{
  const b=event.target.closest('[data-action]');if(!b)return;const kind=b.dataset.action,id=b.dataset.id;
  const maps={'company':'companies','branch':'branches','product':'products','set':'sets','subscription':'subscriptions','access-request':'company_access_requests','layout-request':'layout_requests'};
  if(kind.startsWith('thread-')){openCompanyThread(kind.slice(7),id);return;}
+ if(kind==='inspect-product'){openEditor('product',find('products',id));$('#inspectExistingModel')?.click();return;}
  if(kind.startsWith('edit-')){const entity=kind.slice(5);openEditor(entity,find(maps[entity],id));return;}
  let actionName=kind,values={id};
  if(kind==='member-status'){actionName='member.status';values.status=find('company_memberships',id).status==='active'?'suspended':'active';}
