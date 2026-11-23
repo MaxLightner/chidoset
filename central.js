@@ -6,7 +6,7 @@ import {downloadRequestPhotos} from './download-zip.js?v=0.16.15';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fa=v=>Number(v||0).toLocaleString('fa-IR');
 const date=v=>v?new Date(v).toLocaleDateString('fa-IR'):'—';
-const labels={active:'فعال',pending:'در انتظار',suspended:'تعلیق',published:'منتشرشده',draft:'پیش‌نویس',archived:'آرشیو',trial:'آزمایشی',past_due:'معوق',expired:'پایان‌یافته',cancelled:'لغوشده',approved:'تأییدشده',contacted:'تماس گرفته‌شده',declined:'ردشده',completed:'انجام‌شده',company_admin:'مدیر شرکت',branch:'شعبه'};
+const labels={requested:'درخواست ثبت‌شده',ai_prep:'آماده‌سازی هوشمند',tripo_draft:'مدل اولیه Tripo',blender_refine:'اصلاح Blender',pending_approval:'آماده تأیید',revision_needed:'نیازمند اصلاح',live:'منتشرشده',submitted:'ثبت‌شده',reviewing:'در حال بررسی',in_progress:'در حال انجام',needs_info:'نیازمند اطلاعات',active:'فعال',pending:'در انتظار',suspended:'تعلیق',published:'منتشرشده',draft:'پیش‌نویس',archived:'آرشیو',trial:'آزمایشی',past_due:'معوق',expired:'پایان‌یافته',cancelled:'لغوشده',approved:'تأییدشده',contacted:'تماس گرفته‌شده',declined:'ردشده',completed:'انجام‌شده',company_admin:'مدیر شرکت',branch:'شعبه'};
 Object.assign(labels,workspaceLabels);
 const categoryLabels={'seating':'مبل و نشیمن','low-tables':'میز جلو مبلی','dining':'ناهارخوری','workspace':'میز کار','bedroom':'اتاق خواب','decor':'دکور و چراغ','rugs':'فرش','wall-art':'تابلو'};
 const nav=[['overview','نمای کلی','M3 10l9-7 9 7M5 9v12h5v-7h4v7h5V9'],['companies','شرکت‌ها','M4 21V3h12v18M16 9h4v12M8 7h4M8 11h4M8 15h4'],['branches','شعبه‌ها','M3 10h18l-2-6H5l-2 6ZM5 11v10h14V11M9 21v-7h6v7'],['access','دسترسی‌ها','M8 11a4 4 0 1 1 8 0M5 11h14v10H5V11ZM12 15v3'],['products','کتابخانه محصولات','m3 7 9-4 9 4-9 4-9-4ZM3 7v10l9 4 9-4V7M12 11v10'],['production','خط تولید','M3 4h18v4H3zM3 10h18v4H3zM3 16h18v4H3z'],['sets','ست‌ها و انتشار','M3 3h7v7H3ZM14 3h7v7h-7ZM3 14h7v7H3ZM14 14h7v7h-7Z'],['subscriptions','اشتراک‌ها','M4 5h16v16H4ZM4 10h16M8 3v4M16 3v4M8 14h3M8 17h6'],['requests','درخواست‌ها','M4 4h16v13H8l-4 4V4ZM8 8h8M8 12h5'],['support','پشتیبانی مجموعه‌ها','M4 4h16v13H8l-4 4V4ZM8 8h8M8 12h5'],['activity','آمار و پایش','M3 12h4l3-8 4 16 3-8h4']];
@@ -135,7 +135,7 @@ function openEditor(kind,record=null){
  if(kind==='product'){
   const inspect=async(file,autoSet=false)=>{
    validateGlb(await file.arrayBuffer());
-   const module=await import('./central-preview.js');
+   const module=await import('./central-preview.js?v=0.20.0');
    const host=$('#modelPreview');host.hidden=false;previewCleanup?.();
    previewCleanup=await module.previewModel(host,file);
    previewBounds=previewCleanup.bounds;
@@ -159,7 +159,7 @@ function openEditor(kind,record=null){
   $('#inspectExistingModel')?.addEventListener('click',async e=>{
    const button=e.currentTarget;button.disabled=true;
    try{
-    const url=c.model_preview_url||(/^assets\\/chido\\//.test(c.asset_path||'')?new URL(c.asset_path,import.meta.url).href:'');
+    const url=c.model_preview_url||(String(c.asset_path||'').startsWith('assets/chido/')?new URL(c.asset_path,import.meta.url).href:'');
     if(!url)throw Error('لینک امن مدل فعلی موجود نیست؛ ابتدا اتصال به فایل خصوصی را بررسی کن.');
     const response=await fetch(url,{cache:'no-store'});
     if(!response.ok)throw Error('دریافت مدل اصلی انجام نشد.');
