@@ -41,6 +41,11 @@ async function snapshot(){
  // Resolve private preview files without exposing bucket listing permissions.
  const products=result.products as any[];const paths=products.map(p=>p.thumbnail_path).filter(p=>p?.startsWith('storage://chido-assets/')).map(p=>p.slice('storage://chido-assets/'.length));
  if(paths.length){const signed=checked(await admin.storage.from('chido-assets').createSignedUrls(paths,3600));for(const p of products){const item=signed.find((s:any)=>'storage://chido-assets/'+s.path===p.thumbnail_path);if(item)p.preview_url=item.signedUrl;}}
+ // Platform administrators may inspect existing private GLBs on demand.
+ // The signed URL is short-lived and never exposed to guest/company snapshots.
+ const glbPaths=products.map(p=>p.asset_path).filter((p:any)=>p?.startsWith('storage://chido-assets/models/')).map((p:string)=>p.slice('storage://chido-assets/'.length));
+ if(glbPaths.length){const signed=checked(await admin.storage.from('chido-assets').createSignedUrls(glbPaths,900));for(const p of products){const item=signed.find((s:any)=>'storage://chido-assets/'+s.path===p.asset_path);if(item)p.model_preview_url=item.signedUrl;}}
+
  const media=result.company_media as any[];
  if(media.length){const signed=checked(await admin.storage.from('company-media').createSignedUrls(media.map(p=>p.object_path),900));for(const p of media)p.url=signed.find((s:any)=>s.path===p.object_path)?.signedUrl||'';}
  return result;
