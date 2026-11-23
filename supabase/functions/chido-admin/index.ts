@@ -41,6 +41,11 @@ async function snapshot(){
  // Resolve private preview files without exposing bucket listing permissions.
  const products=result.products as any[];const paths=products.map(p=>p.thumbnail_path).filter(p=>p?.startsWith('storage://chido-assets/')).map(p=>p.slice('storage://chido-assets/'.length));
  if(paths.length){const signed=checked(await admin.storage.from('chido-assets').createSignedUrls(paths,3600));for(const p of products){const item=signed.find((s:any)=>'storage://chido-assets/'+s.path===p.thumbnail_path);if(item)p.preview_url=item.signedUrl;}}
+ // Platform administrators may inspect existing private GLBs on demand.
+ // The signed URL is short-lived and never exposed to guest/company snapshots.
+ const glbPaths=products.map(p=>p.asset_path).filter((p:any)=>p?.startsWith('storage://chido-assets/models/')).map((p:string)=>p.slice('storage://chido-assets/'.length));
+ if(glbPaths.length){const signed=checked(await admin.storage.from('chido-assets').createSignedUrls(glbPaths,900));for(const p of products){const item=signed.find((s:any)=>'storage://chido-assets/'+s.path===p.asset_path);if(item)p.model_preview_url=item.signedUrl;}}
+
  const media=result.company_media as any[];
  if(media.length){const signed=checked(await admin.storage.from('company-media').createSignedUrls(media.map(p=>p.object_path),900));for(const p of media)p.url=signed.find((s:any)=>s.path===p.object_path)?.signedUrl||'';}
  return result;
@@ -68,8 +73,56 @@ async function workspace(req:Request,user:any){
  if(result.error)return respond({error:'ثبت پاسخ یا وضعیت انجام نشد. دوباره تلاش کن.'},400);
  return respond(result.data);
 }
+// An explicit promotion step: uploads and GLB inspection alone never publish.
+async function publishProduct(input:{id:string},user:any){
+ const record=checked(await admin.from('products')
+  .select('id,company_id,status,active,asset_path,thumbnail_path,live_glb_path,live_thumb_path,glb_hash,asset_version,size_m,metadata')
+  .eq('id',input.id).maybeSingle());
+ if(!record)return respond({error:'محصول پیدا نشد.'},404);
+ // Dedicated company publishing must follow the company's approval flow and
+ // cannot be reused as an implicit transfer to the public General Library.
+ if(record.company_id)return respond({error:'انتشار مدل اختصاصی شرکت نیازمند فرآیند تأیید همان شرکت است.'},409);
+ if(!record.active)return respond({error:'محصول آرشیوشده قابل انتشار نیست.'},409);
+ const prefix='storage://chido-assets/';
+ const asset=String(record.asset_path||'');
+ if(!asset.startsWith(prefix+'models/'))return respond({error:'برای انتشار نسخه واقعی، GLB جدید را در Storage بارگذاری کن.'},409);
+ const bbox=record.metadata?.model_bounds;
+ if(!bbox||bbox.source!=='glb_geometry_v1'||bbox.unit!=='m'||bbox.source_asset_path!==asset||
+    !Array.isArray(bbox.size_m)||bbox.size_m.length!==3)
+   return respond({error:'ابتدا Bounding Box فایل واقعی را در استودیو ممیزی و ذخیره کن.'},409);
+ const dims=record.size_m;
+ if(!Array.isArray(dims)||dims.length!==3||bbox.size_m.some((v:number,i:number)=>
+    !Number.isFinite(v)||Math.abs(Number(dims[i])-v)>Math.max(.02,v*.02)))
+   return respond({error:'ابعاد ثبت‌شده با هندسه GLB مغایرت دارد؛ ابتدا از اندازه واقعی استفاده کن.'},409);
+ const relative=asset.slice(prefix.length);
+ const blob=checked(await admin.storage.from('chido-assets').download(relative));
+ const bytes=await blob.arrayBuffer();
+ try{validateGlb(bytes);}catch(error){return respond({error:'فایل GLB منتشرشدنی معتبر نیست: '+error.message},422);}
+ const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
+ if(record.live_glb_path===relative&&record.glb_hash===digest&&record.status==='live')
+  return respond({ok:true,id:record.id,asset_version:record.asset_version,unchanged:true});
+ const previous={path:record.live_glb_path||null,hash:record.glb_hash||null,version:record.asset_version||1};
+ const version=record.live_glb_path?Number(record.asset_version||1)+1:Math.max(1,Number(record.asset_version)||1);
+ const thumb=String(record.thumbnail_path||'');
+ const liveThumb=thumb.startsWith(prefix+'images/')?thumb.slice(prefix.length):record.live_thumb_path||null;
+ let update=admin.from('products').update({
+  status:'live',live_glb_path:relative,live_thumb_path:liveThumb,glb_hash:digest,asset_version:version
+ }).eq('id',input.id).eq('asset_path',asset);
+ if(record.asset_version!=null)update=update.eq('asset_version',record.asset_version);
+ const published=checked(await update.select('id,status,asset_version,live_glb_path,glb_hash').maybeSingle());
+ if(!published)return respond({error:'نسخه مدل هم‌زمان تغییر کرده؛ اطلاعات را مجدداً بارگذاری کن.'},409);
+ const audit=await admin.from('platform_audit_events').insert({
+  actor_id:user.id,action:'product.publish',entity_id:record.id,details:{
+   old:previous,new:{path:relative,hash:digest,version},bbox_m:bbox.size_m
+  }
+ });
+ if(audit.error)console.error('CHIDO product publish audit failed',audit.error.code);
+ return respond({ok:true,...published});
+}
+
 async function write(req:Request,user:any){
  const body=await req.json();let data;try{data=validateWrite(body.action,body.data);}catch(error){return respond({error:error.message},400);}
+ if(body.action==='product.publish')return await publishProduct(data,user);
  let rawCode:string|null=null;
  if(body.action==='code.issue'){
   rawCode='CHIDO-'+(data.role==='branch'?'BRANCH-':'ADMIN-')+crypto.randomUUID().replaceAll('-','').toUpperCase();
@@ -81,8 +134,11 @@ async function write(req:Request,user:any){
   try{validateGlb(await blob.arrayBuffer());}catch(error){return respond({error:error.message},400);}
  }
  if(body.action==='product.save'){
-  const existing=data.id?checked(await admin.from('products').select('catalog_index').eq('id',data.id).maybeSingle()):null;
-  if((!data.id||existing?.catalog_index>=32)&&!data.asset_path?.startsWith('storage://chido-assets/models/'))return respond({error:'برای محصول جدید یک فایل GLB بارگذاری کن.'},400);
+  const existing=data.id?checked(await admin.from('products').select('catalog_index,asset_path').eq('id',data.id).maybeSingle()):null;
+  // Keep old demo GLBs inspectable and their measured metadata editable in place.
+  const isNewStorage=data.asset_path?.startsWith('storage://chido-assets/models/');
+  const unchanged=!!existing&&existing.asset_path===data.asset_path;
+  if((!data.id||existing?.catalog_index>=32)&&!isNewStorage&&!unchanged)return respond({error:'برای مدل جدید یک فایل GLB بارگذاری کن.'},400);
  }
  const result=await admin.rpc('chido_admin_write',{p_actor:user.id,p_action:body.action,p_data:data});
  if(result.error){console.error('admin write rejected',body.action,result.error.code);const message=result.error.code==='23505'?'این شناسه قبلاً ثبت شده است.':result.error.code==='42501'?'اجازه این عملیات را نداری.':'ذخیره انجام نشد؛ وضعیت رکورد و فیلدها را بررسی کن.';return respond({error:message},400);}

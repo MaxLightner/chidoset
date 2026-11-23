@@ -6,12 +6,12 @@ import {downloadRequestPhotos} from './download-zip.js?v=0.16.15';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fa=v=>Number(v||0).toLocaleString('fa-IR');
 const date=v=>v?new Date(v).toLocaleDateString('fa-IR'):'—';
-const labels={active:'فعال',pending:'در انتظار',suspended:'تعلیق',published:'منتشرشده',draft:'پیش‌نویس',archived:'آرشیو',trial:'آزمایشی',past_due:'معوق',expired:'پایان‌یافته',cancelled:'لغوشده',approved:'تأییدشده',contacted:'تماس گرفته‌شده',declined:'ردشده',completed:'انجام‌شده',company_admin:'مدیر شرکت',branch:'شعبه'};
+const labels={requested:'درخواست ثبت‌شده',ai_prep:'آماده‌سازی هوشمند',tripo_draft:'مدل اولیه Tripo',blender_refine:'اصلاح Blender',pending_approval:'آماده تأیید',revision_needed:'نیازمند اصلاح',live:'منتشرشده',submitted:'ثبت‌شده',reviewing:'در حال بررسی',in_progress:'در حال انجام',needs_info:'نیازمند اطلاعات',active:'فعال',pending:'در انتظار',suspended:'تعلیق',published:'منتشرشده',draft:'پیش‌نویس',archived:'آرشیو',trial:'آزمایشی',past_due:'معوق',expired:'پایان‌یافته',cancelled:'لغوشده',approved:'تأییدشده',contacted:'تماس گرفته‌شده',declined:'ردشده',completed:'انجام‌شده',company_admin:'مدیر شرکت',branch:'شعبه'};
 Object.assign(labels,workspaceLabels);
 const categoryLabels={'seating':'مبل و نشیمن','low-tables':'میز جلو مبلی','dining':'ناهارخوری','workspace':'میز کار','bedroom':'اتاق خواب','decor':'دکور و چراغ','rugs':'فرش','wall-art':'تابلو'};
-const nav=[['overview','نمای کلی','M3 10l9-7 9 7M5 9v12h5v-7h4v7h5V9'],['companies','شرکت‌ها','M4 21V3h12v18M16 9h4v12M8 7h4M8 11h4M8 15h4'],['branches','شعبه‌ها','M3 10h18l-2-6H5l-2 6ZM5 11v10h14V11M9 21v-7h6v7'],['access','دسترسی‌ها','M8 11a4 4 0 1 1 8 0M5 11h14v10H5V11ZM12 15v3'],['products','کتابخانه محصولات','m3 7 9-4 9 4-9 4-9-4ZM3 7v10l9 4 9-4V7M12 11v10'],['sets','ست‌ها و انتشار','M3 3h7v7H3ZM14 3h7v7h-7ZM3 14h7v7H3ZM14 14h7v7h-7Z'],['subscriptions','اشتراک‌ها','M4 5h16v16H4ZM4 10h16M8 3v4M16 3v4M8 14h3M8 17h6'],['requests','درخواست‌ها','M4 4h16v13H8l-4 4V4ZM8 8h8M8 12h5'],['support','پشتیبانی مجموعه‌ها','M4 4h16v13H8l-4 4V4ZM8 8h8M8 12h5'],['activity','آمار و پایش','M3 12h4l3-8 4 16 3-8h4']];
+const nav=[['overview','نمای کلی','M3 10l9-7 9 7M5 9v12h5v-7h4v7h5V9'],['companies','شرکت‌ها','M4 21V3h12v18M16 9h4v12M8 7h4M8 11h4M8 15h4'],['branches','شعبه‌ها','M3 10h18l-2-6H5l-2 6ZM5 11v10h14V11M9 21v-7h6v7'],['access','دسترسی‌ها','M8 11a4 4 0 1 1 8 0M5 11h14v10H5V11ZM12 15v3'],['products','کتابخانه محصولات','m3 7 9-4 9 4-9 4-9-4ZM3 7v10l9 4 9-4V7M12 11v10'],['production','خط تولید','M3 4h18v4H3zM3 10h18v4H3zM3 16h18v4H3z'],['sets','ست‌ها و انتشار','M3 3h7v7H3ZM14 3h7v7h-7ZM3 14h7v7H3ZM14 14h7v7h-7Z'],['subscriptions','اشتراک‌ها','M4 5h16v16H4ZM4 10h16M8 3v4M16 3v4M8 14h3M8 17h6'],['requests','درخواست‌ها','M4 4h16v13H8l-4 4V4ZM8 8h8M8 12h5'],['support','پشتیبانی مجموعه‌ها','M4 4h16v13H8l-4 4V4ZM8 8h8M8 12h5'],['activity','آمار و پایش','M3 12h4l3-8 4 16 3-8h4']];
 let metrics=null,metricsCompany=null;
-let data={},selectedCompany='',search='',section='overview',latency=0,editing=null,uploadState={},previewCleanup=null;
+let data={},selectedCompany='',search='',section='overview',latency=0,editing=null,uploadState={},previewCleanup=null,previewBounds=null;
 const titleMap=Object.fromEntries(nav.map(n=>[n[0],n[1]]));
 const company=id=>data.companies?.find(x=>x.id===id)?.name||'—';
 const branch=id=>data.branches?.find(x=>x.id===id)?.name||'—';
@@ -25,13 +25,44 @@ function companyRows(){return rows('companies',false).filter(c=>!selectedCompany
 function eventLabel(action){return {'company.save':'اطلاعات شرکت ذخیره شد','branch.save':'اطلاعات شعبه ذخیره شد','product.save':'کتابخانه محصول به‌روز شد','set.save':'ترکیب ست ذخیره شد','code.issue':'کد دسترسی صادر شد','code.revoke':'کد دسترسی لغو شد','subscription.save':'اشتراک به‌روز شد','device.revoke':'دسترسی دستگاه لغو شد','member.status':'وضعیت حساب تغییر کرد','access.status':'درخواست شرکت بررسی شد','layout-request.status':'درخواست چیدمان بررسی شد','session.revoke':'نمایش زنده پایان یافت','platform.activate':'مدیر مرکزی فعال شد','app_opened':'اپلیکیشن باز شد','company_admin_web_login':'مدیر شرکت وارد شد','official_layout_created':'چیدمان رسمی ذخیره شد','official_colorway_created':'رنگ‌بندی ذخیره شد','live_session_started':'نمایش زنده شروع شد','branch_device_activated':'دستگاه شعبه فعال شد','company_admin_activated':'مدیر شرکت فعال شد'}[action]||action;}
 function recentEvents(){return [...rows('platform_audit_events'),...rows('activity_events')].sort((a,b)=>b.created_at.localeCompare(a.created_at));}
 function eventsHtml(events,limit=7){return events.length?events.slice(0,limit).map(e=>`<div class="activity-row"><span class="activity-icon">·</span><div><strong>${esc(eventLabel(e.action||e.event_type))}</strong><small>${esc(company(e.company_id))} · ${date(e.created_at)}، ${new Date(e.created_at).toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'})}</small></div></div>`).join(''):'<p>فعالیتی برای این انتخاب ثبت نشده است.</p>';}
+const cm=v=>Number.isFinite(Number(v))?fa(Math.round(Number(v)*10000)/100):'—';
+const registeredSize=p=>Array.isArray(p.size_m)&&p.size_m.length===3?p.size_m.map(cm).join(' × ')+' سانتی‌متر':'—';
+function verifiedBounds(p){
+ const b=p?.metadata?.model_bounds;
+ return b?.source==='glb_geometry_v1'&&b.unit==='m'&&b.source_asset_path===p.asset_path&&
+  Array.isArray(b.size_m)&&b.size_m.length===3&&b.size_m.every(n=>Number.isFinite(n)&&n>.004)?b:null;
+}
+const canPublish=p=>!!verifiedBounds(p)&&!p.company_id&&p.active&&String(p.asset_path||'').startsWith('storage://chido-assets/models/')&&p.status!=='live';
+function bboxCell(p){
+ const b=verifiedBounds(p);
+ if(!b)return '<span class="bbox-unverified">اندازه‌گیری نشده</span>';
+ const mismatch=p.size_m?.some((v,i)=>Math.abs(v-b.size_m[i])>Math.max(.02,v*.02));
+ return '<strong dir="ltr">'+b.size_m.map(cm).join(' × ')+'</strong><small>سانتی‌متر · هندسه GLB'+(mismatch?' · ⚠ مغایرت با اندازه ثبت‌شده':'')+'</small>';
+}
+const productionStages=[['requested','ثبت درخواست'],['ai_prep','آماده‌سازی'],['tripo_draft','Tripo'],['blender_refine','Blender'],['pending_approval','بازبینی'],['revision_needed','نیازمند اصلاح'],['live','منتشرشده']];
+function production(){
+ const products=rows('products',false).sort((a,b)=>(a.catalog_index??999)-(b.catalog_index??999));
+ const requests=rows('company_requests').filter(r=>r.kind==='model');
+ const stageCounts=productionStages.map(([key,label])=>({key,label,total:products.filter(p=>(p.status||'live')===key).length}));
+ return '<section class="section-card"><header><div><h3>خط تولید مدل‌های سه‌بعدی</h3><p>ابعاد هندسه فقط بعد از خواندن GLB نمایش داده می‌شوند؛ عدد سفارش یا دیتابیس جای آن نیست.</p></div></header><div class="production-stages">'+stageCounts.map(s=>'<div><strong>'+fa(s.total)+'</strong><span>'+esc(s.label)+'</span></div>').join('')+'</div></section>'+
+ '<section class="section-card"><header><h3>محصولات در گردش کار</h3></header>'+
+ table(['محصول','مرحله','Bounding Box واقعی','ابعاد ثبت‌شده','اقدام'],products.map(p=>[
+ '<strong>'+esc(p.name)+'</strong><small dir="ltr">'+esc(p.product_code||p.slug||'')+'</small>',
+ status(p.status||'live'),bboxCell(p),registeredSize(p),action('inspect-product',p.id,'بازبینی هندسه')+(canPublish(p)?action('publish-product',p.id,'تأیید و انتشار'):'')]))+'</section>'+
+ '<section class="section-card"><header><h3>درخواست‌های مدل‌سازی شرکت‌ها</h3></header>'+
+ table(['درخواست','شرکت','وضعیت','ابعاد اعلام‌شده','اقدام'],requests.map(r=>[
+ '<strong>'+esc(r.product_name||r.title)+'</strong>',esc(company(r.company_id)),status(r.status),
+ '<span class="bbox-unverified">'+(Array.isArray(r.dimensions_cm)?r.dimensions_cm.map(fa).join(' × ')+' سانتی‌متر (سفارش)':'ثبت نشده')+'</span>',
+ action('thread-request',r.id,'پیگیری')]))+'</section>';
+}
+
 function overview(){
  const companies=companyRows(),branches=rows('branches'),sets=rows('sets'),events=recentEvents();
  const kpis=[['شرکت‌های فعال',companies.filter(c=>c.status==='active').length,'از '+fa(companies.length)+' شرکت'],['شعبه‌ها',branches.length,fa(branches.filter(b=>b.status==='active').length)+' شعبه فعال'],['کتابخانه محصولات',data.products?.length||0,'مدل‌های مستقل قابل استفاده در ست‌ها'],['ست‌های منتشرشده',sets.filter(s=>s.status==='published').length,'از '+fa(sets.length)+' ست']];
  const chart=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);return {d,count:events.filter(e=>new Date(e.created_at).toDateString()===d.toDateString()).length};});const max=Math.max(1,...chart.map(x=>x.count));
  const waiting=rows('company_access_requests').filter(x=>x.status==='pending').length+rows('layout_requests').filter(x=>x.status==='pending').length;
  const live=rows('live_sessions').filter(s=>!s.revoked_at&&Date.parse(s.expires_at)>Date.now()).length;
- return `<div class="kpis">${kpis.map(([label,value,note],i)=>`<article class="kpi ${i===0?'featured':''}"><p>${label}</p><strong>${fa(value)}</strong><small>${note}</small></article>`).join('')}</div><div class="split"><section class="section-card"><header><div><h3>جریان کار این هفته</h3><p>فعالیت‌های ثبت‌شده اخیر، به تفکیک روز</p></div></header><div class="chart" role="img" aria-label="فعالیت روزانه: ${chart.map(c=>date(c.d)+': '+fa(c.count)).join('، ')}">${chart.map(c=>`<div class="chart-column"><b>${fa(c.count)}</b><i style="height:${Math.max(3,c.count/max*110)}px"></i><span>${c.d.toLocaleDateString('fa-IR',{weekday:'short'})}</span></div>`).join('')}</div></section><section class="section-card"><header><h3>نیاز به رسیدگی</h3></header><a class="insight" href="#requests"><span>درخواست‌های در انتظار</span><strong>${fa(waiting)}</strong></a><a class="insight" href="#subscriptions"><span>اشتراک‌های پایان‌یافته یا معوق</span><strong>${fa(rows('subscriptions').filter(s=>['expired','past_due'].includes(s.status)||Date.parse(s.ends_at)<Date.now()).length)}</strong></a><a class="insight" href="#activity"><span>نمایش‌های زنده فعال</span><strong>${fa(live)}</strong></a></section></div><section class="section-card"><header><h3>آخرین اتفاق‌ها</h3><a class="muted-link" href="#activity">مشاهده فعالیت‌ها</a></header>${eventsHtml(events)}</section>`;
+ return `<div class="kpis">${kpis.map(([label,value,note],i)=>`<article class="kpi ${i===0?'featured':''}"><p>${label}</p><strong>${fa(value)}</strong><small>${note}</small></article>`).join('')}</div><div class="split"><section class="section-card"><header><div><h3>جریان کار این هفته</h3><p>فعالیت‌های ثبت‌شده اخیر، به تفکیک روز</p></div></header><div class="chart" role="img" aria-label="فعالیت روزانه: ${chart.map(c=>date(c.d)+': '+fa(c.count)).join('، ')}">${chart.map(c=>`<div class="chart-column"><b>${fa(c.count)}</b><i style="height:${Math.max(3,c.count/max*110)}px"></i><span>${c.d.toLocaleDateString('fa-IR',{weekday:'short'})}</span></div>`).join('')}</div></section><section class="section-card"><header><h3>نیاز به رسیدگی</h3></header><a class="insight" href="#requests"><span>درخواست‌های در انتظار</span><strong>${fa(waiting)}</strong></a><a class="insight" href="#subscriptions"><span>اشتراک‌های پایان‌یافته یا معوق</span><strong>${fa(rows('subscriptions').filter(s=>['expired','past_due'].includes(s.status)||Date.parse(s.ends_at)<Date.now()).length)}</strong></a><a class="insight" href="#activity"><span>نمایش‌های زنده فعال</span><strong>${fa(live)}</strong></a></section></div><section class="section-card"><header><h3>آخرین اتفاق‌ها</h3><a class="muted-link" href="#activity">مشاهده فعالیت‌ها</a></header>${eventsHtml(events)}</section><section class="section-card"><header><h3>سلامت ابعاد مدل‌ها</h3><a class="muted-link" href="#production">خط تولید و بازبینی مدل‌ها</a></header><div class="bbox-overview"><strong>${fa((data.products||[]).filter(verifiedBounds).length)} از ${fa(data.products?.length||0)}</strong><span>مدل دارای اندازه‌گیری معتبر Bounding Box</span></div><p class="form-help">مدل‌های بدون گزارش هنوز تأیید نشده‌اند؛ ابعاد دیتابیس به‌جای هندسه نمایش داده نمی‌شود.</p></section>`;
 }
 function render(){
  section=titleMap[location.hash.slice(1)]?location.hash.slice(1):'overview';
@@ -48,8 +79,9 @@ function render(){
   html+='<section class="section-card"><header><h3>حساب‌های شرکت‌ها</h3></header>'+table(['شرکت / شعبه','نقش','وضعیت',''],rows('company_memberships').map(m=>[`${esc(company(m.company_id))}<small>${esc(branch(m.branch_id))}</small>`,esc(labels[m.role]),status(m.status),action('member-status',m.id,m.status==='active'?'تعلیق دسترسی':'فعال‌کردن')]))+'</section>';
   html+='<section class="section-card"><header><h3>دستگاه‌های نمایشگاه</h3></header>'+table(['دستگاه','شعبه','آخرین اتصال','وضعیت',''],rows('branch_devices',false).filter(d=>!selectedCompany||find('branches',d.branch_id)?.company_id===selectedCompany).map(d=>[esc(d.device_label),esc(branch(d.branch_id)),date(d.last_seen_at),status(d.revoked_at?'cancelled':'active'),!d.revoked_at?action('device.revoke',d.id,'لغو دستگاه',true):'—']))+'</section>';
  }
- if(section==='products')html=`<p class="form-help" style="margin-bottom:16px">مدل‌های کتابخانه مستقل‌اند؛ برای نمایش در شرکت، آن‌ها را به یک ست منتشرشده اضافه کن.</p>`+table(['محصول','ابعاد، سانتی‌متر','دسته','وضعیت',''],rows('products',false).sort((a,b)=>a.catalog_index-b.catalog_index).map(p=>{const thumb=p.preview_url||p.thumbnail_path?.startsWith('assets/')?p.preview_url||p.thumbnail_path:'';return [`<div class="product-name">${thumb?`<img class="thumb" src="${esc(thumb)}" alt="" loading="lazy">`:'<span class="product-placeholder">◈</span>'}<div><strong>${esc(p.name)}</strong><small dir="ltr">${esc(p.slug)}</small></div></div>`,p.size_m.map(x=>fa(Math.round(x*10000)/100)).join(' × '),esc(categoryLabels[p.metadata?.category||builtInCategory(p.catalog_index)]||'محصول پایه'),status(p.active?'active':'archived'),action('edit-product',p.id,'ویرایش')];}));
- if(section==='sets')html=table(['ست','شرکت','محصول / چیدمان / رنگ‌بندی','وضعیت',''],rows('sets').map(s=>[`<strong>${esc(s.name)}</strong><small>${esc(s.description)}</small>`,esc(company(s.company_id)),[data.set_products.filter(x=>x.set_id===s.id).length,data.layouts.filter(x=>x.set_id===s.id&&x.status!=='archived').length,data.colorways.filter(x=>x.set_id===s.id&&x.status!=='archived').length].map(fa).join(' / '),status(s.status),action('edit-set',s.id,'ویرایش ترکیب')]));
+ if(section==='products')html=`<p class="form-help" style="margin-bottom:16px">Bounding Box واقعی از مش GLB محاسبه می‌شود و با اندازه ثبت‌شده جداست. مدل‌های متعلق به شرکت‌ها به کتابخانه عمومی منتقل نمی‌شوند.</p>`+table(['محصول','Bounding Box مدل','اندازه ثبت‌شده','دسته','وضعیت',''],rows('products',false).sort((a,b)=>a.catalog_index-b.catalog_index).map(p=>{const thumb=p.preview_url||(p.thumbnail_path?.startsWith('assets/')?p.thumbnail_path:'');return [`<div class="product-name">${thumb?`<img class="thumb" src="${esc(thumb)}" alt="" loading="lazy">`:'<span class="product-placeholder">◈</span>'}<div><strong>${esc(p.name)}</strong><small dir="ltr">${esc(p.product_code||p.slug)}</small></div></div>`,bboxCell(p),registeredSize(p),esc(categoryLabels[p.metadata?.category||builtInCategory(p.catalog_index)]||'محصول پایه'),status(p.active?'active':'archived'),action('inspect-product',p.id,'بررسی GLB')+action('edit-product',p.id,'ویرایش')+(canPublish(p)?action('publish-product',p.id,'تأیید و انتشار'):'')];}));
+ if(section==='production')html=production();
+  if(section==='sets')html=table(['ست','شرکت','محصول / چیدمان / رنگ‌بندی','وضعیت',''],rows('sets').map(s=>[`<strong>${esc(s.name)}</strong><small>${esc(s.description)}</small>`,esc(company(s.company_id)),[data.set_products.filter(x=>x.set_id===s.id).length,data.layouts.filter(x=>x.set_id===s.id&&x.status!=='archived').length,data.colorways.filter(x=>x.set_id===s.id&&x.status!=='archived').length].map(fa).join(' / '),status(s.status),action('edit-set',s.id,'ویرایش ترکیب')]));
  if(section==='subscriptions')html='<p class="form-help" style="margin-bottom:16px">اشتراک و تمدید را ثبت کن. پرداخت اینترنتی در این پنل فعال نیست.</p>'+table(['شرکت','پلن','شروع / پایان','وضعیت',''],rows('subscriptions').map(s=>[esc(company(s.company_id)),esc(s.plan_code),`${date(s.starts_at)}<small>${date(s.ends_at)}</small>`,status(s.status),action('edit-subscription',s.id,'ویرایش')]));
  if(section==='requests'){
   html='<section class="section-card"><header><h3>درخواست شرکت جدید</h3></header>'+table(['متقاضی','شرکت','راه ارتباطی','توضیح','وضعیت',''],rows('company_access_requests',false).map(r=>[esc(r.contact_name),esc(r.company_name),`${esc(r.phone)}<small dir="ltr">${esc(r.email)}</small>`,`<span title="${esc(r.message)}">${esc(r.message.slice(0,60))}</span>`,status(r.status),action('edit-access-request',r.id,'بررسی')]))+'</section>';
@@ -78,7 +110,7 @@ const statuses=(name,values,current)=>select(name,'وضعیت',values.map(s=>[s,
 const companyField=current=>select('company_id','شرکت',data.companies.map(c=>[c.id,c.name]),current||selectedCompany||data.companies[0]?.id);
 const standardForm=body=>`<form id="recordForm"><div class="form-grid">${body}</div><div class="form-actions"><button class="secondary" type="button" data-close>انصراف</button><button class="primary" type="submit">ذخیره تغییرات</button></div></form>`;
 function openEditor(kind,record=null){
- previewCleanup?.();previewCleanup=null;uploadState={};editing={kind,record};const c=record||{};let body='',title='';
+ previewCleanup?.();previewCleanup=null;previewBounds=null;uploadState={};editing={kind,record};const c=record||{};let body='',title='';
  if(kind==='company'){title=c.id?'ویرایش شرکت':'شرکت جدید';body=field('name','نام شرکت',c.name,'text','required maxlength="160"')+field('slug','شناسه انگلیسی',c.slug,'text','required dir="ltr" pattern="[a-z0-9][a-z0-9-]+"')+statuses('status',['pending','active','suspended'],c.status||'active')+field('max_layouts_per_set','سقف چیدمان برای هر ست',c.max_layouts_per_set||3,'number','min="1" max="50" required')+field('max_colorways_per_set','سقف رنگ‌بندی برای هر ست',c.max_colorways_per_set||5,'number','min="1" max="50" required');}
  if(kind==='branch'){title=c.id?'ویرایش شعبه':'شعبه جدید';body=companyField(c.company_id)+field('name','نام شعبه',c.name,'text','required maxlength="160"')+field('slug','شناسه انگلیسی شعبه',c.slug,'text','required dir="ltr"')+statuses('status',['active','suspended'],c.status||'active');}
  if(kind==='code'){title='صدور کد دسترسی';body=companyField()+select('role','نوع کد',[['company_admin','دعوت مدیر شرکت'],['branch','فعال‌سازی دستگاه شعبه']],'company_admin')+select('branch_id','شعبه',data.branches.filter(b=>b.company_id===(selectedCompany||data.companies[0]?.id)&&b.status==='active').map(b=>[b.id,b.name]),'')+field('days','اعتبار کد، روز',7,'number','min="1" max="30" required')+'<p class="form-help full">کد یک‌بارمصرف است. کد مصرف‌شده را نمی‌توان دوباره مشاهده کرد؛ برای دستگاه جدید کد تازه صادر کن.</p>';}
@@ -87,7 +119,10 @@ function openEditor(kind,record=null){
   title=c.id?'ویرایش محصول':'محصول جدید';const builtIn=c.id&&c.catalog_index<32;
   body=field('name','نام محصول',c.name,'text','required maxlength="160"')+field('slug','شناسه انگلیسی',c.slug,'text','required dir="ltr"')+select('category','دسته',CATEGORIES.map(id=>[id,categoryLabels[id]]),c.metadata?.category||builtInCategory(c.catalog_index))+select('active','وضعیت محصول',[['true','فعال'],['false','آرشیو']],String(c.active??true))+
   field('width','عرض، سانتی‌متر',(c.size_m?.[0]||1)*100,'number',`required min="0.5" max="2000" step="0.01" ${builtIn?'readonly':''}`)+field('height','ارتفاع، سانتی‌متر',(c.size_m?.[1]||1)*100,'number',`required min="0.5" max="2000" step="0.01" ${builtIn?'readonly':''}`)+field('depth','عمق، سانتی‌متر',(c.size_m?.[2]||1)*100,'number',`required min="0.5" max="2000" step="0.01" ${builtIn?'readonly':''}`)+
-  (builtIn?'<p class="form-help full">هندسه و ابعاد مدل‌های پایه حفظ می‌شوند. برای هندسه جدید، محصول جداگانه اضافه کن.</p>':'<label class="full">فایل مدل GLB، حداکثر ۳۲ مگابایت<input name="modelFile" type="file" accept=".glb" '+(!c.id?'required':'')+'></label><div id="modelPreview" class="file-preview full" hidden></div>')+
+  (builtIn?'<p class="form-help full">مدل‌های پایه بدون بازنویسی فایل اصلی ممیزی می‌شوند. برای اصلاح هندسه در خط تولید نسخه جایگزین ثبت کن.</p>':'<label class="full">فایل مدل GLB، حداکثر ۳۲ مگابایت<input name="modelFile" type="file" accept=".glb" '+(!c.id?'required':'')+'></label>')+
+  '<div class="full bbox-editor"><div><strong>Bounding Box واقعی GLB</strong><div id="modelBBoxStatus">'+bboxCell(c)+'</div><p class="form-help">ابعاد سفارش و دیتابیس با هندسه واقعی تفاوت دارند. مش کالیژن و صفحه سایه در اندازه‌گیری نیستند.</p></div>'+
+  (c.asset_path?'<button type="button" id="inspectExistingModel" class="secondary">اندازه‌گیری از فایل اصلی</button>':'')+
+  '<button type="button" id="useMeasuredBounds" class="secondary" disabled>انتقال ابعاد به فیلدها</button></div><div id="modelPreview" class="file-preview full" hidden></div>'+
   '<label class="full">تصویر محصول، حداکثر ۲ مگابایت<input name="imageFile" type="file" accept="image/png,image/jpeg,image/webp"></label>'+`<label class="full">یادداشت محصول<textarea name="notes" maxlength="1000" rows="2">${esc(c.metadata?.notes)}</textarea></label>`;
  }
  if(kind==='set'){title=c.id?'ویرایش و انتشار ست':'ست جدید';const selected=new Set(data.set_products.filter(p=>p.set_id===c.id).map(p=>p.product_id));body=companyField(c.company_id)+field('name','نام ست',c.name,'text','required maxlength="160"')+statuses('status',['draft','published','archived'],c.status||'draft')+`<label class="full">توضیحات<textarea name="description" maxlength="1000">${esc(c.description)}</textarea></label><div class="full"><h3>محصولات این ست</h3><p class="form-help">برای انتشار، دست‌کم یک محصول فعال انتخاب کن.</p><div class="product-picker">${data.products.map(p=>`<label><input type="checkbox" name="product_ids" value="${esc(p.id)}" ${selected.has(p.id)?'checked':''}>${esc(p.name)}${p.active?'':' (آرشیو)'}</label>`).join('')}</div></div>`;}
@@ -98,9 +133,43 @@ function openEditor(kind,record=null){
   const role=$('#recordForm [name=role]'),branchSelect=$('#recordForm [name=branch_id]'),companySelect=$('#recordForm [name=company_id]');
   const change=()=>{branchSelect.innerHTML=data.branches.filter(b=>b.company_id===companySelect.value&&b.status==='active').map(b=>`<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');branchSelect.disabled=role.value!=='branch';branchSelect.required=role.value==='branch';};companySelect.onchange=change;role.onchange=change;change();
  }
- $('#recordForm [name=modelFile]')?.addEventListener('change',async e=>{
-  try{const file=e.target.files[0];if(!file)return;validateGlb(await file.arrayBuffer());previewCleanup?.();const module=await import('./central-preview.js');$('#modelPreview').hidden=false;previewCleanup=await module.previewModel($('#modelPreview'),file);$('#editorStatus').textContent='مدل بارگذاری شد؛ ابعاد واقعی محصول را بررسی کن.';$('#editorStatus').classList.add('success');}catch(error){$('#editorStatus').textContent=error.message;$('#editorStatus').classList.remove('success');}
- });
+ if(kind==='product'){
+  const inspect=async(file,autoSet=false)=>{
+   validateGlb(await file.arrayBuffer());
+   const module=await import('./central-preview.js?v=0.20.0');
+   const host=$('#modelPreview');host.hidden=false;previewCleanup?.();
+   previewCleanup=await module.previewModel(host,file);
+   previewBounds=previewCleanup.bounds;
+   $('#modelBBoxStatus').innerHTML='<strong dir="ltr">'+previewBounds.size_m.map(cm).join(' × ')+'</strong><small> سانتی‌متر · از هندسه GLB؛ '+fa(previewBounds.excluded_helpers)+' آبجکت کمکی از اندازه‌گیری حذف شد</small>';
+   $('#useMeasuredBounds').disabled=false;
+   if(autoSet)$('#useMeasuredBounds').click();
+   $('#editorStatus').textContent='Bounding Box اندازه‌گیری شد؛ با ذخیره محصول، گزارش آن ثبت می‌شود.';
+   $('#editorStatus').classList.add('success');
+  };
+  $('#recordForm [name=modelFile]')?.addEventListener('change',async e=>{
+   const file=e.target.files[0];previewBounds=null;$('#useMeasuredBounds').disabled=true;
+   try{if(!file)return;await inspect(file,!c.id);}
+   catch(error){$('#editorStatus').textContent=error.message;$('#editorStatus').classList.remove('success');}
+  });
+  $('#useMeasuredBounds').onclick=()=>{
+   if(!previewBounds)return;
+   for(const [name,value] of [['width',previewBounds.size_m[0]],['height',previewBounds.size_m[1]],['depth',previewBounds.size_m[2]]]){
+    const input=$('#recordForm [name='+name+']');if(input&&!input.readOnly)input.value=(value*100).toFixed(2);
+   }
+  };
+  $('#inspectExistingModel')?.addEventListener('click',async e=>{
+   const button=e.currentTarget;button.disabled=true;
+   try{
+    const url=c.model_preview_url||(String(c.asset_path||'').startsWith('assets/chido/')?new URL(c.asset_path,import.meta.url).href:'');
+    if(!url)throw Error('لینک امن مدل فعلی موجود نیست؛ ابتدا اتصال به فایل خصوصی را بررسی کن.');
+    const response=await fetch(url,{cache:'no-store'});
+    if(!response.ok)throw Error('دریافت مدل اصلی انجام نشد.');
+    const bytes=await response.arrayBuffer();validateGlb(bytes);
+    await inspect(new File([bytes],'chido-model-inspection.glb',{type:'model/gltf-binary'}),false);
+   }catch(error){$('#editorStatus').textContent=error.message;$('#editorStatus').classList.remove('success');}
+   finally{button.disabled=false;}
+  });
+ }
 }
 async function upload(file,kind){
  if(!file?.size)return null;
@@ -118,7 +187,7 @@ async function saveForm(event){
   const fd=new FormData(form),values=Object.fromEntries(fd),c=editing.record||{};let action=editing.kind+'.save',record={...values,id:c.id||null};
   if(['branch','set','subscription'].includes(editing.kind)&&c.id)record.company_id=c.company_id;
   if(editing.kind==='code')action='code.issue';
-  if(editing.kind==='product'){record={...record,size_m:[values.width,values.height,values.depth].map(x=>Number(x)/100),active:values.active==='true',asset_path:await upload(fd.get('modelFile'),'models')||c.asset_path||'',thumbnail_path:await upload(fd.get('imageFile'),'images')||c.thumbnail_path||'',metadata:{category:values.category,notes:values.notes}};}
+  if(editing.kind==='product'){const newFile=fd.get('modelFile');if(newFile?.size&&!previewBounds)throw Error('ابتدا اندازه‌گیری GLB جدید را کامل کن.');const assetPath=await upload(newFile,'models')||c.asset_path||'';const bounds=previewBounds?{...previewBounds,source_asset_path:assetPath}:(c.metadata?.model_bounds?.source_asset_path===assetPath?c.metadata.model_bounds:null);record={...record,size_m:[values.width,values.height,values.depth].map(x=>Number(x)/100),active:values.active==='true',asset_path:assetPath,thumbnail_path:await upload(fd.get('imageFile'),'images')||c.thumbnail_path||'',metadata:{category:values.category,notes:values.notes,...(bounds?{model_bounds:bounds}:{})}};}
   if(editing.kind==='set')record.product_ids=fd.getAll('product_ids');
   if(editing.kind==='access-request')action='access.status';if(editing.kind==='layout-request')action='layout-request.status';
   record=validateWrite(action,record);const result=await writeCentral(action,record);await load();
@@ -126,7 +195,7 @@ async function saveForm(event){
   else{closeEditor();$('#workspaceStatus').textContent='تغییرات ذخیره شد.';$('#workspaceStatus').classList.add('success');}
  }catch(error){$('#editorStatus').textContent=error.message;}finally{button.disabled=false;$('#closeEditor').disabled=false;}
 }
-function closeEditor(){previewCleanup?.();previewCleanup=null;$('#editor').close();$('#editorBody').innerHTML='';uploadState={};editing=null;}
+function closeEditor(){previewCleanup?.();previewCleanup=null;previewBounds=null;$('#editor').close();$('#editorBody').innerHTML='';uploadState={};editing=null;}
 $('#closeEditor').onclick=closeEditor;$('#editor').addEventListener('cancel',event=>{if($('#closeEditor').disabled)event.preventDefault();else{previewCleanup?.();previewCleanup=null;}});
 $('#editor').addEventListener('submit',e=>{if(e.target.id==='recordForm')void saveForm(e);});
 $('#editor').addEventListener('click',async e=>{if(e.target.closest('[data-close]'))closeEditor();if(e.target.id==='copyCode'){try{await navigator.clipboard.writeText($('#issuedCode').textContent);$('#editorStatus').textContent='کد کپی شد.';$('#editorStatus').classList.add('success');}catch{$('#editorStatus').textContent='متن کد را انتخاب و کپی کن.';}}});
@@ -135,6 +204,17 @@ $('#content').addEventListener('click',async event=>{
  const b=event.target.closest('[data-action]');if(!b)return;const kind=b.dataset.action,id=b.dataset.id;
  const maps={'company':'companies','branch':'branches','product':'products','set':'sets','subscription':'subscriptions','access-request':'company_access_requests','layout-request':'layout_requests'};
  if(kind.startsWith('thread-')){openCompanyThread(kind.slice(7),id);return;}
+ if(kind==='publish-product'){
+   const product=find('products',id);
+   if(!canPublish(product)){alert('ابتدا فایل GLB را ممیزی و ابعاد واقعی را ثبت کن.');return;}
+   if(!confirm('مدل بازبینی‌شده منتشر شود؟ پس از انتشار در کتابخانه عمومی چیدو قابل استفاده خواهد بود.'))return;
+   b.disabled=true;
+   try{await writeCentral('product.publish',{id});await load();$('#workspaceStatus').textContent='نسخه تأییدشده مدل منتشر شد.';$('#workspaceStatus').classList.add('success');}
+   catch(error){$('#workspaceStatus').textContent=error.message;$('#workspaceStatus').classList.remove('success');}
+   finally{b.disabled=false;}
+   return;
+  }
+  if(kind==='inspect-product'){openEditor('product',find('products',id));$('#inspectExistingModel')?.click();return;}
  if(kind.startsWith('edit-')){const entity=kind.slice(5);openEditor(entity,find(maps[entity],id));return;}
  let actionName=kind,values={id};
  if(kind==='member-status'){actionName='member.status';values.status=find('company_memberships',id).status==='active'?'suspended':'active';}

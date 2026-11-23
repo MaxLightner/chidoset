@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {validateWrite,validateGlb} from '../central-domain.mjs';
+import {readFileSync} from 'node:fs';
+import {validateWrite,validateGlb,validateModelBounds} from '../central-domain.mjs';
 import {registerCloudProducts,getCloudProduct} from '../cloud-product-registry.js';
 import {assetMetadata} from '../asset-metadata.js';
 import {Studio} from '../studio.js';
@@ -35,4 +36,26 @@ test('uploaded models accept only scoped storage URLs and retain newer signed as
  assert.equal(fake.created.position.y,.5);assert.equal(fake.created.index,32);
  const scene={items:[{index:32,position:[0,.5,0],rotation:0}],spatial:{}};
  assert.equal(unpackProject(packProject({scene})).scene.items[0].index,32);
+});
+
+test('verified GLB bounds are persisted and tied to the exact model asset path',()=>{
+ const path='assets/chido/mock.glb';
+ const box={source:'glb_geometry_v1',unit:'m',source_asset_path:path,
+  size_m:[2.3,.9,.95],min_m:[-1.15,0,-.475],max_m:[1.15,.9,.475],mesh_count:3,excluded_helpers:2};
+ const input={name:'Verified Sofa',slug:'verified-sofa',active:true,size_m:[2.3,.9,.95],asset_path:path,
+  metadata:{category:'seating',notes:'',model_bounds:{...box,role:'platform_admin'}}};
+ const output=validateWrite('product.save',input);
+ assert.deepEqual(output.metadata.model_bounds,box,'extra untrusted metadata must be stripped');
+ assert.equal(validateModelBounds(null,path),null);
+ assert.throws(()=>validateWrite('product.save',{...input,asset_path:'assets/chido/other.glb'}),/Bounding Box/);
+ assert.throws(()=>validateModelBounds({...box,size_m:[9,9,9]},path),/هندسه/);
+ assert.throws(()=>validateModelBounds({...box,mesh_count:0},path),/هندسه/);
+});
+test('production UI distinguishes measured GLB bounds from hand-entered dimensions',()=>{
+ const src=readFileSync(new URL('../central.js',import.meta.url),'utf8');
+ assert.match(src,/function verifiedBounds\(p\)/);
+ assert.match(src,/function production\(\)/);
+ assert.match(src,/model_preview_url/);
+ assert.match(src,/inspectExistingModel/);
+ assert.match(src,/source_asset_path:assetPath/);
 });

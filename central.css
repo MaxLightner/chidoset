@@ -4,3 +4,20 @@
 @media(max-width:1100px){.workspace{grid-template-columns:195px minmax(0,1fr)}.sidebar{padding:25px 12px}.sidebar .wordmark{font-size:22px}.sidebar .wordmark span{display:none}main{padding:26px 22px}.topbar{padding:16px 22px}.split{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){.auth-shell{grid-template-columns:1fr}.auth-story{margin:12px;padding:25px;gap:25px;min-height:250px}.auth-story h1{font-size:30px}.auth-story p{font-size:13px;margin:12px 0}.auth-story .story-route{display:none}.auth-story>a:last-child{display:none}.auth-form-wrap{margin:20px auto 40px}.workspace{display:block}.sidebar{position:relative;height:auto;padding:16px}.sidebar .wordmark{font-size:23px}.sidebar .wordmark span{display:block}.sidebar-label{display:none}.sidebar nav{flex-direction:row;overflow:auto;gap:5px;margin-top:18px;padding-bottom:3px}.nav-item{flex:none;font-size:12px;padding:8px 12px}.nav-item svg{display:none}.sidebar-footer{display:flex;flex-direction:row;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:0}.sidebar-footer a,.sidebar-footer button{padding:3px 8px;min-height:40px}.topbar{padding:12px 16px;gap:8px;font-size:10px;min-height:62px}.topbar #adminEmail{max-width:135px}.topbar .quiet{font-size:11px;padding:7px 9px}main{padding:22px 16px}.page-heading{align-items:flex-start;gap:12px}h1{font-size:25px}.page-heading>.primary{padding:9px 12px;font-size:12px}.filters{gap:10px;flex-wrap:wrap}.filters label{min-width:0;flex:1}.filters .search{flex-basis:100%;max-width:none}.kpis{gap:10px}.kpi{padding:14px}.kpi strong{font-size:25px}.section-card{padding:17px}.work-footer{padding:14px 16px;gap:12px;flex-wrap:wrap}.form-grid{grid-template-columns:1fr}.form-grid .full{grid-column:auto}.product-picker{grid-template-columns:1fr}dialog{padding:18px}.code-value{font-size:12px}.chart{gap:6px}.chart-column span{font-size:9px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+
+/* Production model inspection and Bounding Box */
+.production-stages{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+.production-stages>div{border:1px solid var(--line);background:var(--soft);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.production-stages strong{font-size:21px;color:var(--ink)}
+.production-stages span{font-size:11px;color:var(--muted)}
+.bbox-overview{display:flex;align-items:center;gap:16px;padding:14px;background:var(--soft);border-radius:10px;margin-bottom:8px}
+.bbox-overview strong{font-size:22px}
+.bbox-unverified{font-size:12px;color:#946934}
+.bbox-editor{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}
+.bbox-editor>div{flex:1 1 230px;min-width:0}
+.bbox-editor button{flex:0 1 auto}
+.bbox-editor #modelBBoxStatus{margin:6px 0}
+.bbox-editor #modelBBoxStatus small{font-size:11px;color:var(--muted);display:block}
+.model-bbox-summary{font-size:12px;padding:11px 13px;background:#e3eee7;border:1px solid var(--line);border-radius:9px;margin-top:10px;direction:rtl}
+@media(max-width:1100px){.production-stages{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:630px){.production-stages{grid-template-columns:repeat(2,minmax(0,1fr))}.bbox-editor{align-items:stretch}.bbox-editor button{width:100%}}
