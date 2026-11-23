@@ -86,8 +86,11 @@ async function write(req:Request,user:any){
   try{validateGlb(await blob.arrayBuffer());}catch(error){return respond({error:error.message},400);}
  }
  if(body.action==='product.save'){
-  const existing=data.id?checked(await admin.from('products').select('catalog_index').eq('id',data.id).maybeSingle()):null;
-  if((!data.id||existing?.catalog_index>=32)&&!data.asset_path?.startsWith('storage://chido-assets/models/'))return respond({error:'برای محصول جدید یک فایل GLB بارگذاری کن.'},400);
+  const existing=data.id?checked(await admin.from('products').select('catalog_index,asset_path').eq('id',data.id).maybeSingle()):null;
+  // Keep old demo GLBs inspectable and their measured metadata editable in place.
+  const isNewStorage=data.asset_path?.startsWith('storage://chido-assets/models/');
+  const unchanged=!!existing&&existing.asset_path===data.asset_path;
+  if((!data.id||existing?.catalog_index>=32)&&!isNewStorage&&!unchanged)return respond({error:'برای مدل جدید یک فایل GLB بارگذاری کن.'},400);
  }
  const result=await admin.rpc('chido_admin_write',{p_actor:user.id,p_action:body.action,p_data:data});
  if(result.error){console.error('admin write rejected',body.action,result.error.code);const message=result.error.code==='23505'?'این شناسه قبلاً ثبت شده است.':result.error.code==='42501'?'اجازه این عملیات را نداری.':'ذخیره انجام نشد؛ وضعیت رکورد و فیلدها را بررسی کن.';return respond({error:message},400);}
