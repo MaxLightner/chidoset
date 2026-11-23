@@ -2,9 +2,9 @@
 // Collider meshes, selection proxies and baked shadow planes are not furniture.
 import * as THREE from './vendor/three.module.js';
 
-const collisionName=/(^|[_\\s.\\-])(collision|collider|colmesh|coll)([_\\s.\\-]|$)/i;
-const shadowName=/(^|[_\\s.\\-])(shadow|contactshadow|bakedshadow)([_\\s.\\-]|$)/i;
-const round=value=>Math.round(value*100000)/100000;
+const collisionName=/(^|[_\s.\-])(collision|collider|colmesh|coll)([_\s.\-]|$)/i;
+const shadowName=/(^|[_\s.\-])(shadow|contactshadow|bakedshadow)([_\s.\-]|$)/i;
+const round=value=>{const n=Math.round(value*100000)/100000;return Object.is(n,-0)?0:n;};
 
 export function isModelHelper(node,root){
  for(let part=node;part;part=part.parent){
