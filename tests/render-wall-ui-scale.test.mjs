@@ -20,8 +20,8 @@ test('main imported 3-seater becomes exactly 2.3 m wide; all furniture dimension
 
 test('studio preserves Blender dimensions for cloud GLBs and scales only legacy demo furniture',()=>{
  const studio=read('studio.js');
- assert.match(studio,/const product=\{\.\.\.baseProduct,size:sizeForAsset\(sourceSize,\{cloud:!!cloud\}\)\}/);
- assert.match(studio,/mesh\.scale\.multiplyScalar\(cloud\?1:FURNITURE_SIZE_FACTOR\)/);
+ assert.match(studio,/const product=\{\.\.\.baseProduct,size:sizeForAsset\(sourceSize,\{cloud:authoredCloud\}\)\}/);
+ assert.match(studio,/mesh\.scale\.multiplyScalar\(authoredCloud\?1:FURNITURE_SIZE_FACTOR\)/);
  assert.match(studio,/authoredCollisionSize\?\.map\(v=>v\*mesh\.scale\.x\)/);
  assert.match(studio,/furnitureScaleFactor:FURNITURE_SIZE_FACTOR/);
  assert.match(studio,/sourceSizeForAsset\(x\.size/);
