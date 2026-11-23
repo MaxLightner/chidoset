@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {FURNITURE_SIZE_FACTOR,sizeForAsset,sourceSizeForAsset} from '../furniture-scale.js';
+import {registerCloudProducts,getCloudProduct} from '../cloud-product-registry.js';
 
 const near=(actual,expected)=>assert.ok(Math.abs(actual-expected)<1e-10,`${actual} differs from ${expected}`);
 const source=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
@@ -27,4 +28,13 @@ test('cloud loader and studio do not scale authored GLBs',()=>{
  assert.match(studio,/mesh\.scale\.multiplyScalar\(authoredCloud\?1:FURNITURE_SIZE_FACTOR\)/);
  assert.match(studio,/cloudAssetSizeContract:'authored-v1'/);
  assert.match(studio,/legacyCloud:state\.cloudAssetSizeContract!=='authored-v1'/);
+});
+
+test('new private Storage GLBs are recognized as 1:1 authored assets even before live_glb_path is assigned',()=>{
+ const item={catalog_index:930,name:'Production model',size_m:[1.8,.9,.9],asset_path:'storage://chido-assets/models/example.glb',
+ asset_url:'https://zeeztpblibcqtxompvxa.supabase.co/storage/v1/object/sign/chido-assets/models/example.glb?token=test',metadata:{category:'seating'}};
+ registerCloudProducts([item]);
+ assert.equal(getCloudProduct(930).authoredScale,true);
+ const source=readFileSync(new URL('../chido-cloud.js',import.meta.url),'utf8');
+ assert.match(source,/row\.live_glb_path\|\|String\(row\.asset_path/);
 });
