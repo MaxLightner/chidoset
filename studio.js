@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three.module.js';
-import {FURNITURE_SIZE_FACTOR,scaledFurnitureSize,sourceFurnitureSize} from './furniture-scale.js?v=0.18.7';
+import {FURNITURE_SIZE_FACTOR,scaledFurnitureSize,sizeForAsset,sourceSizeForAsset} from './furniture-scale.js?v=0.18.7';
 import {copyMaterialStyles,applyRoleMaterial,applyMaterialSlot,disposeRoleMaterials} from './material-roles.js?v=0.19.0';
 import {getCloudProduct,getCloudProductInfo,registerCloudProducts,cloudProductList} from './cloud-product-registry.js';
 import {ArchitectureLayer} from './architecture.js?v=0.18.20';
@@ -275,12 +275,12 @@ void main(){
   if(!cloud&&!sheenChair)index=((index%CATALOG.length)+CATALOG.length)%CATALOG.length;
   const baseProduct=cloud?{name:cloud.name,size:cloud.size_m,price:0}:sheenChair?SHEEN_CHAIR_SAMPLE:{...CATALOG[index],name:getCloudProductInfo(index)?.name||CATALOG[index].name};
   const sourceSize=options.size||baseProduct.size;
-  const product={...baseProduct,size:scaledFurnitureSize(sourceSize)},id=++this.serial,[w,h,d]=product.size;
+  const product={...baseProduct,size:sizeForAsset(sourceSize,{cloud:!!cloud})},id=++this.serial,[w,h,d]=product.size;
   const color=palette[index]||'#c6b7a3';
   const mesh=isImportedModel(index)?createImportedModel(index,sourceSize,options.fabric||'dark'):index<4?createFurniture(index,sourceSize,color,options.seats):createDecor(index,sourceSize,color);
   // Geometry and imported GLB metadata start at nominal sizes; apply the SAME
   // factor to every object, including collision outlines, without touching room.
-  mesh.scale.multiplyScalar(FURNITURE_SIZE_FACTOR);
+  mesh.scale.multiplyScalar(cloud?1:FURNITURE_SIZE_FACTOR);
   const edges=new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry),new THREE.LineBasicMaterial({color:0x9f927f,transparent:true,opacity:.15,depthWrite:false}));mesh.add(edges);
   // Do not build furniture dimension sprites: the 3D and tracked AR rooms remain visually clean.
   const label=null;
@@ -396,7 +396,7 @@ void main(){
    if(!spot){this.onHint?.('فضای کافی برای کپی کنار مبلمان نیست.');return null;}
    p.x=spot.x;p.z=spot.z;
   }
-  const copy=this.add(source.userData.index,p,{size:sourceFurnitureSize(source.userData.product.size,FURNITURE_SIZE_FACTOR),seats:source.userData.seats,fabric:source.userData.fabric,materialStyles:source.userData.materialStyles,materialSlotStyles:source.userData.materialSlotStyles});
+  const copy=this.add(source.userData.index,p,{size:sourceSizeForAsset(source.userData.product.size,{cloud:!!getCloudProduct(source.userData.index)}),seats:source.userData.seats,fabric:source.userData.fabric,materialStyles:source.userData.materialStyles,materialSlotStyles:source.userData.materialSlotStyles});
   copy.rotation.y=source.rotation.y;copy.material.color.copy(source.material.color);if(source.userData.tint)this.tintItem(copy,source.userData.tint);
   if(source.userData.rugStyle)applyRugStyle(copy,source.userData.rugStyle);
   copy.userData.capacity=source.userData.capacity;copy.userData.tableId=source.userData.tableId;
@@ -408,7 +408,7 @@ void main(){
  replaceSelected(index,options={}){
   const old=this.selected;if(!old)return null;
   const p=old.position.clone(),id=old.userData.id,angle=old.rotation.y,color=old.material.color.clone();
-  const nextSize=scaledFurnitureSize(options.size||getCloudProduct(index)?.size_m||(index===1000?SHEEN_CHAIR_SAMPLE.size:CATALOG[index].size));
+  const nextSize=sizeForAsset(options.size||getCloudProduct(index)?.size_m||(index===1000?SHEEN_CHAIR_SAMPLE.size:CATALOG[index].size),{cloud:!!getCloudProduct(index)});
   if(isFloorSolid(index)){
    const ignored=this.items.filter(m=>old.userData.index===10&&m.userData.tableId===id);
    const blocked=this.collisionObstacles(old,ignored).some(other=>footprintsOverlap(footprint(nextSize,p.x,p.z,angle),other));
@@ -598,13 +598,13 @@ void main(){
  resetCalibration(){this.model.resetCalibration();this.measureTool.setCorrection(this.model.correction);this.syncSpatial();this.changed();}
  setHeight(){throw Error('ارتفاع کف فقط از شناسایی واقعی تعیین می‌شود.');}
  measurement(){return {measuredCm:this.model.length*100,correctedCm:this.model.length/this.model.correction*100,scale:this.model.correction,actualCm:this.model.actualLength===null?null:this.model.actualLength*100,heightCm:this.model.heightOffset*100};}
- exportState(){return {furnitureScaleFactor:FURNITURE_SIZE_FACTOR,roomPlan:this.roomPlan?structuredClone(this.roomPlan):null,cloudProducts:cloudProductList().filter(p=>this.items.some(m=>m.userData.index===p.catalog_index)),spatial:this.model.snapshot(),whiteFloor:!!this.whiteFloor?.visible,architecture:this.architecture?.snapshot()||{floor:[],walls:[],windows:[]},items:this.items.map(m=>({index:m.userData.index,id:m.userData.id,
+ exportState(){return {furnitureScaleFactor:FURNITURE_SIZE_FACTOR,cloudAssetSizeContract:'authored-v1',roomPlan:this.roomPlan?structuredClone(this.roomPlan):null,cloudProducts:cloudProductList().filter(p=>this.items.some(m=>m.userData.index===p.catalog_index)),spatial:this.model.snapshot(),whiteFloor:!!this.whiteFloor?.visible,architecture:this.architecture?.snapshot()||{floor:[],walls:[],windows:[]},items:this.items.map(m=>({index:m.userData.index,id:m.userData.id,
  position:m.position.toArray(),rotation:m.rotation.y,color:'#'+m.material.color.getHexString(),tint:m.userData.tint||null,
  attachment:m.userData.attachment||null,size:[...m.userData.product.size],capacity:m.userData.capacity||null,
  seats:m.userData.seats||null,tableId:m.userData.tableId||null,hidden:!!m.userData.hidden,
  rugStyle:m.userData.rugStyle||null,artImage:m.userData.artImage||null,lampOn:!!m.userData.lampOn,
  cushionPreset:m.userData.cushionPreset||'none',fabric:m.userData.fabric||null,materialStyles:copyMaterialStyles(m.userData.materialStyles),materialSlotStyles:structuredClone(m.userData.materialSlotStyles||{})}))};}
- restoreState(state){registerCloudProducts(state.cloudProducts);this.model.restore(state.spatial);this.roomPlan=normalizeRoomPlan(state.roomPlan)||null;this.effects?.setRoomSun(this.roomPlan,this.root);this.roomPendingPlacement=!!this.roomPlan;this.architecture?.restore(state.architecture||{floor:[],walls:[],windows:[]});if(this.whiteFloor)this.whiteFloor.visible=!!state.whiteFloor&&!this.architecture?.data.floor.length;for(const x of state.items){const mesh=this.add(x.index,x.position?new THREE.Vector3(...x.position):undefined,{size:[22,23,24].includes(x.index)?undefined:sourceFurnitureSize(x.size||CATALOG[x.index]?.size||[1,1,1],state.furnitureScaleFactor||1),seats:x.seats,silentSelect:true,cushionPreset:x.cushionPreset,lampOn:x.lampOn,fabric:x.fabric,materialStyles:x.materialStyles,materialSlotStyles:x.materialSlotStyles});mesh.userData.id=x.id;mesh.position.fromArray(x.position);if(!isWallArt(x.index)&&isFloorSolid(x.index))mesh.position.y=mesh.userData.height/2;mesh.rotation.y=x.rotation;mesh.material.color.set(x.color);if(x.tint)this.tintItem(mesh,x.tint);mesh.userData.attachment=x.attachment||null;mesh.userData.capacity=x.capacity||null;mesh.userData.seats=x.seats||mesh.userData.seats;mesh.userData.tableId=x.tableId||null;mesh.userData.hidden=!!x.hidden;mesh.visible=!x.hidden;if(x.rugStyle)applyRugStyle(mesh,x.rugStyle);if(x.artImage)this.setWallArtImage(x.artImage,mesh);if(isLamp(mesh.userData.index))this.initializeLamp(mesh,x.lampOn===true);}this.serial=Math.max(0,...state.items.map(x=>x.id));this.measureTool.setCorrection(this.model.correction);this.refreshAttachments();this.syncSpatial();this.select(this.items[0]||null);}
+ restoreState(state){registerCloudProducts(state.cloudProducts);this.model.restore(state.spatial);this.roomPlan=normalizeRoomPlan(state.roomPlan)||null;this.effects?.setRoomSun(this.roomPlan,this.root);this.roomPendingPlacement=!!this.roomPlan;this.architecture?.restore(state.architecture||{floor:[],walls:[],windows:[]});if(this.whiteFloor)this.whiteFloor.visible=!!state.whiteFloor&&!this.architecture?.data.floor.length;for(const x of state.items){const mesh=this.add(x.index,x.position?new THREE.Vector3(...x.position):undefined,{size:[22,23,24].includes(x.index)?undefined:sourceSizeForAsset(x.size||getCloudProduct(x.index)?.size_m||CATALOG[x.index]?.size||[1,1,1],{cloud:!!getCloudProduct(x.index),legacyCloud:state.cloudAssetSizeContract!=='authored-v1',storedScale:state.furnitureScaleFactor||1}),seats:x.seats,silentSelect:true,cushionPreset:x.cushionPreset,lampOn:x.lampOn,fabric:x.fabric,materialStyles:x.materialStyles,materialSlotStyles:x.materialSlotStyles});mesh.userData.id=x.id;mesh.position.fromArray(x.position);if(!isWallArt(x.index)&&isFloorSolid(x.index))mesh.position.y=mesh.userData.height/2;mesh.rotation.y=x.rotation;mesh.material.color.set(x.color);if(x.tint)this.tintItem(mesh,x.tint);mesh.userData.attachment=x.attachment||null;mesh.userData.capacity=x.capacity||null;mesh.userData.seats=x.seats||mesh.userData.seats;mesh.userData.tableId=x.tableId||null;mesh.userData.hidden=!!x.hidden;mesh.visible=!x.hidden;if(x.rugStyle)applyRugStyle(mesh,x.rugStyle);if(x.artImage)this.setWallArtImage(x.artImage,mesh);if(isLamp(mesh.userData.index))this.initializeLamp(mesh,x.lampOn===true);}this.serial=Math.max(0,...state.items.map(x=>x.id));this.measureTool.setCorrection(this.model.correction);this.refreshAttachments();this.syncSpatial();this.select(this.items[0]||null);}
  attachInput(target,opts){target.addEventListener('pointerdown',e=>this.down(e,target),opts);target.addEventListener('pointermove',e=>this.drag(e,target),opts);target.addEventListener('pointerup',e=>this.up(e,target),opts);target.addEventListener('pointercancel',()=>this.cancelGesture(),opts);target.addEventListener('lostpointercapture',e=>{if(this.points.has(e.pointerId))this.up(e,target);},opts);}
 
  exportLiveState(){
@@ -636,7 +636,7 @@ void main(){
    let mesh=current.get(item.id);
    if(!mesh){
     try{
-     mesh=this.add(item.index,new THREE.Vector3(...item.position),{size:[22,23,24].includes(item.index)?undefined:sourceFurnitureSize(item.size||CATALOG[item.index]?.size||[1,1,1],state.furnitureScaleFactor||1),seats:item.seats,silentSelect:true,cushionPreset:item.cushionPreset,lampOn:item.lampOn,fabric:item.fabric,materialStyles:item.materialStyles});
+     mesh=this.add(item.index,new THREE.Vector3(...item.position),{size:[22,23,24].includes(item.index)?undefined:sourceSizeForAsset(item.size||getCloudProduct(item.index)?.size_m||CATALOG[item.index]?.size||[1,1,1],{cloud:!!getCloudProduct(item.index),legacyCloud:state.cloudAssetSizeContract!=='authored-v1',storedScale:state.furnitureScaleFactor||1}),seats:item.seats,silentSelect:true,cushionPreset:item.cushionPreset,lampOn:item.lampOn,fabric:item.fabric,materialStyles:item.materialStyles});
     }catch(error){this.onHint?.(error.message||'مدل جدید در دسترس نیست.');continue;}
     mesh.userData.id=item.id;
     current.set(item.id,mesh);
